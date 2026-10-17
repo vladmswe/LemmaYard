@@ -1,0 +1,22 @@
+import type { ReactNode } from "react";
+
+import { SiteHeader } from "@/components/site-header";
+
+/**
+ * Full-height workspace (problem page, M3): compact masthead, no footer.
+ * Content fills the viewport below the 52px header + 3px rule and scrolls
+ * inside its own panes (DESIGN.md §6.4). No routes live here yet.
+ */
+export default function WorkspaceLayout({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <SiteHeader compact />
+      <main
+        id="main"
+        className="flex h-[calc(100dvh-55px)] min-h-0 flex-col overflow-hidden bg-surface-sunken"
+      >
+        {children}
+      </main>
+    </>
+  );
+}

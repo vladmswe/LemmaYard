@@ -1,9 +1,12 @@
 "use client";
 
+import { CircleAlertIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Field, FieldError, FieldHelp } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PASSWORD_MIN, type AuthErrorBody } from "@/lib/auth/schemas";
@@ -37,7 +40,7 @@ const FIELDS: Record<Mode, FieldConfig[]> = {
       label: "Username",
       type: "text",
       autoComplete: "username",
-      hint: "3-20 characters: lowercase letters, digits or underscore.",
+      hint: "3–20 characters: lowercase letters, digits or underscore.",
     },
     {
       name: "password",
@@ -47,6 +50,11 @@ const FIELDS: Record<Mode, FieldConfig[]> = {
       hint: `At least ${PASSWORD_MIN} characters.`,
     },
   ],
+};
+
+const SUBMIT_LABEL: Record<Mode, { idle: string; pending: string }> = {
+  login: { idle: "Log in", pending: "Logging in…" },
+  register: { idle: "Create account", pending: "Creating account…" },
 };
 
 export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
@@ -93,20 +101,19 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
       {formError && (
-        <p
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-        >
-          {formError}
-        </p>
+        <Alert variant="danger" role="alert" className="motion-safe:animate-enter-up">
+          <CircleAlertIcon aria-hidden />
+          <AlertTitle>{formError}</AlertTitle>
+        </Alert>
       )}
       <fieldset disabled={pending} className="flex flex-col gap-4">
         {FIELDS[mode].map((field) => {
           const id = `${mode}-${field.name}`;
           const error = fieldErrors[field.name];
+          // The error replaces the hint (they usually say the same thing).
           const describedBy = error ? `${id}-error` : field.hint ? `${id}-hint` : undefined;
           return (
-            <div key={field.name} className="flex flex-col gap-2">
+            <Field key={field.name}>
               <Label htmlFor={id}>{field.label}</Label>
               <Input
                 id={id}
@@ -118,27 +125,15 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
                 aria-describedby={describedBy}
               />
               {error ? (
-                <p id={`${id}-error`} className="text-sm text-destructive">
-                  {error}
-                </p>
+                <FieldError id={`${id}-error`}>{error}</FieldError>
               ) : (
-                field.hint && (
-                  <p id={`${id}-hint`} className="text-sm text-muted-foreground">
-                    {field.hint}
-                  </p>
-                )
+                field.hint && <FieldHelp id={`${id}-hint`}>{field.hint}</FieldHelp>
               )}
-            </div>
+            </Field>
           );
         })}
-        <Button type="submit" className="mt-2 w-full" aria-busy={pending}>
-          {pending
-            ? mode === "login"
-              ? "Logging in..."
-              : "Creating account..."
-            : mode === "login"
-              ? "Log in"
-              : "Create account"}
+        <Button type="submit" className="mt-2 w-full" loading={pending}>
+          {pending ? SUBMIT_LABEL[mode].pending : SUBMIT_LABEL[mode].idle}
         </Button>
       </fieldset>
     </form>

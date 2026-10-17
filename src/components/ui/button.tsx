@@ -1,35 +1,40 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
+import { LoaderCircleIcon } from "lucide-react"
 
-const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+// DESIGN.md §8.1. Focus = 2px ring outline; hover/press change colors
+// (120 ms) and press scales by 2% (transform only, off under reduced motion).
+const buttonVariantsRaw = cva(
+  "group/button relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap transition-[color,background-color,border-color,box-shadow,transform] duration-120 ease-out select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-safe:active:not-aria-[haspopup]:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:border-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+        default:
+          "bg-primary text-primary-foreground shadow-xs hover:bg-primary-hover active:bg-primary-active aria-expanded:bg-primary-hover",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "border-border-strong bg-card text-foreground shadow-xs hover:border-input hover:bg-accent active:bg-secondary aria-expanded:bg-accent",
+        // `outline` is kept as an alias of the bordered `secondary`.
+        outline:
+          "border-border-strong bg-card text-foreground shadow-xs hover:border-input hover:bg-accent active:bg-secondary aria-expanded:bg-accent",
+        soft: "bg-secondary text-secondary-foreground hover:bg-blue-200 dark:hover:bg-[#24385f]",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "font-medium text-foreground-secondary hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive-hover",
+        link: "h-auto! px-0! font-medium text-link underline-offset-4 hover:underline",
+        // For the navy masthead (both themes).
+        header:
+          "font-medium text-header-foreground hover:bg-white/10 aria-expanded:bg-white/10",
+        "header-solid":
+          "bg-white text-blue-800 hover:bg-blue-50 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary-hover",
       },
       size: {
-        default:
-          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        icon: "size-8",
-        "icon-xs":
-          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm":
-          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
-        "icon-lg": "size-9",
+        sm: "h-8 px-3 text-sm",
+        default: "h-10 px-4 text-[0.9375rem]",
+        lg: "h-12 px-[22px] text-base",
+        icon: "size-10",
+        "icon-sm": "size-8 after:absolute after:-inset-1",
       },
     },
     defaultVariants: {
@@ -39,18 +44,57 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * Class string for a button look (also for links: `className={buttonVariants()}`).
+ * Merged with `cn` so variant classes override the base (e.g. border color);
+ * raw cva output would leave both and CSS order would decide.
+ */
+function buttonVariants(
+  props?: VariantProps<typeof buttonVariantsRaw> & { className?: string }
+) {
+  const { className, ...variants } = props ?? {}
+  return cn(buttonVariantsRaw(variants), className)
+}
+
+type ButtonProps = ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariantsRaw> & {
+    /** Shows a spinner in place of the leading icon and disables the button. */
+    loading?: boolean
+  }
+
 function Button({
   className,
   variant = "default",
   size = "default",
+  loading = false,
+  disabled,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonProps) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      data-loading={loading || undefined}
+      aria-busy={loading || undefined}
+      disabled={disabled || loading}
+      className={(state) =>
+        cn(
+          buttonVariantsRaw({ variant, size }),
+          loading && "[&_svg:not([data-spinner])]:hidden",
+          typeof className === "function" ? className(state) : className
+        )
+      }
       {...props}
-    />
+    >
+      {loading && (
+        <LoaderCircleIcon
+          data-spinner
+          aria-hidden
+          className="animate-spin-slow"
+        />
+      )}
+      {children}
+    </ButtonPrimitive>
   )
 }
 

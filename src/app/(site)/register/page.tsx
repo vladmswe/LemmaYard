@@ -7,7 +7,7 @@ import { AuthForm } from "@/components/auth-form";
 import { DEFAULT_REDIRECT, safeRedirectPath } from "@/lib/safe-redirect";
 import { getCurrentUser } from "@/server/auth/session";
 
-export const metadata: Metadata = { title: "Register · leetcopy" };
+export const metadata: Metadata = { title: "Sign up · leetcopy" };
 
 export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
   const { next: rawNext } = await searchParams;
@@ -19,12 +19,12 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
 
   return (
     <AuthCard
-      title="Create an account"
-      description="Register to run and submit solutions."
+      title="Create your account"
+      description="Free. Track your progress as you go."
       footer={
         <p>
           Already have an account?{" "}
-          <Link href={loginHref} className="text-foreground underline underline-offset-4">
+          <Link href={loginHref} className="font-semibold text-link underline-offset-4 hover:underline">
             Log in
           </Link>
         </p>

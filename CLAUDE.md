@@ -32,7 +32,8 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
 
 ## Structure
 
-- `src/app` routes (App Router), `src/components` UI (`ui/` = shadcn/ui),
+- `src/app` routes (App Router; pages in `(site)/` = header + footer, the
+  full-height problem page in `(workspace)/`), `src/components` UI (`ui/` = shadcn/ui),
   `src/lib` shared code, `src/server` server-only code (`env.ts` = Zod env).
 - `drizzle/` migrations, `problems/<slug>/` problem files, `sandbox/` images
   and harnesses, `worker/` judge worker, `scripts/` CLI scripts,
@@ -57,6 +58,7 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
 
 ## Rules
 
+- UI must follow DESIGN.md (tokens, components, motion, accessibility).
 - DB schema changes only in M1. Later milestones must not change the schema.
 - User code runs only inside the Docker sandbox, always, including in tests.
 - Zod validation on every boundary (env, request bodies, problem files, worker
