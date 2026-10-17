@@ -1,0 +1,27 @@
+{
+  "kind": "class",
+  "entry": { "python": "DynamicArray", "javascript": "DynamicArray" },
+  "methods": {
+    "append": { "python": "append", "javascript": "append" },
+    "pop": { "python": "pop", "javascript": "pop" },
+    "get": { "python": "get", "javascript": "get" },
+    "snapshot": { "python": "snapshot", "javascript": "snapshot" }
+  },
+  "cases": [
+    {
+      "name": "default: five appends, three pops (grows to 8, shrinks to 4)",
+      "ops": [["append", 3], ["append", 8], ["append", 1], ["append", 9], ["append", 4], ["snapshot"], ["pop"], ["pop"], ["pop"], ["snapshot"]],
+      "expected": [null, null, null, null, null, [[3, 8, 1, 9, 4], 8], 4, 9, 1, [[3, 8], 4]]
+    },
+    {
+      "name": "17 appends end at capacity 32",
+      "ops": [["append", 1], ["append", 2], ["append", 3], ["append", 4], ["append", 5], ["append", 6], ["append", 7], ["append", 8], ["append", 9], ["append", 10], ["append", 11], ["append", 12], ["append", 13], ["append", 14], ["append", 15], ["append", 16], ["append", 17], ["snapshot"]],
+      "expected": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], 32]]
+    },
+    { "name": "get reads by index", "ops": [["append", 5], ["append", 6], ["get", 1]], "expected": [null, null, 6] },
+    { "name": "new array is empty", "ops": [["snapshot"]], "expected": [[[], 1]] },
+    { "name": "pop on empty raises", "ops": [["pop"]], "expected": [{ "$error": true }] },
+    { "name": "get past the size raises", "ops": [["append", 5], ["get", 1]], "expected": [null, { "$error": true }] },
+    { "name": "pop to empty keeps the starting capacity", "ops": [["append", 5], ["append", 6], ["pop"], ["pop"], ["snapshot"]], "expected": [null, null, 6, 5, [[], 1]] }
+  ]
+}
