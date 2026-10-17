@@ -10,6 +10,9 @@ import importlib.util
 import json
 import sys
 
+# Never leave __pycache__ next to the lesson files.
+sys.dont_write_bytecode = True
+
 
 def to_json(value):
     if isinstance(value, tuple):

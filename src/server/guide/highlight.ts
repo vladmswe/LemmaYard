@@ -8,11 +8,13 @@ import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
 import type { CodeLanguage, LineId } from "@/lib/guide/contracts";
 
+// The "-default" GitHub themes: plain github-light / github-dark miss 4.5:1
+// on our card backgrounds (keywords in light, comments in dark).
 let highlighter: Promise<HighlighterCore> | undefined;
 
 function getHighlighter(): Promise<HighlighterCore> {
   highlighter ??= createHighlighterCore({
-    themes: [import("shiki/themes/github-light.mjs"), import("shiki/themes/github-dark.mjs")],
+    themes: [import("shiki/themes/github-light-default.mjs"), import("shiki/themes/github-dark-default.mjs")],
     langs: [import("shiki/langs/python.mjs"), import("shiki/langs/javascript.mjs")],
     engine: createJavaScriptRegexEngine(),
   });
@@ -46,7 +48,7 @@ export async function highlightCode(
   const hl = await getHighlighter();
   return hl.codeToHtml(source, {
     lang: language,
-    themes: { light: "github-light", dark: "github-dark" },
+    themes: { light: "github-light-default", dark: "github-dark-default" },
     defaultColor: false,
     transformers: [lineAttributes(idsByLine)],
   });
