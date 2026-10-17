@@ -14,7 +14,7 @@ import {
   type ProblemMeta,
   type ProblemTest,
 } from "@/lib/problems/schema";
-import { findUnsafeIntegerLiterals, parseType, validateInput, validateValue } from "@/lib/types";
+import { findUnsafeNumberLiterals, parseType, validateInput, validateValue } from "@/lib/types";
 import type { Db } from "@/server/db";
 import { problems, problemTags, tags, testCases } from "@/server/db/schema";
 
@@ -55,18 +55,14 @@ function zodErrors(file: string, error: z.ZodError): string[] {
   });
 }
 
-/** Reads a JSON file; reports unsafe integer literals (before parsing) and bad JSON. */
+/** Reads a JSON file; reports unsafe number literals (before parsing) and bad JSON. */
 async function readJson(
   file: string,
   errors: string[],
 ): Promise<{ ok: true; value: unknown } | { ok: false }> {
   const text = await readFile(file, "utf8");
-  const unsafe = findUnsafeIntegerLiterals(text);
-  for (const u of unsafe) {
-    errors.push(
-      `${display(file)}:${u.line}:${u.column}: integer ${u.literal} is outside the range ±(2^53−1)`,
-    );
-  }
+  const unsafe = findUnsafeNumberLiterals(text);
+  for (const u of unsafe) errors.push(`${display(file)}:${u.line}:${u.column}: ${u.message}`);
   if (unsafe.length > 0) return { ok: false };
   try {
     return { ok: true, value: JSON.parse(text) };

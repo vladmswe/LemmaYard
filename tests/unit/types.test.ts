@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  findUnsafeIntegerLiterals,
+  findUnsafeNumberLiterals,
   formatType,
   parseType,
   validateInput,
@@ -101,17 +101,54 @@ describe("validateInput", () => {
   });
 });
 
-describe("findUnsafeIntegerLiterals", () => {
+describe("findUnsafeNumberLiterals", () => {
+  const literals = (text: string) => findUnsafeNumberLiterals(text).map((u) => u.literal);
+
   it("finds integer literals beyond ±(2^53−1) with their position", () => {
     const text = '{\n  "a": [9007199254740991, -9007199254740992],\n  "b": 123456789012345678901\n}';
-    expect(findUnsafeIntegerLiterals(text)).toEqual([
-      { literal: "-9007199254740992", line: 2, column: 27 },
-      { literal: "123456789012345678901", line: 3, column: 8 },
+    expect(findUnsafeNumberLiterals(text)).toEqual([
+      {
+        literal: "-9007199254740992",
+        line: 2,
+        column: 27,
+        message: "integer -9007199254740992 is outside the range ±(2^53−1)",
+      },
+      {
+        literal: "123456789012345678901",
+        line: 3,
+        column: 8,
+        message: "integer 123456789012345678901 is outside the range ±(2^53−1)",
+      },
     ]);
   });
 
-  it("ignores strings, fractions and exponents", () => {
-    const text = '{"s": "99999999999999999999", "k\\"99999999999999999999": 1.5, "e": 1e300, "f": 99999999999999999999.5}';
-    expect(findUnsafeIntegerLiterals(text)).toEqual([]);
+  it("flags fraction/exponent literals with |value| >= 2^52", () => {
+    const text = '[4503599627370496.5, -4503599627370497.0, 1e300, 99999999999999999999.5, 1e400, 4.6e15, 4.5e15]';
+    expect(literals(text)).toEqual([
+      "4503599627370496.5",
+      "-4503599627370497.0",
+      "1e300",
+      "99999999999999999999.5",
+      "1e400",
+      "4.6e15",
+    ]);
+    expect(findUnsafeNumberLiterals("[1e300]")[0].message).toMatch(
+      /^number 1e300 has a fraction or exponent and \|value\| ≥ 2\^52/,
+    );
+  });
+
+  it("flags non-integer literals that parse to an integer", () => {
+    expect(findUnsafeNumberLiterals("[0.99999999999999999999, 1e-400]")).toEqual([
+      expect.objectContaining({
+        literal: "0.99999999999999999999",
+        message: "number 0.99999999999999999999 is not an integer but parses as 1 (precision loss)",
+      }),
+      expect.objectContaining({ literal: "1e-400" }),
+    ]);
+  });
+
+  it("accepts safe values: strings, small fractions, exact integers like 1.0", () => {
+    const text = '{"s": "99999999999999999999", "k\\"99999999999999999999": 1.5, "a": 1.0, "b": 2.5e1, "c": -0.0, "d": 4503599627370495.5, "e": 1e-6, "f": 9007199254740991}';
+    expect(findUnsafeNumberLiterals(text)).toEqual([]);
   });
 });
