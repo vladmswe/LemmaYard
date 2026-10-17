@@ -1,0 +1,31 @@
+{
+  "number": 4,
+  "slug": "valid-anagram",
+  "title": "Valid Anagram",
+  "difficulty": "easy",
+  "tags": [
+    "string",
+    "hash-table"
+  ],
+  "signature": {
+    "name": "isAnagram",
+    "params": [
+      {
+        "name": "s",
+        "type": "string"
+      },
+      {
+        "name": "t",
+        "type": "string"
+      }
+    ],
+    "returns": "bool"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}
