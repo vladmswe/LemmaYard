@@ -1,8 +1,10 @@
-import { and, asc, count, countDistinct, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, notInArray, sql } from "drizzle-orm";
 
-import { getDb } from "@/server/db";
-import { logError } from "@/server/log";
+import { NOT_COUNTED_STATUSES, type UserStats } from "@/lib/progress";
+import { type Db, getDb } from "@/server/db";
 import { problems, problemTags, submissions, tags } from "@/server/db/schema";
+import { logError } from "@/server/log";
+import { getUserStats } from "@/server/progress";
 
 type Difficulty = (typeof problems.$inferSelect)["difficulty"];
 
@@ -17,14 +19,11 @@ export const FEATURED_SLUGS = [
   "trapping-rain-water",
 ] as const;
 
-/** Submit verdicts that count for acceptance (AC-M3-3: all but internal_error; pending excluded). */
-const NOT_COUNTED = ["internal_error", "queued", "running"] as const;
-
 export type CatalogStats = { total: number; byDifficulty: Record<Difficulty, number> };
 
 /** Published problem counts, total and by difficulty (one query). */
-export async function getCatalogStats(): Promise<CatalogStats> {
-  const rows = await getDb()
+export async function getCatalogStats(db: Db = getDb()): Promise<CatalogStats> {
+  const rows = await db
     .select({ difficulty: problems.difficulty, n: count() })
     .from(problems)
     .where(eq(problems.published, true))
@@ -81,7 +80,7 @@ export async function getFeaturedProblems(): Promise<FeaturedProblem[]> {
         and(
           inArray(submissions.problemId, ids),
           eq(submissions.kind, "submit"),
-          notInArray(submissions.status, [...NOT_COUNTED]),
+          notInArray(submissions.status, [...NOT_COUNTED_STATUSES]),
         ),
       )
       .groupBy(submissions.problemId),
@@ -100,57 +99,11 @@ export async function getFeaturedProblems(): Promise<FeaturedProblem[]> {
   });
 }
 
-export type UserProgress = {
-  solved: Record<Difficulty, number>;
-  solvedTotal: number;
-  submits: number;
-  /** Accepted / counted submits; null without counted submits. */
-  acceptance: number | null;
-};
-
-/** A user's real progress for the landing preview card (2 queries). */
-export async function getUserProgress(userId: string): Promise<UserProgress> {
-  const db = getDb();
-  const [solvedRows, [submitRow]] = await Promise.all([
-    db
-      .select({ difficulty: problems.difficulty, n: countDistinct(submissions.problemId) })
-      .from(submissions)
-      .innerJoin(problems, eq(problems.id, submissions.problemId))
-      .where(
-        and(
-          eq(submissions.userId, userId),
-          eq(submissions.kind, "submit"),
-          eq(submissions.status, "accepted"),
-          eq(problems.published, true),
-        ),
-      )
-      .groupBy(problems.difficulty),
-    db
-      .select({
-        total: count(),
-        accepted: sql<number>`count(*) filter (where ${submissions.status} = 'accepted')`.mapWith(
-          Number,
-        ),
-      })
-      .from(submissions)
-      .where(
-        and(
-          eq(submissions.userId, userId),
-          eq(submissions.kind, "submit"),
-          notInArray(submissions.status, [...NOT_COUNTED]),
-        ),
-      ),
-  ]);
-  const solved: Record<Difficulty, number> = { easy: 0, medium: 0, hard: 0 };
-  for (const row of solvedRows) solved[row.difficulty] = row.n;
-  const submits = submitRow?.total ?? 0;
-  return {
-    solved,
-    solvedTotal: solved.easy + solved.medium + solved.hard,
-    submits,
-    acceptance: submits > 0 ? (submitRow?.accepted ?? 0) / submits : null,
-  };
-}
+/**
+ * The signed-in user's numbers on the landing card: the profile's helper
+ * (`getUserStats`, src/server/progress.ts), so both pages always agree.
+ */
+export type UserProgress = Pick<UserStats, "solved" | "solvedTotal" | "submits" | "acceptance">;
 
 export type LandingData = {
   /** Null when the database is unavailable: the page then shows no numbers. */
@@ -169,7 +122,7 @@ export async function getLandingData(userId: string | null): Promise<LandingData
     const [stats, featured, progress] = await Promise.all([
       getCatalogStats(),
       getFeaturedProblems(),
-      userId ? getUserProgress(userId) : Promise.resolve(null),
+      userId ? getUserStats(userId) : Promise.resolve(null),
     ]);
     return { stats, featured, progress };
   } catch (error) {
