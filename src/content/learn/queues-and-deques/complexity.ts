@@ -8,8 +8,8 @@ export const tables: readonly ComplexityTableData[] = [
       {
         op: "enqueue",
         cells: [
-          { bound: "O(1)", q: "amortized", cond: "ring that doubles" },
-          { bound: "O(n)", q: "worst", cond: "when the ring grows" },
+          { bound: "O(1)", q: "amortized", cond: "ring" },
+          { bound: "O(n)", q: "worst", cond: "growing" },
         ],
         why: "One write at (head + size) % capacity; a full ring first copies its n values (8 moves for the 8-slot ring).",
       },
@@ -32,7 +32,7 @@ export const tables: readonly ComplexityTableData[] = [
         op: "deque push at either end",
         cells: [
           { bound: "O(1)", q: "amortized" },
-          { bound: "O(n)", q: "worst", cond: "when the ring grows" },
+          { bound: "O(n)", q: "worst", cond: "growing" },
         ],
         why: "pushFront steps head back with (head - 1 + capacity) % capacity; pushBack writes at the tail. Only a full ring copies.",
       },
@@ -45,7 +45,7 @@ export const tables: readonly ComplexityTableData[] = [
         op: "queue from two stacks, per op",
         cells: [
           { bound: "O(1)", q: "amortized" },
-          { bound: "O(n)", q: "worst", cond: "a dequeue that refills the outbox" },
+          { bound: "O(n)", q: "worst", cond: "refill" },
         ],
         why: "Each value moves from the inbox to the outbox at most once.",
       },

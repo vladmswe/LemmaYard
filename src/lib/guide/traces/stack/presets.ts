@@ -39,11 +39,11 @@ export function randomStackInput(seed: number): StackInput {
 export const BRACKETS_DEFAULT: BracketsInput = { text: "if (x * (y + z[1]) < 137) { x = 1; }" };
 
 export const BRACKETS_PRESETS: readonly InputPreset<BracketsInput>[] = [
-  { id: "nested", label: "((())())()", value: { text: "((())())()" } },
-  { id: "closer-first", label: ")()(", value: { text: ")()(" } },
-  { id: "extra-closer", label: "())", value: { text: "())" } },
-  { id: "crossed", label: "([)]", value: { text: "([)]" } },
-  { id: "left-open", label: "((", value: { text: "((" } },
+  { id: "nested", label: "Nested: ((())())()", value: { text: "((())())()" } },
+  { id: "closer-first", label: "Closer first: )()(", value: { text: ")()(" } },
+  { id: "extra-closer", label: "Extra closer: ())", value: { text: "())" } },
+  { id: "crossed", label: "Crossed: ([)]", value: { text: "([)]" } },
+  { id: "left-open", label: "Left open: ((", value: { text: "((" } },
   { id: "no-brackets", label: "No brackets", value: { text: "x = 1" } },
 ];
 

@@ -8,15 +8,15 @@ export const tables: readonly ComplexityTableData[] = [
       {
         op: "push",
         cells: [
-          { bound: "O(1)", q: "amortized", cond: "array that doubles" },
-          { bound: "O(n)", q: "worst", cond: "array, when it grows" },
+          { bound: "O(1)", q: "amortized", cond: "array" },
+          { bound: "O(n)", q: "worst", cond: "array, growing" },
           { bound: "O(1)", q: "worst", cond: "linked list" },
         ],
         why: "A push writes one slot; only a push into a full array copies everything first, which doubling makes rare (copies stayed 0 for four pushes, then 4).",
       },
       {
         op: "pop",
-        cells: [{ bound: "O(1)", q: "worst", cond: "array or linked list" }],
+        cells: [{ bound: "O(1)", q: "worst", cond: "array or list" }],
         why: "Read the top and move top down by one; nothing shifts. An array that also shrinks makes pop O(1) amortized instead.",
       },
       {
@@ -28,7 +28,7 @@ export const tables: readonly ComplexityTableData[] = [
         op: "bracket check (n characters)",
         cells: [
           { bound: "O(n)", q: "worst", cond: "time" },
-          { bound: "O(n)", q: "worst", cond: "extra space, all openers" },
+          { bound: "O(n)", q: "worst", cond: "space" },
         ],
         why: "Each character is read once (36 reads for the 36-character line) and causes at most one push or pop.",
       },
