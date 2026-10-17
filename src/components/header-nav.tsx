@@ -6,11 +6,11 @@ import { cn } from "cn";
 
 import { isActivePath, NAV_LINKS } from "@/components/nav-links";
 
-/** Desktop nav in the masthead; the active link gets a gold underline. */
+/** Desktop nav pills; the active link gets a 5px ∎ dot under it (§12). */
 export function HeaderNav({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Main" className="hidden h-full items-center gap-1 md:flex">
+    <nav aria-label="Main" className="hidden h-full items-center gap-1 min-[961px]:flex">
       {NAV_LINKS.filter((l) => signedIn || !l.signedInOnly).map((link) => {
         const active = isActivePath(pathname, link.href);
         return (
@@ -19,9 +19,9 @@ export function HeaderNav({ signedIn }: { signedIn: boolean }) {
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "inline-flex h-10 items-center rounded-md px-3 text-[0.9375rem] font-medium text-header-muted transition-colors duration-120 hover:bg-white/8 hover:text-header-foreground focus-visible:outline-offset-0",
+              "relative inline-flex h-9 items-center rounded-full px-3 text-[0.9375rem] font-medium text-foreground-secondary transition-colors duration-120 hover:bg-surface-sunken hover:text-foreground dark:hover:bg-white/[0.06]",
               active &&
-                "rounded-none text-header-foreground shadow-[inset_0_-2px_0_var(--gold)] hover:bg-transparent",
+                "text-foreground after:absolute after:bottom-0.5 after:left-1/2 after:size-[5px] after:-translate-x-1/2 after:bg-primary",
             )}
           >
             {link.label}
