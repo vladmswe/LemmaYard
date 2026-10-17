@@ -1,6 +1,8 @@
 import createMDX from "@next/mdx";
 import type { NextConfig } from "next";
 
+import { headerRules } from "./src/server/http/security-headers";
+
 const nextConfig: NextConfig = {
   // Native addon: load from node_modules at runtime instead of bundling.
   serverExternalPackages: ["@node-rs/argon2"],
@@ -10,10 +12,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/learn/**": ["./src/content/learn/**/code/*", "./problems/*/meta.json"],
   },
-  // Invite links carry their token in the fragment; never leak the page URL
-  // onward either (docs/specs/rooms.md §8.1).
+  // Security headers + CSP on every route, `Referrer-Policy: no-referrer` on
+  // /rooms/join (src/server/http/security-headers.ts, README "Security").
   async headers() {
-    return [{ source: "/rooms/join", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] }];
+    return headerRules({ dev: process.env.NODE_ENV === "development" });
   },
   turbopack: {
     rules: {
