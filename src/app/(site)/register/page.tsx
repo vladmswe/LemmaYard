@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { WhatYouGetPanel } from "@/components/auth-aside";
 import { AuthCard } from "@/components/auth-card";
 import { AuthForm } from "@/components/auth-form";
 import { DEFAULT_REDIRECT, safeRedirectPath } from "@/lib/safe-redirect";
@@ -19,8 +20,9 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
 
   return (
     <AuthCard
-      title="Create your account"
-      description="Free. Track your progress as you go."
+      title="Start your first proof"
+      description="Create a free account. Track your progress as you go."
+      aside={<WhatYouGetPanel />}
       footer={
         <p>
           Already have an account?{" "}

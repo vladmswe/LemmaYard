@@ -1,0 +1,485 @@
+/* Landing page (DESIGN.md §13.1). Imported by src/app/(site)/page.tsx only.
+   Tokens and shared utilities live in globals.css. */
+
+/* ---------- hero ---------- */
+.ly-hero {
+  position: relative;
+  overflow: clip;
+}
+.ly-hero > .grid-paper {
+  mask-image: radial-gradient(70% 80% at 78% 40%, #000 30%, transparent 75%);
+}
+.ly-hero-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: 28px 64px;
+  align-items: center;
+}
+@media (min-width: 961px) {
+  .ly-hero-grid {
+    grid-template-columns: var(--gutter-w) minmax(0, 1fr);
+    padding-block: 56px 104px;
+  }
+  .ly-hero-grid > .proof-gutter {
+    align-self: stretch;
+    padding-top: 6px;
+  }
+  .ly-hero-copy {
+    padding: 0 48px 0 40px;
+  }
+}
+@media (min-width: 1181px) {
+  .ly-hero-grid {
+    grid-template-columns: var(--gutter-w) minmax(0, 1.22fr) minmax(0, 1fr);
+  }
+}
+
+/* ---------- proof stage ---------- */
+.ly-stage {
+  position: relative;
+  margin-top: 48px;
+}
+@media (min-width: 961px) {
+  .ly-stage {
+    grid-column: 2;
+    margin: 56px 0 0 40px;
+    max-width: 640px;
+  }
+}
+@media (min-width: 1181px) {
+  .ly-stage {
+    grid-column: auto;
+    margin: 0;
+    padding: 24px 0 24px 8px;
+    max-width: none;
+  }
+}
+.ly-prob {
+  position: relative;
+  z-index: 1;
+  width: 92%;
+  padding: 20px 22px;
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--e2);
+  animation: rise-in var(--d-4) var(--ease-out) both 0.1s;
+}
+.ly-sheet {
+  position: relative;
+  z-index: 2;
+  margin: -18px 0 0 6%;
+  border-radius: var(--radius-xl);
+  background: var(--editor-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--e3);
+  overflow: hidden;
+  animation: rise-in var(--d-4) var(--ease-out) both 0.28s;
+}
+@media (min-width: 961px) {
+  .ly-prob {
+    width: 78%;
+  }
+  .ly-sheet {
+    margin-left: 16%;
+  }
+}
+.ly-code {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 0 10px;
+  padding: 16px 16px 16px 0;
+  font-size: 12px;
+  line-height: 1.75;
+  overflow: hidden;
+}
+@media (min-width: 961px) {
+  .ly-code {
+    grid-template-columns: 44px 1fr;
+    gap: 0 14px;
+    font-size: 13.5px;
+  }
+}
+.ly-ln {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: var(--gutter-ink);
+  user-select: none;
+}
+.ly-line {
+  white-space: pre;
+  clip-path: inset(0 100% 0 0);
+  animation: type-line 420ms steps(28, end) both;
+  animation-delay: calc(0.55s + var(--l) * 160ms);
+}
+.ly-line[data-current] {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  margin-right: -16px;
+  padding-right: 16px;
+}
+.ly-verdict {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--verdict-accepted) 25%, var(--border));
+  background: var(--verdict-accepted-bg);
+  color: var(--verdict-accepted);
+  animation: rise-in var(--d-3) var(--ease-out) both 1.7s;
+}
+.ly-verdict-meta {
+  display: none;
+  white-space: nowrap;
+}
+@media (min-width: 961px) {
+  .ly-verdict {
+    gap: 14px;
+  }
+  .ly-verdict-meta {
+    display: inline;
+  }
+}
+.ly-note {
+  display: none;
+}
+@media (min-width: 1181px) {
+  .ly-note {
+    position: absolute;
+    right: -6px;
+    top: 12px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font: 500 12px/1.35 var(--font-mono);
+    color: var(--primary);
+    animation: rise-in var(--d-4) var(--ease-out) both 2.4s;
+  }
+  .ly-note::before {
+    content: "";
+    width: 40px;
+    height: 1px;
+    background: currentColor;
+  }
+  .ly-note b {
+    font-weight: 500;
+    background: var(--background);
+    padding: 4px 6px;
+    border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
+    border-radius: 4px;
+  }
+}
+
+/* ---------- ledger ---------- */
+.ly-ledger {
+  border-block: 1px solid var(--border);
+  background: var(--card);
+}
+.ly-ledger-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.ly-ledger-cell {
+  padding: 22px 16px;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+}
+.ly-ledger-cell:nth-of-type(odd) {
+  border-left: 0;
+}
+.ly-ledger-cell:nth-of-type(-n + 2) {
+  border-top: 0;
+}
+@media (min-width: 961px) {
+  .ly-ledger-grid {
+    grid-template-columns: var(--gutter-w) repeat(var(--cells, 4), 1fr);
+  }
+  .ly-ledger-cell,
+  .ly-ledger-cell:nth-of-type(odd),
+  .ly-ledger-cell:nth-of-type(-n + 2) {
+    padding: 28px;
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+}
+
+/* ---------- how it works (cobalt block) ---------- */
+.ly-howto {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  padding: 44px 22px 32px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  margin-inline: calc(var(--pad) * -1 + 8px);
+}
+.ly-howto > .grid-paper {
+  mask-image: linear-gradient(100deg, transparent 10%, #000 50%, transparent 95%);
+}
+@media (min-width: 961px) {
+  .ly-howto {
+    border-radius: var(--radius-2xl);
+    padding: 80px 72px 72px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: 72px;
+    margin-inline: 0;
+  }
+}
+.ly-pipe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font: 500 12px/1 var(--font-mono);
+  color: var(--on-cobalt-2);
+}
+.ly-pipe span {
+  padding: 8px 10px;
+  border: 1px solid var(--cobalt-line);
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.ly-pipe span[data-end] {
+  background: var(--on-cobalt);
+  color: var(--cobalt);
+  border-color: var(--on-cobalt);
+}
+.ly-pipe i {
+  display: none;
+}
+@media (min-width: 961px) {
+  .ly-pipe {
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+  .ly-pipe i {
+    display: block;
+    flex: 1;
+    min-width: 14px;
+    height: 1px;
+    background: var(--cobalt-line);
+  }
+}
+.ly-steps li {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  padding: 22px 0;
+  border-top: 1px solid color-mix(in srgb, var(--cobalt-line) 55%, transparent);
+}
+.ly-steps li:first-child {
+  border-top: 0;
+  padding-top: 4px;
+}
+@media (min-width: 961px) {
+  .ly-steps li {
+    grid-template-columns: 64px 1fr;
+    padding: 26px 0;
+  }
+}
+
+/* ---------- three ways (bento) ---------- */
+.ly-ways {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.ly-way {
+  position: relative;
+  padding: 24px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 961px) {
+  .ly-ways {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .ly-way {
+    padding: 32px;
+    border-radius: var(--radius-2xl);
+    min-height: 400px;
+  }
+  .ly-way[data-way="catalog"] {
+    grid-column: span 7;
+  }
+  .ly-way[data-way="guide"] {
+    grid-column: span 5;
+  }
+  .ly-way[data-way="rooms"] {
+    grid-column: span 12;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 48px;
+    padding: 44px;
+  }
+}
+.ly-heap .e {
+  stroke: color-mix(in srgb, var(--secondary-foreground) 45%, transparent);
+  stroke-width: 1.5;
+}
+.ly-heap .nd rect {
+  fill: var(--card);
+  stroke: var(--secondary-foreground);
+  stroke-width: 1.5;
+}
+.ly-heap .nd text {
+  font: 500 14px var(--font-mono);
+  fill: var(--foreground);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.ly-heap .nd.hot rect {
+  fill: var(--primary);
+  stroke: var(--primary);
+}
+.ly-heap .nd.hot text {
+  fill: var(--primary-foreground);
+}
+.ly-heap .cap {
+  font: 500 12px var(--font-mono);
+  fill: var(--secondary-foreground);
+}
+.ly-heap .sift-up {
+  animation: ly-sift-up 3.2s var(--ease-in-out) infinite alternate;
+}
+.ly-heap .sift-down {
+  animation: ly-sift-down 3.2s var(--ease-in-out) infinite alternate;
+}
+@keyframes ly-sift-up {
+  0%,
+  35% {
+    transform: translate(0, 0);
+  }
+  65%,
+  100% {
+    transform: translate(78px, -70px);
+  }
+}
+@keyframes ly-sift-down {
+  0%,
+  35% {
+    transform: translate(0, 0);
+  }
+  65%,
+  100% {
+    transform: translate(-78px, 70px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ly-heap .sift-up,
+  .ly-heap .sift-down {
+    animation: none !important;
+  }
+}
+
+/* ---------- theorem rows (start with these) ---------- */
+.ly-thm {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-areas: "no tt go" "no meta go";
+  align-items: center;
+  gap: 4px 0;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--d-2);
+}
+.ly-thm .no {
+  grid-area: no;
+  font: 400 30px/1 var(--font-display);
+  color: var(--faint-foreground);
+  transition: color var(--d-2);
+}
+.ly-thm .tt {
+  grid-area: tt;
+}
+.ly-thm .meta {
+  grid-area: meta;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.ly-thm .go {
+  grid-area: go;
+  color: var(--muted-foreground);
+  transition:
+    transform var(--d-2) var(--ease-out),
+    color var(--d-2);
+}
+.ly-thm .tg {
+  display: none;
+}
+.ly-thm:hover {
+  background: var(--card);
+}
+.ly-thm:hover .no,
+.ly-thm:focus-visible .no {
+  color: var(--primary);
+}
+.ly-thm:hover .go,
+.ly-thm:focus-visible .go {
+  transform: translateX(4px);
+  color: var(--primary);
+}
+@media (min-width: 961px) {
+  .ly-thm {
+    grid-template-columns: var(--gutter-w) 90px minmax(0, 1fr) auto 140px 40px;
+    grid-template-areas: none;
+    min-height: 92px;
+    padding: 0;
+    gap: 0;
+  }
+  .ly-thm .no,
+  .ly-thm .tt,
+  .ly-thm .go {
+    grid-area: auto;
+  }
+  .ly-thm .no {
+    grid-column: 2;
+    font-size: 40px;
+  }
+  .ly-thm .meta {
+    display: contents;
+  }
+  .ly-thm .tg {
+    display: flex;
+    gap: 6px;
+    margin-right: 32px;
+  }
+}
+
+/* ---------- closing ---------- */
+.ly-unproof {
+  position: relative;
+  padding: 28px 28px 30px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-xl);
+  font: 400 15px/1.9 var(--font-mono);
+  color: var(--foreground-secondary);
+  background: var(--card);
+}
+.ly-unproof .k {
+  color: var(--primary);
+}
+.ly-unproof .caret {
+  display: inline-block;
+  width: 9px;
+  height: 1.15em;
+  vertical-align: -0.2em;
+  background: var(--primary);
+  animation: caret-blink 1.1s steps(1) infinite;
+}
+.ly-unproof .qbox {
+  position: absolute;
+  right: -14px;
+  bottom: -14px;
+  width: 56px;
+  height: 56px;
+  border: 1.5px dashed var(--primary);
+  background: var(--background);
+}
