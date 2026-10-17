@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { leetcopyDark, leetcopyLight, type MonacoThemeData } from "@/lib/monaco-themes";
+import { lemmayardDark, lemmayardLight, type MonacoThemeData } from "@/lib/monaco-themes";
 
 const css = readFileSync(new URL("../../src/app/globals.css", import.meta.url), "utf8");
 
@@ -113,8 +113,8 @@ describe("header focus ring", () => {
 });
 
 describe.each([
-  ["leetcopy-light", leetcopyLight],
-  ["leetcopy-dark", leetcopyDark],
+  ["lemmayard-light", lemmayardLight],
+  ["lemmayard-dark", lemmayardDark],
 ] as [string, MonacoThemeData][])("%s token contrast", (_name, theme) => {
   const bg = theme.colors["editor.background"];
   it.each(theme.rules.filter((r) => r.foreground).map((r) => [r.token || "(default)", r.foreground!]))(

@@ -29,7 +29,7 @@ async function main(): Promise<number> {
   if (existsSync(".env")) process.loadEnvFile(".env");
   const env = getEnv();
   const workerId = `${hostname()}-${process.pid}-${randomBytes(3).toString("hex")}`;
-  const workerLabel = `leetcopy.worker=${workerId}`;
+  const workerLabel = `lemmayard.worker=${workerId}`;
   const dockerConfig = { ...dockerConfigFromEnv(env), labels: [workerLabel] };
 
   try {

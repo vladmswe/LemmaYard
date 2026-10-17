@@ -28,11 +28,11 @@ export type MonacoThemeData = {
   colors: Record<string, string>;
 };
 
-export const MONACO_THEME_LIGHT = "leetcopy-light";
-export const MONACO_THEME_DARK = "leetcopy-dark";
+export const MONACO_THEME_LIGHT = "lemmayard-light";
+export const MONACO_THEME_DARK = "lemmayard-dark";
 export type MonacoThemeName = typeof MONACO_THEME_LIGHT | typeof MONACO_THEME_DARK;
 
-export const leetcopyLight: MonacoThemeData = {
+export const lemmayardLight: MonacoThemeData = {
   base: "vs",
   inherit: true,
   rules: [
@@ -89,7 +89,7 @@ export const leetcopyLight: MonacoThemeData = {
   },
 };
 
-export const leetcopyDark: MonacoThemeData = {
+export const lemmayardDark: MonacoThemeData = {
   base: "vs-dark",
   inherit: true,
   rules: [
@@ -147,8 +147,8 @@ export const leetcopyDark: MonacoThemeData = {
 };
 
 export const MONACO_THEMES: Record<MonacoThemeName, MonacoThemeData> = {
-  [MONACO_THEME_LIGHT]: leetcopyLight,
-  [MONACO_THEME_DARK]: leetcopyDark,
+  [MONACO_THEME_LIGHT]: lemmayardLight,
+  [MONACO_THEME_DARK]: lemmayardDark,
 };
 
 /** Theme name for next-themes' `resolvedTheme`. */

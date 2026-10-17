@@ -7,7 +7,7 @@ import { AuthForm } from "@/components/auth-form";
 import { DEFAULT_REDIRECT, safeRedirectPath } from "@/lib/safe-redirect";
 import { getCurrentUser } from "@/server/auth/session";
 
-export const metadata: Metadata = { title: "Sign up · leetcopy" };
+export const metadata: Metadata = { title: "Sign up · LemmaYard" };
 
 export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
   const { next: rawNext } = await searchParams;

@@ -4,7 +4,7 @@ import { getEnv } from "@/server/env";
 
 import { SESSION_TTL_SECONDS } from "./token";
 
-export const SESSION_COOKIE = "leetcopy_session";
+export const SESSION_COOKIE = "lemmayard_session";
 
 function baseOptions() {
   return {

@@ -8,7 +8,7 @@ import { fontMono, fontSans, fontSerif } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "leetcopy",
+  title: "LemmaYard",
   description: "Practice coding problems with an in-browser editor and judge.",
 };
 

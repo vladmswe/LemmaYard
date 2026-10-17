@@ -15,7 +15,7 @@ export async function generateMetadata({
   params,
 }: PageProps<"/u/[username]">): Promise<Metadata> {
   const { username } = await params;
-  return { title: `${username} · leetcopy` };
+  return { title: `${username} · LemmaYard` };
 }
 
 // Placeholder until the profile lands in M6: page head is final, stat cards

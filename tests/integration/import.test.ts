@@ -46,7 +46,7 @@ async function numbers() {
 }
 
 async function copyFixtures(): Promise<string> {
-  tmp = await mkdtemp(path.join(tmpdir(), "leetcopy-import-"));
+  tmp = await mkdtemp(path.join(tmpdir(), "lemmayard-import-"));
   await cp(FIXTURES, tmp, { recursive: true });
   return tmp;
 }
@@ -168,7 +168,7 @@ describe("importProblems", () => {
 
   it("rejects a number already used by another slug in the database, writing nothing", async () => {
     await importDir(FIXTURES);
-    const dir = await mkdtemp(path.join(tmpdir(), "leetcopy-import-"));
+    const dir = await mkdtemp(path.join(tmpdir(), "lemmayard-import-"));
     tmp = dir;
     await cp(path.join(FIXTURES, "fixture-evens"), path.join(dir, "fixture-evens-two"), { recursive: true });
     await cp(path.join(FIXTURES, "fixture-average"), path.join(dir, "fixture-average"), { recursive: true });

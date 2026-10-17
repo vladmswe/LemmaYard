@@ -1,4 +1,4 @@
-# leetcopy
+# LemmaYard
 
 A LeetCode-style practice site: problem catalog, in-browser editor, and a judge
 that runs Python and JavaScript solutions in a Docker sandbox. Local-only pet
@@ -83,7 +83,7 @@ Helpers and factories: `tests/helpers/db.ts`.
 
 Email + password accounts (`/register`, `/login`). Passwords are hashed with
 argon2id (`@node-rs/argon2`); the session is an HS256 JWT signed with
-`AUTH_SECRET` in the httpOnly cookie `leetcopy_session` (`SameSite=Lax`,
+`AUTH_SECRET` in the httpOnly cookie `lemmayard_session` (`SameSite=Lax`,
 `Secure` in production, 7 days). The user row is re-read from the database on
 every request, so a token of a deleted user means "guest". Logout only clears
 the cookie (tokens are stateless). Mutating API routes require
@@ -117,7 +117,7 @@ and never removes containers (safe while a worker is running).
 
 `pnpm worker` runs on the host (it needs the Docker CLI; it is not part of
 docker compose). At start it removes orphaned sandbox containers (label
-`leetcopy.sandbox=1`) and checks both images, exiting non-zero with a clear
+`lemmayard.sandbox=1`) and checks both images, exiting non-zero with a clear
 message if Docker or an image is missing. It then runs `WORKER_CONCURRENCY`
 slots that poll every `WORKER_POLL_MS` and claim the oldest `queued`
 submission atomically (`UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED
@@ -129,7 +129,7 @@ processing one submission makes it `internal_error`; the worker keeps going.
 Logs are JSON lines (submission id, kind, language, verdict, duration), never
 user code or output. SIGINT/SIGTERM: stop claiming, wait up to 10 s for running
 jobs, then mark the rest `internal_error` and remove this worker's containers
-(label `leetcopy.worker=<id>`); a second signal skips the wait. Code:
+(label `lemmayard.worker=<id>`); a second signal skips the wait. Code:
 `worker/index.ts` (process), `worker/loop.ts` (slots, sweep timer),
 `worker/queue.ts` (SQL and job/result mapping).
 

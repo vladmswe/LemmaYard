@@ -7,7 +7,7 @@ import { PageHead } from "@/components/page-head";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/server/auth/session";
 
-export const metadata: Metadata = { title: "Submissions · leetcopy" };
+export const metadata: Metadata = { title: "Submissions · LemmaYard" };
 
 // Placeholder until submission history lands in M6: page head is final, the
 // table replaces the empty state.

@@ -38,7 +38,7 @@ describe("docker create arguments", () => {
     const joined = args.join(" ");
     for (const flag of [
       "create -i",
-      "--label leetcopy.sandbox=1",
+      "--label lemmayard.sandbox=1",
       "--pull never",
       "--network none",
       "--read-only",

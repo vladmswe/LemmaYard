@@ -4,8 +4,8 @@ import { isActivePath } from "@/components/nav-links";
 import { formatMonthYear, formatPercent } from "@/lib/format";
 import { initials } from "@/lib/initials";
 import {
-  leetcopyDark,
-  leetcopyLight,
+  lemmayardDark,
+  lemmayardLight,
   MONACO_THEMES,
   monacoThemeFor,
 } from "@/lib/monaco-themes";
@@ -99,18 +99,18 @@ describe("motion", () => {
 
 describe("Monaco themes", () => {
   it("exports both themes under their registered names", () => {
-    expect(Object.keys(MONACO_THEMES).sort()).toEqual(["leetcopy-dark", "leetcopy-light"]);
-    expect(monacoThemeFor("dark")).toBe("leetcopy-dark");
-    expect(monacoThemeFor("light")).toBe("leetcopy-light");
-    expect(monacoThemeFor(undefined)).toBe("leetcopy-light");
+    expect(Object.keys(MONACO_THEMES).sort()).toEqual(["lemmayard-dark", "lemmayard-light"]);
+    expect(monacoThemeFor("dark")).toBe("lemmayard-dark");
+    expect(monacoThemeFor("light")).toBe("lemmayard-light");
+    expect(monacoThemeFor(undefined)).toBe("lemmayard-light");
   });
 
   it("uses valid hex colors and the editor tokens from the design", () => {
-    for (const theme of [leetcopyLight, leetcopyDark]) {
+    for (const theme of [lemmayardLight, lemmayardDark]) {
       for (const rule of theme.rules) if (rule.foreground) expect(rule.foreground).toMatch(/^[0-9A-F]{6}$/);
       for (const c of Object.values(theme.colors)) expect(c).toMatch(/^#[0-9A-F]{6}([0-9A-F]{2})?$/);
     }
-    expect(leetcopyLight.colors["editor.background"]).toBe("#FBFCFE");
-    expect(leetcopyDark.colors["editor.background"]).toBe("#0F1A2E");
+    expect(lemmayardLight.colors["editor.background"]).toBe("#FBFCFE");
+    expect(lemmayardDark.colors["editor.background"]).toBe("#0F1A2E");
   });
 });

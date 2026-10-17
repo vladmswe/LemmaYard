@@ -11,7 +11,7 @@ import { decideVerdict, frameFails, internalErrorResult, type RunObservation } f
 import { FrameParser, type SandboxPayload } from "./protocol";
 import type { ExecJob, ExecResult, Executor, Language } from "./types";
 
-export const SANDBOX_LABEL = "leetcopy.sandbox=1";
+export const SANDBOX_LABEL = "lemmayard.sandbox=1";
 export const OUTPUT_LIMIT_BYTES = 1024 * 1024;
 export const WALL_BASE_MS = 3000;
 const DOCKER_CMD_TIMEOUT_MS = 30_000;
@@ -140,7 +140,7 @@ function docker(bin: string, args: string[], timeoutMs = DOCKER_CMD_TIMEOUT_MS):
 
 /**
  * Worker start-up: removes orphaned sandbox containers (label
- * `leetcopy.sandbox=1`) and checks that both images exist. Other users of the
+ * `lemmayard.sandbox=1`) and checks that both images exist. Other users of the
  * executor (`problems:verify`) pass `removeOrphans: false` so that they never
  * remove the containers of a running worker.
  */

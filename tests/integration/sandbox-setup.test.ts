@@ -37,11 +37,11 @@ describe("prepareSandbox", () => {
   });
 
   it("fails with a clear message when an image is missing", { timeout: T }, async () => {
-    const bad = { ...config(), imageNode: "leetcopy-sandbox-missing:does-not-exist" };
+    const bad = { ...config(), imageNode: "lemmayard-sandbox-missing:does-not-exist" };
     const error = await prepareSandbox(bad).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(SandboxSetupError);
     expect((error as Error).message).toBe(
-      'Sandbox image "leetcopy-sandbox-missing:does-not-exist" not found. Build the images with: pnpm sandbox:build',
+      'Sandbox image "lemmayard-sandbox-missing:does-not-exist" not found. Build the images with: pnpm sandbox:build',
     );
   });
 
@@ -54,7 +54,7 @@ describe("prepareSandbox", () => {
 
 describe("executor infrastructure failures", () => {
   it("missing image → internal_error, nothing left behind", { timeout: T }, async () => {
-    const exec = createDockerExecutor({ ...config(), imagePython: "leetcopy-sandbox-missing:nope" });
+    const exec = createDockerExecutor({ ...config(), imagePython: "lemmayard-sandbox-missing:nope" });
     const r = await exec(await evensJob("python", "class Solution: pass"));
     expect(r.status).toBe("internal_error");
     expect(r.passedCount).toBe(0);

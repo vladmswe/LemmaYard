@@ -28,7 +28,7 @@ export function Logo({ className }: { className?: string }) {
       )}
     >
       <LogoMark />
-      leetcopy
+      LemmaYard
     </span>
   );
 }

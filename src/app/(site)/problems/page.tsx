@@ -7,7 +7,7 @@ import { PageHead } from "@/components/page-head";
 import { buttonVariants } from "@/components/ui/button";
 import { getCatalogStats } from "@/server/landing";
 
-export const metadata: Metadata = { title: "Problems · leetcopy" };
+export const metadata: Metadata = { title: "Problems · LemmaYard" };
 
 // Placeholder until the catalog lands in M3: page head is final, the body
 // (filters, table, pagination) replaces the empty state.
