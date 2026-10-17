@@ -1,0 +1,27 @@
+{
+  "number": 7,
+  "slug": "reverse-string",
+  "title": "Reverse String",
+  "difficulty": "easy",
+  "tags": [
+    "string",
+    "two-pointers"
+  ],
+  "signature": {
+    "name": "reverseString",
+    "params": [
+      {
+        "name": "s",
+        "type": "string"
+      }
+    ],
+    "returns": "string"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}
