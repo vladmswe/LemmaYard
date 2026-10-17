@@ -111,9 +111,9 @@ test.describe("AC-G-1-3 header link", () => {
   test.describe("desktop", () => {
     test.use({ viewport: { width: 1440, height: 900 } });
     for (const url of ["/", "/problems", "/learn", FIXTURE]) {
-      test(`Learn is in the main nav on ${url}`, async ({ page }) => {
+      test(`Guide is in the main nav on ${url}`, async ({ page }) => {
         await page.goto(url);
-        const link = page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Learn" });
+        const link = page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Guide" });
         await expect(link).toHaveAttribute("href", "/learn");
         if (url.startsWith("/learn")) await expect(link).toHaveAttribute("aria-current", "page");
         else await expect(link).not.toHaveAttribute("aria-current", "page");
@@ -124,14 +124,14 @@ test.describe("AC-G-1-3 header link", () => {
   test.describe("360 px", () => {
     test.use({ viewport: { width: 360, height: 780 } });
     for (const url of ["/", "/problems", "/learn"]) {
-      test(`Learn is in the menu on ${url} and the header does not overflow`, async ({ page }) => {
+      test(`Guide is in the menu on ${url} and the header does not overflow`, async ({ page }) => {
         await page.goto(url);
         await expectNoHorizontalScroll(page);
         const header = page.locator("header").first();
         const overflow = await header.evaluate((h) => h.scrollWidth - h.clientWidth);
         expect(overflow).toBeLessThanOrEqual(0);
         await page.getByRole("button", { name: "Open menu" }).click();
-        const link = page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Learn" });
+        const link = page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Guide" });
         await expect(link).toHaveAttribute("href", "/learn");
       });
     }
@@ -149,7 +149,7 @@ test.describe("AC-G-1-3 header link", () => {
       }
     });
 
-    test("Learn shows for a signed-in user at 1440 and 360 px", async ({ page }) => {
+    test("Guide shows for a signed-in user at 1440 and 360 px", async ({ page }) => {
       const res = await page.request.post("/api/auth/register", {
         data: { email: `${username}@example.test`, username, password: "guide-e2e-password" },
       });
@@ -157,12 +157,12 @@ test.describe("AC-G-1-3 header link", () => {
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.goto("/learn");
       const nav = page.getByRole("navigation", { name: "Main" });
-      await expect(nav.getByRole("link", { name: "Submissions" })).toBeVisible(); // proves the session
-      await expect(nav.getByRole("link", { name: "Learn" })).toHaveAttribute("href", "/learn");
+      await expect(nav.getByRole("link", { name: "Rooms" })).toBeVisible(); // proves the session
+      await expect(nav.getByRole("link", { name: "Guide" })).toHaveAttribute("href", "/learn");
       await page.setViewportSize({ width: 360, height: 780 });
       await expectNoHorizontalScroll(page);
       await page.getByRole("button", { name: "Open menu" }).click();
-      await expect(page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Learn" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Guide" })).toBeVisible();
     });
   });
 });

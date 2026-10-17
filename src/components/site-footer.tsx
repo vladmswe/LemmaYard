@@ -5,7 +5,11 @@ import { getCurrentUser } from "@/server/auth/session";
 
 type FooterLink = { href: string; label: string };
 
-/** Site footer (DESIGN.md §8.20); not shown in the problem workspace. */
+/**
+ * Site footer (DESIGN.md §12): a night block with grain, four columns, the
+ * giant serif wordmark with a sky ∎, then the base row. Not shown in the
+ * problem workspace.
+ */
 export async function SiteFooter() {
   const user = await getCurrentUser();
   const columns: { title: string; links: FooterLink[] }[] = [
@@ -22,6 +26,13 @@ export async function SiteFooter() {
       ],
     },
     {
+      title: "Learn",
+      links: [
+        { href: "/learn", label: "Data Structures guide" },
+        { href: "/learn/glossary", label: "Glossary" },
+      ],
+    },
+    {
       title: "Account",
       links: user
         ? [{ href: `/u/${user.username}`, label: "Profile" }]
@@ -33,30 +44,31 @@ export async function SiteFooter() {
   ];
 
   return (
-    <footer className="border-t bg-surface-sunken pt-14 pb-8 text-[0.9375rem]">
+    <footer className="on-night grain relative overflow-hidden pt-16 pb-8 text-[0.9375rem] shadow-[inset_0_1px_0_var(--night-line)] min-[961px]:pt-22">
       <div className="container-page">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-[2fr_1fr_1fr]">
-          <div className="col-span-2 md:col-span-1">
+        <div className="grid grid-cols-2 gap-8 min-[961px]:grid-cols-[2fr_1fr_1fr_1fr]">
+          <div className="col-span-2 min-[961px]:col-span-1">
             <Link
               href="/"
-              className="relative inline-flex rounded-md text-foreground after:absolute after:-inset-y-1.5"
+              className="relative inline-flex rounded-md text-on-night after:absolute after:-inset-y-1.5"
             >
-              <Logo />
+              <Logo markClassName="text-sky" />
             </Link>
-            <p className="mt-3 max-w-[22rem] text-muted-foreground">
-              Practice coding problems with an in-browser editor and an isolated judge.
+            <p className="mt-4 max-w-[34ch] text-on-night-2">
+              Coding practice with clear problems, an in-browser editor, an isolated judge and a
+              guide to data structures.
             </p>
           </div>
           {columns.map((col) => (
             <div key={col.title}>
-              <h2 className="eyebrow mb-3">{col.title}</h2>
-              {/* Below md each link is a 40px row (DESIGN.md §12 touch target). */}
-              <ul className="-my-2.5 grid md:my-0 md:gap-2">
+              <h2 className="label-mono mb-4 text-on-night-2">{col.title}</h2>
+              {/* Below 961px each link is a 40px row (touch target). */}
+              <ul className="-my-2.5 grid min-[961px]:my-0 min-[961px]:gap-2.5">
                 {col.links.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="inline-flex min-h-10 min-w-10 items-center rounded-sm text-foreground-secondary underline-offset-4 transition-colors duration-120 hover:text-link hover:underline md:min-h-0"
+                      className="inline-flex min-h-10 min-w-10 items-center rounded-sm text-on-night underline-offset-4 transition-colors duration-120 hover:underline min-[961px]:min-h-0"
                     >
                       {link.label}
                     </Link>
@@ -66,9 +78,16 @@ export async function SiteFooter() {
             </div>
           ))}
         </div>
-        <div className="mt-10 flex flex-wrap justify-between gap-4 border-t pt-5 text-sm text-muted-foreground">
+        <div
+          aria-hidden
+          className="mt-14 mb-7 font-display text-[clamp(3.75rem,15.5vw,14.75rem)] leading-[0.8] tracking-[-0.02em] whitespace-nowrap text-on-night min-[961px]:mt-18"
+        >
+          LemmaYard
+          <span className="qed bg-sky!" />
+        </div>
+        <div className="flex flex-wrap justify-between gap-4 border-t border-night-line pt-5 text-sm text-on-night-2">
           <span>© 2026 LemmaYard. Problem statements are original.</span>
-          <span>A personal practice project.</span>
+          <span className="font-mono text-[0.8125rem]">A personal practice project</span>
         </div>
       </div>
     </footer>

@@ -178,7 +178,7 @@ function StatCard({
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd
         className={cn(
-          "font-heading text-2xl/9 font-semibold tabular-nums sm:text-[1.875rem]/9",
+          "font-display text-[1.75rem]/9 tabular-nums sm:text-[2.25rem]/10",
           muted && "text-muted-foreground",
         )}
       >

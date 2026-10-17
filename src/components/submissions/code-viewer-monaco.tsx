@@ -3,7 +3,7 @@
 // Read-only Monaco for a stored submission (DESIGN.md §9.6). Client only:
 // load it through `CodeViewer` (dynamic, ssr: false).
 import Editor, { type OnMount } from "@monaco-editor/react";
-import { useTheme } from "next-themes";
+import { useAppliedTheme } from "@/components/theme-provider";
 
 import { fontMono } from "@/app/fonts";
 import { MONACO_EDITOR_OPTIONS, MONACO_TAB_SIZE, monacoThemeFor } from "@/lib/monaco-themes";
@@ -16,7 +16,7 @@ import "@/components/problem/monaco/setup";
 export type CodeViewerMonacoProps = { id: string; language: Language; code: string };
 
 export default function CodeViewerMonaco({ id, language, code }: CodeViewerMonacoProps) {
-  const { resolvedTheme } = useTheme();
+  const resolvedTheme = useAppliedTheme();
 
   const handleMount: OnMount = (_editor, m) => {
     if (typeof document !== "undefined" && document.fonts) {

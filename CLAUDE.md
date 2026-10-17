@@ -70,7 +70,10 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
 
 ## Rules
 
-- UI must follow DESIGN.md (tokens, components, motion, accessibility).
+- UI must follow DESIGN.md (design v2 "Proof": tokens, components, motion,
+  accessibility). The site is dark only for now: the switch is
+  `THEME_TOGGLE_ENABLED` in `src/lib/theme-config.ts` (keep both themes
+  working; theme-aware client code reads `useAppliedTheme()`).
 - DB schema changes only in M1. Later milestones must not change the schema.
   Exception: each feature spec (F-features, Rooms) adds one additive migration.
 - User code runs only inside the Docker sandbox, always, including in tests.

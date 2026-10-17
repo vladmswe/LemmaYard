@@ -10,7 +10,7 @@ import {
   MONACO_THEMES,
   monacoThemeFor,
 } from "@/lib/monaco-themes";
-import { MOTION, revealStyle } from "@/lib/motion";
+import { countUpValue, MOTION, revealStyle } from "@/lib/motion";
 import { pageRange, pageWindow } from "@/lib/pagination";
 import { progressPercent } from "@/lib/progress";
 
@@ -90,11 +90,24 @@ describe("motion", () => {
     expect(revealStyle(-2, 120)).toEqual({ "--reveal-index": "0", "--reveal-delay": "120ms" });
   });
 
-  it("keeps durations inside the 120-300 ms band", () => {
-    for (const d of [MOTION.durationFast, MOTION.durationBase, MOTION.durationSlow]) {
-      expect(d).toBeGreaterThanOrEqual(120);
-      expect(d).toBeLessThanOrEqual(300);
-    }
+  it("matches the v2 duration tokens (DESIGN.md §11.1)", () => {
+    expect([
+      MOTION.durationFast,
+      MOTION.durationBase,
+      MOTION.durationSlow,
+      MOTION.durationReveal,
+      MOTION.durationCount,
+    ]).toEqual([120, 200, 320, 560, 900]);
+    expect(MOTION.staggerStep).toBe(70);
+  });
+
+  it("counts up with easeOutCubic and lands exactly on the value", () => {
+    expect(countUpValue(64, 0)).toBe(0);
+    expect(countUpValue(64, 450)).toBe(Math.round(64 * (1 - 0.5 ** 3)));
+    expect(countUpValue(64, 900)).toBe(64);
+    expect(countUpValue(64, 5000)).toBe(64);
+    expect(countUpValue(57.5, 900, 900, 1)).toBe(57.5);
+    expect(countUpValue(10, 100, 0)).toBe(10);
   });
 });
 
@@ -111,8 +124,8 @@ describe("Monaco themes", () => {
       for (const rule of theme.rules) if (rule.foreground) expect(rule.foreground).toMatch(/^[0-9A-F]{6}$/);
       for (const c of Object.values(theme.colors)) expect(c).toMatch(/^#[0-9A-F]{6}([0-9A-F]{2})?$/);
     }
-    expect(lemmayardLight.colors["editor.background"]).toBe("#FBFCFE");
-    expect(lemmayardDark.colors["editor.background"]).toBe("#0F1A2E");
+    expect(lemmayardLight.colors["editor.background"]).toBe("#FBFCFF");
+    expect(lemmayardDark.colors["editor.background"]).toBe("#09112A");
   });
 });
 

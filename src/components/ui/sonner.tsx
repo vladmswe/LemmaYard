@@ -1,13 +1,14 @@
 "use client"
 
-import { useTheme } from "next-themes"
+import { useAppliedTheme } from "@/components/theme-provider"
 import { useSyncExternalStore } from "react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
+
+import { QedLoader } from "@/components/brand/qed-loader"
 import {
   CircleAlertIcon,
   CircleCheckIcon,
   InfoIcon,
-  LoaderCircleIcon,
   TriangleAlertIcon,
 } from "lucide-react"
 
@@ -24,7 +25,7 @@ function subscribeMobile(onChange: () => void) {
 // verdicts; those live in the console. Bottom-right on desktop, top-center
 // on mobile, where the problem page's Run/Submit bar is at the bottom.
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { resolvedTheme } = useTheme()
+  const resolvedTheme = useAppliedTheme()
   const mobile = useSyncExternalStore(
     subscribeMobile,
     () => window.matchMedia(MOBILE).matches,
@@ -42,7 +43,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         warning: <TriangleAlertIcon className="size-4 text-warning" />,
         error: <CircleAlertIcon className="size-4 text-danger" />,
         loading: (
-          <LoaderCircleIcon className="size-4 animate-spin-slow text-muted-foreground" />
+          <QedLoader className="text-primary" />
         ),
       }}
       style={
@@ -50,12 +51,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
+          "--border-radius": "14px",
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast font-sans text-sm shadow-md",
+          toast: "cn-toast font-sans text-sm shadow-lg",
+          title: "text-[0.90625rem] font-semibold",
+          description: "text-[0.84375rem] text-muted-foreground!",
         },
       }}
       {...props}

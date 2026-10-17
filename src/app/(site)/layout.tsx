@@ -1,7 +1,7 @@
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 
-/** Marketing and app pages: masthead + footer. */
+/** Marketing and app pages: header + footer. */
 export default function SiteLayout({ children }: LayoutProps<"/">) {
   return (
     <>

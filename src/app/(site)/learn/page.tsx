@@ -62,7 +62,7 @@ export default function LearnPage() {
             <RoadmapProgress lessons={published.map((l) => ({ slug: l.slug, title: l.title }))} />
             {sections.map((s) => (
               <section key={s.track} aria-labelledby={`track-${s.track}`} data-track={s.track}>
-                <h2 id={`track-${s.track}`} className="mb-4 font-heading text-2xl/8 font-semibold">
+                <h2 id={`track-${s.track}`} className="mb-4 font-display text-[1.75rem]/9">
                   {s.label}
                 </h2>
                 <ol className="grid gap-4 md:grid-cols-2" role="list">

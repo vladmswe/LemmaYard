@@ -20,7 +20,7 @@ function Avatar({
       data-size={size}
       aria-hidden
       className={cn(
-        "inline-grid size-8 shrink-0 place-items-center rounded-full bg-avatar text-[13px] leading-none font-semibold text-avatar-foreground select-none data-[size=lg]:size-16 data-[size=lg]:text-xl",
+        "inline-grid size-8 shrink-0 place-items-center rounded-[10px] border border-border bg-avatar text-[13px] leading-none font-semibold text-avatar-foreground select-none data-[size=lg]:size-16 data-[size=lg]:rounded-[18px] data-[size=lg]:text-xl",
         className
       )}
       {...props}

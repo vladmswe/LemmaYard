@@ -1,16 +1,22 @@
-import { JetBrains_Mono, Source_Sans_3, Source_Serif_4 } from "next/font/google";
+import { Instrument_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 
 // Self-hosted by next/font at build time: no runtime requests to Google.
-export const fontSans = Source_Sans_3({
+// DESIGN.md §7: Instrument Serif = display only (>= 28px, one weight, so
+// `font-synthesis-weight: none` in globals.css), Instrument Sans = UI and
+// body text, JetBrains Mono = code, labels and gutter numbers.
+export const fontSans = Instrument_Sans({
   subsets: ["latin"],
-  variable: "--font-source-sans",
+  // wdth only for the wordmark (font-stretch: 92%).
+  axes: ["wdth"],
+  variable: "--font-instrument-sans",
   display: "swap",
 });
 
-export const fontSerif = Source_Serif_4({
+export const fontDisplay = Instrument_Serif({
+  weight: "400",
+  style: ["normal", "italic"],
   subsets: ["latin"],
-  variable: "--font-source-serif",
-  axes: ["opsz"],
+  variable: "--font-instrument-serif",
   display: "swap",
 });
 

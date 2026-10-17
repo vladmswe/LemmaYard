@@ -3,7 +3,7 @@
 // Monaco editor of the problem workspace. Client only: load it through
 // `LazyCodeEditor` (dynamic, ssr: false), never import it from a server file.
 import Editor, { type OnMount } from "@monaco-editor/react";
-import { useTheme } from "next-themes";
+import { useAppliedTheme } from "@/components/theme-provider";
 import { useEffect, useRef } from "react";
 
 import { fontMono } from "@/app/fonts";
@@ -43,7 +43,7 @@ export default function CodeEditor({
   shortcuts,
   handleRef,
 }: CodeEditorProps) {
-  const { resolvedTheme } = useTheme();
+  const resolvedTheme = useAppliedTheme();
   const editorRef = useRef<StandaloneEditor | null>(null);
   const cursorRef = useRef(onCursorChange);
   useEffect(() => {

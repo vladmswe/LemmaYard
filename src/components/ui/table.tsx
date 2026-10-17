@@ -1,8 +1,9 @@
 import * as React from "react"
 import { cn } from "cn"
 
-// Dense data table (DESIGN.md §8.5). Rows 48px; `density="compact"` = 40px.
-// Zebra + hover tint; numbers right-aligned with `TableCell numeric`.
+// Data table (DESIGN.md §12, v2): mono uppercase head, 56px rows (compact
+// 44px), hairline separators, hover row = sunken tint; numbers right-aligned
+// and tabular with `TableCell numeric`.
 function Table({
   className,
   density = "default",
@@ -16,7 +17,7 @@ function Table({
     <div
       data-slot="table-container"
       className={cn(
-        "relative w-full overflow-x-auto rounded-lg border bg-card shadow-xs",
+        "relative w-full overflow-x-auto rounded-lg border bg-card",
         containerClassName
       )}
     >
@@ -39,7 +40,7 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
     <tbody
       data-slot="table-body"
       className={cn(
-        "[&_tr:last-child]:border-0 [&>tr:hover]:bg-accent [&>tr:nth-child(even):not(:hover)]:bg-surface-sunken dark:[&>tr:nth-child(even):not(:hover)]:bg-white/[0.02]",
+        "[&_tr:last-child]:border-0 [&>tr:hover]:bg-surface-sunken dark:[&>tr:hover]:bg-white/[0.035]",
         className
       )}
       {...props}
@@ -79,7 +80,7 @@ function TableHead({
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 border-b bg-surface-sunken px-4 text-left align-middle text-[0.78rem] font-semibold tracking-[0.04em] whitespace-nowrap text-muted-foreground uppercase",
+        "h-11 border-b px-4 text-left align-middle font-mono text-xs font-medium tracking-[0.06em] whitespace-nowrap text-muted-foreground uppercase",
         numeric && "text-right",
         className
       )}
@@ -97,7 +98,7 @@ function TableCell({
     <td
       data-slot="table-cell"
       className={cn(
-        "h-12 px-4 align-middle group-data-[density=compact]/table:h-10",
+        "h-14 px-4 align-middle group-data-[density=compact]/table:h-11",
         numeric && "text-right tabular-nums",
         className
       )}
@@ -122,7 +123,7 @@ function TableCaption({
 /** Title link inside a row: only the title is a link, never the whole row. */
 function tableLinkClasses(className?: string) {
   return cn(
-    "font-medium text-foreground underline-offset-4 hover:text-link hover:underline",
+    "font-semibold text-foreground underline-offset-4 transition-colors duration-120 hover:text-link hover:underline",
     className
   )
 }

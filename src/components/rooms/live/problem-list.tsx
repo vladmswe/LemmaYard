@@ -52,7 +52,7 @@ export function ProblemList({
             )}
           >
             <div className="flex items-center gap-2">
-              <span aria-hidden className="grid size-7 place-items-center rounded-md border bg-surface-sunken font-heading text-sm font-semibold tabular-nums">
+              <span aria-hidden className="grid size-7 place-items-center rounded-md border bg-surface-sunken font-mono text-[0.8125rem] font-medium tabular-nums">
                 {p.position}
               </span>
               <DifficultyBadge difficulty={p.difficulty} />

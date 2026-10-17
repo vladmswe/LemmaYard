@@ -1,10 +1,12 @@
 export type NavLink = { href: string; label: string; signedInOnly?: boolean };
 
-/** Main navigation (header, mobile menu). Submissions and Rooms only for users. */
+/**
+ * Main navigation (header, mobile menu; DESIGN.md §12): Problems, Guide,
+ * Rooms (signed-in only). Submissions and Profile live in the account menu.
+ */
 export const NAV_LINKS: readonly NavLink[] = [
   { href: "/problems", label: "Problems" },
-  { href: "/learn", label: "Learn" },
-  { href: "/submissions", label: "Submissions", signedInOnly: true },
+  { href: "/learn", label: "Guide" },
   { href: "/rooms", label: "Rooms", signedInOnly: true },
 ];
 

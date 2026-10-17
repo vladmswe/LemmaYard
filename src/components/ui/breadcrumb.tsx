@@ -2,7 +2,6 @@ import * as React from "react"
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cn } from "cn"
-import { ChevronRightIcon } from "lucide-react"
 
 // DESIGN.md §8.17. Use `render={<Link href="…" />}` on BreadcrumbLink.
 
@@ -85,10 +84,10 @@ function BreadcrumbSeparator({
       data-slot="breadcrumb-separator"
       role="presentation"
       aria-hidden="true"
-      className={cn("[&>svg]:size-3.5", className)}
+      className={cn("text-faint-foreground [&>svg]:size-3.5", className)}
       {...props}
     >
-      {children ?? <ChevronRightIcon />}
+      {children ?? "/"}
     </li>
   )
 }

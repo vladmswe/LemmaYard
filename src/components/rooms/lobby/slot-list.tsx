@@ -102,7 +102,7 @@ export function SlotList({
               data-testid={`slot-${pos}`}
               className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-card px-4 py-3 shadow-xs outline-offset-2"
             >
-              <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-md border bg-surface-sunken font-heading text-base font-semibold tabular-nums">
+              <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-md border bg-surface-sunken font-mono text-sm font-medium tabular-nums">
                 {pos}
               </span>
               <div className="flex min-w-0 flex-1 flex-col gap-1">
