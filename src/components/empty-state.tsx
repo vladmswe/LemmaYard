@@ -29,7 +29,9 @@ export function EmptyState({
         <Icon aria-hidden className="size-8 text-muted-foreground" strokeWidth={1.75} />
       </div>
       <Heading className="text-lg font-semibold text-foreground">{title}</Heading>
-      {children && <div className="mt-1.5 max-w-sm text-muted-foreground">{children}</div>}
+      {children && (
+        <div className="mt-1.5 max-w-sm text-pretty text-muted-foreground">{children}</div>
+      )}
       {action && <div className="mt-6 flex flex-wrap justify-center gap-3">{action}</div>}
     </div>
   );
