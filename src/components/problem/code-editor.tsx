@@ -115,6 +115,10 @@ export default function CodeEditor({
           tabSize: MONACO_TAB_SIZE[language],
           ariaLabel: ariaLabelFor(language),
           fixedOverflowWidgets: true,
+          // No overview ruler: its cursor tick reads as a stray mark next to the scrollbar.
+          overviewRulerLanes: 0,
+          hideCursorInOverviewRuler: true,
+          overviewRulerBorder: false,
         }}
       />
     </div>

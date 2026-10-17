@@ -1,0 +1,214 @@
+"use client";
+
+import { CloudUploadIcon, PlayIcon, RotateCcwIcon } from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
+import { cn } from "cn";
+
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Kbd, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { LANGUAGES, type Language } from "@/lib/submission-dto";
+import { LANGUAGE_LABELS } from "@/lib/workspace/languages";
+import { isApplePlatform, shortcutKeys } from "@/lib/workspace/shortcuts";
+
+const noopSubscribe = () => () => {};
+
+/** True on macOS / iOS (⌘ in hints); false on the server. */
+export function useApplePlatform(): boolean {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => isApplePlatform(navigator.platform || navigator.userAgent),
+    () => false,
+  );
+}
+
+export function ShortcutKeys({ action }: { action: "run" | "submit" }) {
+  const apple = useApplePlatform();
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {shortcutKeys(action, apple).map((key) => (
+        <Kbd key={key}>{key}</Kbd>
+      ))}
+    </span>
+  );
+}
+
+export type RunSubmitProps = {
+  busyAction: "run" | "submit" | null;
+  disabled: boolean;
+  /** Why Run is disabled (invalid custom input), shown in its tooltip. */
+  runBlockedReason: string | null;
+  onRun: () => void;
+  onSubmit: () => void;
+  /** Mobile action bar: full-width default-size buttons. */
+  variant?: "toolbar" | "bar";
+};
+
+/** Run (secondary) + Submit (primary) with spinners and shortcut tooltips (DESIGN.md §9.4). */
+export function RunSubmitButtons({
+  busyAction,
+  disabled,
+  runBlockedReason,
+  onRun,
+  onSubmit,
+  variant = "toolbar",
+}: RunSubmitProps) {
+  const bar = variant === "bar";
+  const size = bar ? "default" : "sm";
+  const runDisabled = disabled || runBlockedReason !== null;
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="secondary"
+              size={size}
+              data-testid={bar ? "run-button-mobile" : "run-button"}
+              className={cn(
+                bar ? "flex-1" : "after:absolute after:-inset-1",
+                // Hover must reach the tooltip that says why Run is blocked.
+                runBlockedReason !== null && "aria-disabled:pointer-events-auto",
+              )}
+              loading={busyAction === "run"}
+              disabled={runDisabled}
+              // Invalid custom input: stay focusable so the tooltip with the
+              // reason is reachable by keyboard and hover.
+              focusableWhenDisabled={runBlockedReason !== null}
+              onClick={onRun}
+            />
+          }
+        >
+          <PlayIcon aria-hidden />
+          {busyAction === "run" ? "Running…" : "Run"}
+        </TooltipTrigger>
+        <TooltipContent>
+          {runBlockedReason ?? (
+            <>
+              Run · <ShortcutKeys action="run" />
+            </>
+          )}
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              size={size}
+              data-testid={bar ? "submit-button-mobile" : "submit-button"}
+              className={cn(bar ? "flex-1" : "after:absolute after:-inset-1")}
+              loading={busyAction === "submit"}
+              disabled={disabled}
+              onClick={onSubmit}
+            />
+          }
+        >
+          <CloudUploadIcon aria-hidden />
+          {busyAction === "submit" ? "Submitting…" : "Submit"}
+        </TooltipTrigger>
+        <TooltipContent>
+          Submit · <ShortcutKeys action="submit" />
+        </TooltipContent>
+      </Tooltip>
+    </>
+  );
+}
+
+export type EditorToolbarProps = RunSubmitProps & {
+  language: Language;
+  onLanguageChange: (language: Language) => void;
+  onReset: () => void;
+  /** Hide Run / Submit here (mobile: they live in the bottom action bar). */
+  showRunSubmit: boolean;
+};
+
+export function EditorToolbar({
+  language,
+  onLanguageChange,
+  onReset,
+  showRunSubmit,
+  ...runSubmit
+}: EditorToolbarProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  return (
+    <>
+      <Select
+        value={language}
+        onValueChange={(value) => {
+          if (value) onLanguageChange(value as Language);
+        }}
+        items={LANGUAGES.map((l) => ({ value: l, label: LANGUAGE_LABELS[l] }))}
+      >
+        <SelectTrigger size="sm" aria-label="Language" data-testid="language-select" className="w-auto min-w-32">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {LANGUAGES.map((l) => (
+            <SelectItem key={l} value={l} data-testid={`language-option-${l}`}>
+              {LANGUAGE_LABELS[l]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="after:absolute after:-inset-1"
+              data-testid="reset-button"
+              onClick={() => setConfirmOpen(true)}
+            />
+          }
+        >
+          <RotateCcwIcon aria-hidden />
+          Reset
+        </TooltipTrigger>
+        <TooltipContent>Restore the starter code</TooltipContent>
+      </Tooltip>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset to the starter code?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your current {LANGUAGE_LABELS[language]} code for this problem will be replaced. This
+              can&apos;t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {/* First tabbable element: gets the initial focus (DESIGN.md §8.9). */}
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              data-testid="reset-confirm"
+              onClick={() => {
+                setConfirmOpen(false);
+                onReset();
+              }}
+            >
+              Reset code
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {showRunSubmit && (
+        <div className="ml-auto flex items-center gap-2">
+          <RunSubmitButtons {...runSubmit} />
+        </div>
+      )}
+    </>
+  );
+}
