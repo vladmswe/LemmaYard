@@ -15,6 +15,7 @@ pnpm dev                      # PORT from .env (default 3000)
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
 pnpm test:integration         # needs Postgres; own DB leetcopy_test_<worktree>
 pnpm problems:import --dir tests/fixtures/problems [--prune]
+pnpm sandbox:build            # after any change in sandbox/ (Docker tests use the images)
 ```
 
 Scripts for later milestones are stubs that exit non-zero with
@@ -30,7 +31,11 @@ Scripts for later milestones are stubs that exit non-zero with
 - DB: Drizzle + `pg`, schema `src/server/db/schema.ts`, client `getDb()` in
   `src/server/db/index.ts`. Value types/validator: `src/lib/types`; problem
   file schemas: `src/lib/problems`; starter templates: `src/lib/templates`.
-- Integration tests use `tests/helpers/db.ts` (factories, `resetTestDb()`).
+- Integration tests use `tests/helpers/db.ts` (factories, `resetTestDb()`);
+  Docker sandbox tests use `tests/helpers/sandbox.ts`.
+- Judge: executor contract `worker/types.ts`, comparator + verdicts
+  `worker/judge.ts`, Docker runner `worker/docker-executor.ts`, harnesses
+  `sandbox/harness.{py,js}`.
 - Import alias `@/` → `src/`.
 
 ## Rules
