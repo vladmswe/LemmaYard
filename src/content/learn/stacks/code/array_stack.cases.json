@@ -1,0 +1,40 @@
+{
+  "kind": "class",
+  "entry": { "python": "ArrayStack", "javascript": "ArrayStack" },
+  "methods": {
+    "push": { "python": "push", "javascript": "push" },
+    "pop": { "python": "pop", "javascript": "pop" },
+    "peek": { "python": "peek", "javascript": "peek" },
+    "is_empty": { "python": "is_empty", "javascript": "isEmpty" },
+    "to_list": { "python": "to_list", "javascript": "toList" }
+  },
+  "cases": [
+    {
+      "name": "default: push 1, push 2, pop, push 3, peek, then empty it and pop once more",
+      "ops": [["push", 1], ["push", 2], ["pop"], ["push", 3], ["peek"], ["pop"], ["pop"], ["pop"]],
+      "expected": [null, null, 2, null, 3, 3, 1, { "$error": true }]
+    },
+    {
+      "name": "push 3, push 5, pop, peek",
+      "ops": [["push", 3], ["push", 5], ["pop"], ["peek"], ["to_list"]],
+      "expected": [null, null, 5, 3, [3]]
+    },
+    {
+      "name": "grows past four slots and keeps the order",
+      "ops": [["push", 4], ["push", 8], ["push", 15], ["push", 16], ["push", 23], ["push", 42], ["to_list"], ["peek"], ["pop"]],
+      "expected": [null, null, null, null, null, null, [4, 8, 15, 16, 23, 42], 42, 42]
+    },
+    {
+      "name": "a new stack is empty",
+      "ops": [["is_empty"], ["to_list"]],
+      "expected": [true, []]
+    },
+    { "name": "pop on empty raises", "ops": [["pop"]], "expected": [{ "$error": true }] },
+    { "name": "peek on empty raises", "ops": [["peek"], ["push", 7], ["peek"]], "expected": [{ "$error": true }, null, 7] },
+    {
+      "name": "pops come out in reverse order",
+      "ops": [["push", 1], ["push", 2], ["push", 3], ["push", 4], ["push", 5], ["pop"], ["pop"], ["pop"], ["pop"], ["pop"], ["is_empty"]],
+      "expected": [null, null, null, null, null, 5, 4, 3, 2, 1, true]
+    }
+  ]
+}

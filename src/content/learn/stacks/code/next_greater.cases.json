@@ -1,0 +1,14 @@
+{
+  "kind": "function",
+  "entry": { "python": "next_greater", "javascript": "nextGreater" },
+  "cases": [
+    { "name": "default: 7 answers indices 1 and 3", "args": [[9, 4, 2, 3, 7, 6, 8, 1]], "expected": [-1, 7, 3, 7, 8, 8, -1, -1] },
+    { "name": "increasing: each answer is the next value", "args": [[1, 2, 3, 4, 5, 6]], "expected": [2, 3, 4, 5, 6, -1] },
+    { "name": "decreasing: nothing is ever greater", "args": [[6, 5, 4, 3, 2, 1]], "expected": [-1, -1, -1, -1, -1, -1] },
+    { "name": "equal values are not greater", "args": [[5, 5, 5, 6]], "expected": [6, 6, 6, -1] },
+    { "name": "temperatures", "args": [[73, 74, 75, 71, 69, 72, 76, 73]], "expected": [74, 75, 76, 72, 72, 76, -1, -1] },
+    { "name": "empty list", "args": [[]], "expected": [] },
+    { "name": "one value", "args": [[42]], "expected": [-1] },
+    { "name": "negative values", "args": [[-5, -9, -1]], "expected": [-1, -1, -1] }
+  ]
+}

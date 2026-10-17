@@ -9,7 +9,7 @@ export const meta: LessonMeta = {
   order: 6,
   prerequisites: ["stacks"],
   minutes: 25,
-  status: "draft",
+  status: "published",
   practice: [],
-  updated: "2026-10-17",
+  updated: "2026-10-18",
 };

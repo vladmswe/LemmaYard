@@ -1,0 +1,35 @@
+{
+  "kind": "class",
+  "entry": { "python": "RingQueue", "javascript": "RingQueue" },
+  "methods": {
+    "enqueue": { "python": "enqueue", "javascript": "enqueue" },
+    "dequeue": { "python": "dequeue", "javascript": "dequeue" },
+    "peek": { "python": "peek", "javascript": "peek" },
+    "size": { "python": "size", "javascript": "size" }
+  },
+  "cases": [
+    {
+      "name": "default script: 90 and 100 wrap around to slots 0 and 1",
+      "ops": [["enqueue", 10], ["enqueue", 20], ["enqueue", 30], ["enqueue", 40], ["enqueue", 50], ["enqueue", 60], ["enqueue", 70], ["dequeue"], ["dequeue"], ["dequeue"], ["dequeue"], ["dequeue"], ["dequeue"], ["enqueue", 80], ["enqueue", 90], ["enqueue", 100], ["size"], ["dequeue"], ["dequeue"], ["dequeue"], ["dequeue"]],
+      "expected": [null, null, null, null, null, null, null, 10, 20, 30, 40, 50, 60, null, null, null, 4, 70, 80, 90, 100]
+    },
+    {
+      "name": "grow a wrapped ring: order survives the unrolling",
+      "ops": [["enqueue", 1], ["enqueue", 2], ["enqueue", 3], ["dequeue"], ["dequeue"], ["dequeue"], ["enqueue", 10], ["enqueue", 20], ["enqueue", 30], ["enqueue", 40], ["enqueue", 50], ["enqueue", 60], ["enqueue", 70], ["enqueue", 80], ["enqueue", 90], ["size"], ["dequeue"], ["peek"]],
+      "expected": [null, null, null, 1, 2, 3, null, null, null, null, null, null, null, null, null, 9, 10, 20]
+    },
+    {
+      "name": "fill all 8 slots exactly, no grow",
+      "ops": [["enqueue", 1], ["enqueue", 2], ["enqueue", 3], ["enqueue", 4], ["enqueue", 5], ["enqueue", 6], ["enqueue", 7], ["enqueue", 8], ["size"], ["dequeue"], ["peek"]],
+      "expected": [null, null, null, null, null, null, null, null, 8, 1, 2]
+    },
+    { "name": "a new queue is empty", "ops": [["size"]], "expected": [0] },
+    { "name": "dequeue on empty raises", "ops": [["dequeue"]], "expected": [{ "$error": true }] },
+    { "name": "peek on empty raises", "ops": [["peek"], ["enqueue", 5], ["peek"], ["size"]], "expected": [{ "$error": true }, null, 5, 1] },
+    {
+      "name": "empty again after the last dequeue",
+      "ops": [["enqueue", 5], ["dequeue"], ["dequeue"], ["size"]],
+      "expected": [null, 5, { "$error": true }, 0]
+    }
+  ]
+}

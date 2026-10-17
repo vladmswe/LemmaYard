@@ -9,11 +9,11 @@ export const meta: LessonMeta = {
   order: 5,
   prerequisites: ["dynamic-arrays", "linked-lists"],
   minutes: 20,
-  status: "draft",
+  status: "published",
   practice: [
     { slug: "valid-parentheses", why: "The bracket-matching stack from this lesson, exactly." },
     { slug: "longest-valid-parentheses", why: "A stack of indices instead of characters." },
     { slug: "trapping-rain-water", why: "A monotonic stack finds each bar's bounding walls." },
   ],
-  updated: "2026-10-17",
+  updated: "2026-10-18",
 };
