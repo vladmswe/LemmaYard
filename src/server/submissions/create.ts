@@ -4,6 +4,7 @@
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import { JUDGE_DISABLED_API_MESSAGE } from "@/lib/judge-availability";
 import { signatureSchema } from "@/lib/problems/schema";
 import type { Language, SubmissionKind } from "@/lib/submission-dto";
 import { getCurrentUser } from "@/server/auth/session";
@@ -11,6 +12,7 @@ import { getDb, type Db } from "@/server/db";
 import { problems, submissions } from "@/server/db/schema";
 import { getEnv } from "@/server/env";
 import { assertSameOrigin, jsonError, readJsonBody } from "@/server/http/request";
+import { judgeDisabledResponse, judgeEnabled } from "@/server/judge";
 import {
   checkSubmitSession,
   recheckSubmitSession,
@@ -137,6 +139,10 @@ export async function createSubmission(
   // (2) Session.
   const user = await getCurrentUser();
   if (!user) return jsonError(401, "Sign in to run or submit code");
+
+  // (2b) Judge disabled on this deployment (JUDGE_ENABLED): before the body,
+  // the limits and any row, so nothing is queued that no worker would take.
+  if (!judgeEnabled()) return judgeDisabledResponse(JUDGE_DISABLED_API_MESSAGE);
 
   // (3) Content-Length / body size, JSON, Zod.
   const schema = kind === "run" ? runBodySchema : submitBodySchema;

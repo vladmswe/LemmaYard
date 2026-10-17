@@ -28,9 +28,14 @@ export async function checkDatabase(
   }
 }
 
-/** `{ ok: true, db: "up" }` (200) or `{ ok: false, db: "down" }` (503), never cached. */
-export function healthResponse(dbUp: boolean): NextResponse {
-  return NextResponse.json(dbUp ? { ok: true, db: "up" } : { ok: false, db: "down" }, {
+/**
+ * `{ ok: true, db: "up", judge }` (200) or `{ ok: false, db: "down", judge }`
+ * (503), never cached. The status depends on the database only; `judge` is
+ * the configured mode (JUDGE_ENABLED), not a probe of the worker.
+ */
+export function healthResponse(dbUp: boolean, judgeEnabled: boolean): NextResponse {
+  const judge = judgeEnabled ? "enabled" : "disabled";
+  return NextResponse.json(dbUp ? { ok: true, db: "up", judge } : { ok: false, db: "down", judge }, {
     status: dbUp ? 200 : 503,
     headers: { "Cache-Control": "no-store" },
   });

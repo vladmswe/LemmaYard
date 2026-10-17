@@ -45,9 +45,22 @@ export const envSchema = z.object({
   QUEUED_TIMEOUT_MS: int(60000),
   // Guide (/learn): "1" enables the /learn/dev-fixtures pages used by Playwright.
   GUIDE_FIXTURES: z.enum(["0", "1"]).default("0"),
+  // Code execution (Run / Submit / room sessions): "1" on, "0" off. Unset: off
+  // on Vercel (no judge worker there), on everywhere else. See isJudgeEnabled().
+  JUDGE_ENABLED: z.enum(["0", "1"]).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+/**
+ * Whether this deployment accepts Run / Submit / session starts. An explicit
+ * `JUDGE_ENABLED` wins; otherwise enabled unless `VERCEL` is set, so a Vercel
+ * deployment without a worker never queues jobs nobody processes.
+ */
+export function isJudgeEnabled(env: Pick<Env, "JUDGE_ENABLED" | "VERCEL">): boolean {
+  if (env.JUDGE_ENABLED !== undefined) return env.JUDGE_ENABLED === "1";
+  return !env.VERCEL;
+}
 
 /** Parses an env-like record; throws a readable error listing every invalid variable. */
 export function parseEnv(source: Record<string, string | undefined>): Env {

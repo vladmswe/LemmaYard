@@ -6,6 +6,9 @@ import { defineConfig } from "vitest/config";
 // Integration tests need DATABASE_URL / TEST_DATABASE_URL from .env; workers
 // inherit this process's environment.
 if (existsSync(".env")) process.loadEnvFile(".env");
+// The suites submit and start sessions: always with the judge on, whatever
+// .env says. The judge-disabled tests switch it off per file.
+process.env.JUDGE_ENABLED = "1";
 
 export default defineConfig({
   resolve: {

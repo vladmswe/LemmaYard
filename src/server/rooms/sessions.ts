@@ -37,12 +37,14 @@ import {
   SESSION_NOT_FOUND,
   type DrawErrorView,
 } from "@/lib/rooms/session-view";
+import { JUDGE_DISABLED_SESSION_MESSAGE } from "@/lib/judge-availability";
 import { emptyBodySchema } from "@/lib/rooms/schemas";
 import { mixOf } from "@/lib/rooms/types";
 import { getCurrentUser, type SessionUser } from "@/server/auth/session";
 import { getDb } from "@/server/db";
 import { problems, roomSessionParticipants, roomSessionProblems, roomSessions } from "@/server/db/schema";
 import { jsonError } from "@/server/http/request";
+import { judgeDisabledResponse, judgeEnabled } from "@/server/judge";
 
 import { requireRoomMember, requireSessionInRoom, type RoomAccess, type RoomSessionRow } from "./access";
 import {
@@ -98,11 +100,13 @@ export async function sessionMutation<T extends z.ZodType>(
   roomId: string,
   sessionId: string,
   schema: T,
-  options: { manage: boolean },
+  options: { manage: boolean; requiresJudge?: boolean },
   handler: (ctx: SessionContext<z.infer<T>>) => Promise<NextResponse>,
 ): Promise<NextResponse> {
   const pre = await readAuthedBody(request, schema);
   if ("response" in pre) return pre.response;
+  // Judge disabled (JUDGE_ENABLED): refuse before any lock or write.
+  if (options.requiresJudge && !judgeEnabled()) return judgeDisabledResponse(JUDGE_DISABLED_SESSION_MESSAGE);
   const { user, data, db } = pre;
   // Cheap gate before any lock: non-members never wait on a room's lock.
   if (!(await requireRoomMember(db, roomId, user.id))) return sessionNotFound();
@@ -486,7 +490,8 @@ export function startSession(request: Request, roomId: string, sessionId: string
     roomId,
     sessionId,
     emptyBodySchema,
-    { manage: true },
+    // A live session nobody can submit to would only run out: no start without a judge.
+    { manage: true, requiresJudge: true },
     async ({ tx, session }) => {
       const t = transition(session.status, "start");
       if (!t.ok || !t.changed) return notInLobby(session);
