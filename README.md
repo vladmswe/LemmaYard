@@ -101,6 +101,11 @@ wall-clock limits. The runner gets inputs only; `worker/judge.ts` compares resul
 with the expected values on the host. The executor contract (`Executor`, `ExecJob`,
 `ExecResult`) is in `worker/types.ts`.
 
+User-controlled text in a result (printed output, error messages, returned
+values) is stored with U+0000 and unpaired surrogates replaced by U+FFFD
+(Postgres `text`/`jsonb` cannot hold them), after the comparison; returned
+values nested deeper than 64 levels are stored as `"[nested too deep]"`.
+
 `pnpm problems:verify` is the quality gate for problem data: it runs every
 problem's `solution.py` and `solution.js` through the real executor on all of its
 tests (no stop at the first failure, the problem's own limits), prints a table
