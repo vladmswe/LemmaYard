@@ -4,9 +4,10 @@ A LeetCode-style practice site: problem catalog, in-browser editor, and a judge
 that runs Python and JavaScript solutions in a Docker sandbox. Local-only pet
 project. See [PLAN.md](PLAN.md) for the full plan and milestones.
 
-> Status: **M1 (database, types, problem pipeline)**. Auth, UI, worker and
-> sandbox scripts still print `not implemented yet (Mx)` and exit non-zero
-> until their milestone lands.
+> Status: **M2 (authentication)** on top of M1 (database, types, problem
+> pipeline). The catalog, editor, worker and sandbox scripts still print
+> `not implemented yet (Mx)` or show placeholder pages until their milestone
+> lands.
 
 ## Requirements
 
@@ -63,6 +64,18 @@ database (integration tests import them there).
 `TEST_DB_SUFFIX` or, by default, the git worktree directory name, so parallel
 worktrees never share a test database. Tables are truncated between tests.
 Helpers and factories: `tests/helpers/db.ts`.
+
+### Authentication
+
+Email + password accounts (`/register`, `/login`). Passwords are hashed with
+argon2id (`@node-rs/argon2`); the session is an HS256 JWT signed with
+`AUTH_SECRET` in the httpOnly cookie `leetcopy_session` (`SameSite=Lax`,
+`Secure` in production, 7 days). The user row is re-read from the database on
+every request, so a token of a deleted user means "guest". Logout only clears
+the cookie (tokens are stateless). Mutating API routes require
+`Content-Type: application/json` and, when an `Origin` header is sent, the
+origin of `AUTH_URL` (otherwise 403), so set `AUTH_URL` to the URL you open in
+the browser.
 
 ## Configuration
 
