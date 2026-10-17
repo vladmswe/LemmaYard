@@ -117,7 +117,7 @@ export function TracePlayer<S, I>(props: TracePlayerProps<S, I>): JSX.Element {
   const nextRef = useRef<HTMLButtonElement>(null);
   const urlArmed = useRef(false);
   const scrubTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const width = useContainerWidth(figureRef);
+  const { width, relayout } = useContainerWidth(figureRef);
 
   const prompts = useMemo(() => frames.map((f) => f.prompt ?? null), [frames]);
   const opts = useMemo(() => ({ skipPrompts: prefs.skipPrompts, prompts }), [prefs.skipPrompts, prompts]);
@@ -400,6 +400,7 @@ export function TracePlayer<S, I>(props: TracePlayerProps<S, I>): JSX.Element {
       data-speed={String(speed)}
       data-step={ps.index + 1}
       data-hydrated={hydrated ? "true" : "false"}
+      data-relayout={relayout ? "true" : undefined}
       role="group"
       aria-label={`${model.title} visualization`}
       onKeyDown={onKeyDown}

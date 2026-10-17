@@ -48,6 +48,10 @@
 [data-player][data-motion="off"] {
   --viz-duration: 0ms;
 }
+/* Width-only re-layouts (and the first one after hydration) apply instantly. */
+[data-player][data-relayout="true"] {
+  --viz-duration: 0ms;
+}
 @media (prefers-reduced-motion: reduce) {
   [data-player]:not([data-motion="on"]) {
     --viz-duration: 0ms;

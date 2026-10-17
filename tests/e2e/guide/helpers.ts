@@ -14,6 +14,8 @@ export async function gotoPlayer(page: Page, url: string, playerId: string): Pro
   await page.goto(url);
   const root = player(page, playerId);
   await expect(root).toHaveAttribute("data-hydrated", "true");
+  // The first measured layout is applied with transitions off; wait until it settled.
+  await expect(root).not.toHaveAttribute("data-relayout", "true");
   return root;
 }
 

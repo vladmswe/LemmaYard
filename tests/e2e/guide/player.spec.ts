@@ -400,6 +400,7 @@ for (const width of [1440, 390]) {
 
         await page.reload();
         await expect(root).toHaveAttribute("data-hydrated", "true");
+        await expect(root).not.toHaveAttribute("data-relayout", "true");
         await expect(sw).toHaveAttribute("aria-checked", "true");
         ds = await durations(page);
         for (const d of ds) expect(d.split(",").every((x) => parseFloat(x) > 0)).toBe(true);
@@ -534,6 +535,41 @@ for (const width of [1440, 390]) {
       });
     });
 
+    test.describe("AC-G-0-16 thumbnails show the whole state", () => {
+      for (const [url, id, values] of [
+        [SCAN, "scan", 6],
+        [TREE, "tree", 7],
+      ] as const) {
+        test(`${id}: every drawable lies inside its thumbnail SVG`, async ({ page }) => {
+          const root = await gotoPlayer(page, url, id);
+          const details = root.locator("[data-player-keysteps]");
+          if (!(await details.evaluate((d) => (d as HTMLDetailsElement).open))) await details.locator("summary").click();
+          const report = await details.evaluate((el) =>
+            Array.from(el.querySelectorAll("[data-keystep] svg")).map((svg) => {
+              const box = svg.getBoundingClientRect();
+              const outside = Array.from(svg.querySelectorAll("rect, circle, text, path, line, polygon"))
+                .map((e) => e.getBoundingClientRect())
+                .filter((r) => r.width > 0 || r.height > 0)
+                .filter(
+                  (r) =>
+                    r.left < box.left - 0.5 ||
+                    r.right > box.right + 0.5 ||
+                    r.top < box.top - 0.5 ||
+                    r.bottom > box.bottom + 0.5,
+                ).length;
+              // The thumbnail's visible box (the SVG must not be clipped by it either).
+              const frame = svg.parentElement!.getBoundingClientRect();
+              const clipped =
+                box.left < frame.left - 0.5 || box.right > frame.right + 0.5 || box.bottom > frame.bottom + 0.5;
+              return { outside, clipped, values: svg.querySelectorAll("text.viz-text").length };
+            }),
+          );
+          expect(report.length).toBeGreaterThanOrEqual(2);
+          for (const r of report) expect(r).toEqual({ outside: 0, clipped: false, values });
+        });
+      }
+    });
+
     test.describe("AC-G-0-17 code panel", () => {
       test("active line follows the frame in both languages; choice persists; panel scrolls itself", async ({ page }) => {
         const root = await gotoPlayer(page, SCAN_CODE, "scan");
@@ -585,6 +621,54 @@ for (const width of [1440, 390]) {
     });
   });
 }
+
+test.describe("AC-G-0-11 width re-layout does not animate", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("first measured layout after hydration has 0s transitions; stepping animates", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    // Record the figure groups' transition-duration whenever their transform
+    // changes, and at the moment the player reports hydration.
+    await page.addInitScript(() => {
+      const w = window as unknown as { motionLog: { kind: string; durations: string[] }[] };
+      w.motionLog = [];
+      const sample = (kind: string) => {
+        const root = document.querySelector('[data-player="scan"]');
+        if (!root) return;
+        const gs = Array.from(root.querySelectorAll("[data-player-figure] .viz-g"));
+        w.motionLog.push({ kind, durations: gs.map((g) => getComputedStyle(g).transitionDuration) });
+      };
+      new MutationObserver((records) => {
+        for (const r of records) {
+          const t = r.target as Element;
+          if (r.attributeName === "data-hydrated" && t.getAttribute("data-hydrated") === "true") sample("hydrated");
+          else if (r.attributeName === "style" && t.classList.contains("viz-g") && t.closest("[data-player-figure]")) {
+            sample("move");
+          }
+        }
+      }).observe(document, { subtree: true, attributes: true, attributeFilter: ["data-hydrated", "style"] });
+    });
+    const root = await gotoPlayer(page, SCAN, "scan");
+    await expect(root).not.toHaveAttribute("data-relayout", "true");
+    const beforeStep = await page.evaluate(
+      () => (window as unknown as { motionLog: { kind: string; durations: string[] }[] }).motionLog,
+    );
+    expect(beforeStep.some((e) => e.kind === "hydrated")).toBe(true);
+    expect(beforeStep.some((e) => e.kind === "move")).toBe(true); // 640 px fallback -> 390 px layout happened
+    for (const e of beforeStep) {
+      expect(e.durations.length).toBeGreaterThan(0);
+      for (const d of e.durations) expect(d.split(",").every((x) => x.trim() === "0s"), `${e.kind}: ${d}`).toBe(true);
+    }
+    // Stepping with animations on transitions normally.
+    await expect(root).toHaveAttribute("data-motion", "on");
+    await root.getByRole("button", { name: "Next step" }).click();
+    await expect(root).toHaveAttribute("data-step", "2");
+    const durations = await root.evaluate((el) =>
+      Array.from(el.querySelectorAll("[data-player-figure] .viz-g")).map((g) => getComputedStyle(g).transitionDuration),
+    );
+    for (const d of durations) expect(parseFloat(d)).toBeGreaterThan(0);
+  });
+});
 
 test.describe("AC-G-0-14 layout", () => {
   for (const width of [320, 390, 1440]) {
