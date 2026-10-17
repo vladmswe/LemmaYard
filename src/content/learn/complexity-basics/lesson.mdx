@@ -1,12 +1,131 @@
-This lesson is being written.
+import { searchBinary, searchLinear } from "@/components/guide/viz/search/defs";
 
-{/* Required h2 headings, in this order (PLAN-GUIDE 1.3):
 ## Why it exists
+
+Say you keep a sorted list of a million user ids and need to check whether one id is in it.
+You can scan from the front, or you can keep halving the list. Which one should you write?
+
+A stopwatch is a poor judge. The same program runs at different speeds on a laptop and on a server,
+in Python and in C, and even from one run to the next. You want an answer that holds on any machine.
+
+So you count steps instead of seconds. Pick one basic action, such as comparing two numbers, and
+ask how many times the algorithm does it for an input of size n. That count, and how fast it grows
+with n, is the <Term id="time-complexity">time complexity</Term>. It lets you compare data structures
+before you write a line of code, and it is the cost language every lesson in this guide uses.
+
 ## Counting steps
+
+Start with <Term id="linear-search">linear search</Term>: look at the cells one by one, from index 0,
+until one holds the target. The step you count is one comparison of a cell with the target.
+
+<Viz def={searchLinear} id="linear-search" code="complexity-basics/search" hint="Try: press Next, or pick a preset such as 'Linear, target at the start'." />
+
+The default example has 32 numbers and a target that is not there. Partway through, the player
+asks how many comparisons the search will make in total. Watch the counter under the figure.
+
+A missing target forces a comparison with every cell, so the count is exactly n.
+A few loop shapes cover most of what you will meet:
+
+- One loop over the input: about n steps.
+- Two nested loops over the input: about n · n = n² steps.
+- A loop that halves what is left each time: about log₂ n steps, because you can halve n only that many times before one item remains.
+
+Some counts need a little algebra. Suppose the inner work for item i takes i² steps. The total is
+1² + 2² + … + n² = n(n+1)(2n+1)/6. That is not n³, but its leading term is n³/3, so it grows like n³: it is Θ(n³).
+
+Exact counts carry details nobody needs, like the 1/3 above or a "+ 7" for setup. Big-O notation drops them.
+You keep the fastest-growing term and ignore constant factors:
+
+- <Term id="big-o">Big-O</Term>: f(n) = O(g(n)) means f grows no faster than g, up to a constant factor, for large n. An upper bound.
+- <Term id="big-omega">Big-Omega</Term>: f(n) = Ω(g(n)) means f grows at least as fast as g. A lower bound.
+- <Term id="big-theta">Big-Theta</Term>: f(n) = Θ(g(n)) means both at once. A tight bound.
+
+So 3n + 7 is Θ(n), and it is also O(n²), since O only promises an upper bound. Most texts, this guide
+included, write O for the tightest bound they know.
+
 ## Growth rates
+
+Here is how the common growth rates compare. The numbers use log₂ and are rounded.
+
+| Growth | n = 10 | n = 1,000 | n = 10⁶ |
+|---|---|---|---|
+| log n | 3.3 | 10 | 20 |
+| n | 10 | 1,000 | 10⁶ |
+| n log n | 33 | 10,000 | 2 · 10⁷ |
+| n² | 100 | 10⁶ | 10¹² |
+| 2ⁿ | 1,024 | about 10³⁰¹ | far beyond any computer |
+
+A useful rule of thumb: a modern machine does roughly 10⁹ simple steps per second. With n = 10⁶, an
+n log n algorithm finishes in a few hundredths of a second. An n² algorithm needs about 10¹² steps,
+which is about 17 minutes. A 2ⁿ algorithm is hopeless once n passes about 40.
+
+At n = 10 every row looks harmless. The differences only show as n grows, which is why Big-O talks about large n.
+
+Now compare the searches on a sorted array. <Term id="binary-search">Binary search</Term> keeps a
+range [lo, hi) of cells that may still hold the target. It reads the middle cell. If that value is smaller
+than the target, the answer lies to the right, so lo moves past the middle. Otherwise hi moves to the middle.
+Each comparison throws away half of the range.
+
+<Viz def={searchBinary} id="binary-search" code="complexity-basics/search" hint="Try: press Next, then switch between linear and binary search." />
+
+The player asks which half the search keeps and which index it checks next. Then try the presets
+for n = 8, 16 and 32: the comparison count grows by about one each time n doubles.
+
+<Callout kind="invariant" title="What binary search returns">
+  It needs a sorted array. It returns the **index** of the target, or −1 when the target is absent.
+  Our version returns the first index that holds the target, so repeated values are handled too.
+</Callout>
+
+Logarithms grow very slowly. If you make the array 10 times larger, binary search does not need
+10 times or even twice the work. It needs about 3.3 more halvings, because log₂ 10 ≈ 3.3.
+From a thousand to a million cells, the count goes from about 10 to about 20.
+
 ## Best, worst, average, amortized
+
+One algorithm can take different numbers of steps on inputs of the same size. Linear search finds a
+target at index 0 after one comparison and needs n comparisons when the target is missing.
+So you name which case you mean.
+
+- <Term id="worst-case">Worst case</Term>: the most steps over all inputs of size n. Linear search: n comparisons. This is the default promise.
+- <Term id="best-case">Best case</Term>: the fewest steps. Linear search: 1. Rarely useful on its own.
+- <Term id="average-case">Average case</Term>: the expected steps over some distribution of inputs. If the target is present and equally likely to be at any position, linear search needs about n/2 comparisons. That is still O(n).
+
+<Term id="amortized-cost">Amortized</Term> cost is a different idea. It is the average cost per
+operation over a whole sequence of operations, and it holds for every sequence, with no luck involved.
+One operation may be expensive, as long as it cannot happen often. Appending to a growable list is the classic case,
+and the dynamic-arrays lesson proves it.
+
+<Callout kind="pitfall" title="Average is not amortized">
+  An average-case bound can fail on unlucky inputs. An amortized bound cannot: it is a guarantee about the total work of any sequence.
+</Callout>
+
 ## Notation used in this guide
+
+Every lesson uses the same letters, so a bound means the same thing on every page.
+
+| Symbol | Meaning |
+|---|---|
+| n | number of elements or keys in the structure |
+| h | height of a tree |
+| m | number of buckets in a hash table, or bits in a Bloom filter (each page says which) |
+| α = n/m | load factor of a hash table |
+| k | number of hash functions of a Bloom filter |
+| V, E | numbers of vertices and edges of a graph |
+| [l, r) | half-open range: indices l, l + 1, …, r − 1, so its length is r − l |
+
+Every bound in a cost table also says which case it describes: worst, average, amortized, expected or best.
+"O(1)" alone is not enough; "O(1) amortized, O(n) worst" is.
+
 ## Check yourself
+
+<Quiz id="complexity-basics-check" />
+
 ## Practice
+
+<PracticeLinks />
+
 ## Recap
-*/}
+
+- Count steps, not seconds, and describe how the count grows with n; Big-O keeps the fastest-growing term.
+- Linear search is O(n) worst case; binary search on a sorted array is O(log n) worst case and returns an index or −1.
+- Say which case a bound describes: worst, average or amortized. Amortized is a guarantee over a sequence, not a lucky average.

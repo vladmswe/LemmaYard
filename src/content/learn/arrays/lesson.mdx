@@ -1,14 +1,188 @@
-This lesson is being written.
+import { arrayShift } from "@/components/guide/viz/array/defs";
+import { prefixSums } from "@/components/guide/viz/prefix/defs";
+import { twoPointersMerge } from "@/components/guide/viz/twopointers/defs";
 
-{/* Required h2 headings, in this order (PLAN-GUIDE 1.3):
 ## Why it exists
+
+You log the temperature once a day for a year and want the value for day 200. With a pile of
+notes you would dig. With a numbered row of boxes you go straight to box 200.
+
+That is the whole point of an <Term id="array">array</Term>: it keeps its elements side by side in one block
+of memory, so reaching any position costs the same single step, wherever it is.
+
+Almost every other structure in this guide is built on arrays, or is compared with them.
+This lesson covers what is fast in an array, what is slow, and three tools you will use constantly:
+half-open ranges, prefix sums and two pointers.
+
 ## Mental model
-<operation sections>
+
+Picture a row of equal-sized slots in memory, starting at some base address. Each slot has an
+<Term id="index">index</Term>: 0 for the first, 1 for the next, up to n − 1 for the last.
+
+Because every slot has the same size, the address of slot i is a formula: base + i · size.
+With 4-byte integers starting at address 1000, a[5] lives at 1000 + 5 · 4 = 1020. The machine
+computes that and reads the slot. It never walks past slots 0 to 4. That is why reading or writing
+a[i] is O(1) in the worst case, whatever the value of i.
+
+The flip side is the fixed layout. Every element has a fixed neighbour, so you cannot open a gap
+in the middle without moving everything after it. And a plain array has a fixed capacity: when every slot
+is used, there is no room for one more.
+
+### Half-open ranges
+
+Most code describes a stretch of an array as a <Term id="half-open-range">half-open range</Term> [l, r):
+it includes index l and stops just before r. This convention pays off everywhere:
+
+- All indices of an array of length n are [0, n), which is exactly what `for i in range(n)` visits.
+- The length of [l, r) is simply r − l. No "+ 1" to remember.
+- Splitting at k gives [0, k) and [k, n), with no index counted twice and none lost.
+- [l, l) is a valid empty range, so the empty case needs no special code.
+
+Python slices `a[l:r]` and JavaScript `a.slice(l, r)` both use this rule.
+
+## Insert and remove in the middle
+
+To insert a value at index i, every element from i to the end must first move one slot right to open
+a gap. You move them starting from the end, so nothing is overwritten. Removing at i is the mirror image:
+the elements after i each move one slot left to close the gap.
+
+<Viz def={arrayShift} id="array-shift" code="arrays/fixed_array" hint="Try: press Next, or pick the 'Insert at the front' preset." />
+
+Before the first move, the player asks how many elements will move when you insert at index 1 of the
+6-element array. Count the cells to the right of the gap, then check the moves counter.
+
+Each element after position i makes one <Term id="shift">shift</Term>, so inserting at i costs n − i moves and
+removing at i costs n − 1 − i. Work at the end is cheap; work at the front moves all n elements.
+In Big-O terms an insert or remove at i is O(n − i), which is O(n) in the worst case.
+
+Try the "Full array" preset too. A fixed array whose slots are all in use refuses the insert, and our
+code raises an error rather than writing past the end. The next lesson fixes this with a growable array.
+
+## Prefix sums
+
+Suppose you get many questions of the form "what is the sum of a[l] up to a[r − 1]?". Adding the
+cells each time costs r − l steps per question. With a million questions, that adds up.
+
+The fix is to do one pass up front. Build a second array p of <Term id="prefix-sums">prefix sums</Term>,
+where p[i] is the sum of the first i elements. It has n + 1 cells, and p[0] = 0 is the sum of
+nothing. Each next cell reuses the previous one: p[i + 1] = p[i] + a[i].
+
+Then any <Term id="range-sum-query">range sum</Term> over [l, r) is one subtraction: p[r] − p[l].
+p[r] holds the first r elements and p[l] the first l, so the difference is exactly the elements from l to r − 1.
+
+<Viz def={prefixSums} id="prefix-sums" code="arrays/prefix_sums" hint="Try: press Next, or pick 'Range from index 0'." />
+
+Look at the figure: p sits one column to the left of a, because p[j] sums everything before a[j].
+The player asks for one cell of p while it is being built, and at the end it asks which two cells of p
+give the sum of [2, 5). The answer is p[5] − p[2] = 14 − 4 = 10, which is 4 + 1 + 5.
+
+The leading 0 is a <Term id="sentinel">sentinel</Term>: an extra cell that removes a special case.
+Without it, a range that starts at index 0 would need its own branch. With it, p[r] − p[0] just works,
+and so does the empty range: p[l] − p[l] = 0.
+
+Building p takes O(n) time and O(n) extra space. After that, every range-sum query is O(1) in the
+worst case, however long the range is.
+
+## Two pointers: merging sorted arrays
+
+Here is a different task. You have two sorted arrays, A = [1, 3, 5, 8, 10] and B = [2, 6, 7, 9, 13],
+and you want one sorted array C with all ten values. You could glue them together and sort,
+but that ignores the order you already have.
+
+The smallest value of all must be the front of A or the front of B, because both are sorted.
+So keep a pointer i into A and a pointer j into B, both starting at 0. Compare A[i] with B[j],
+write the smaller into C, and advance only that pointer. Repeat. This is the
+<Term id="two-pointers">two pointers</Term> method: two indices that only ever move forward.
+
+<Viz def={twoPointersMerge} id="merge" code="arrays/merge" hint="Try: press Next, or pick 'B runs out first'." />
+
+The player asks which value goes into C next once both fronts are on screen. Notice the step where
+A has no numbers left. There is nothing to compare any more, and what remains in B is already sorted,
+so it is copied over as it is. Forgetting that case is the usual merge bug.
+
+Each step writes one value and moves one pointer, so the merge does exactly |A| + |B| writes:
+10 in this example. That makes it O(|A| + |B|) in the worst case, with no sorting at all.
+
 ## Cost
+
+<ComplexityTable id="arrays-ops" />
+
+The moves counter in the first player is the "n − i" of the insert row, and the two reads in the
+last prefix-sums step are why a query is O(1).
+
 ## Pitfalls
+
+<Callout kind="pitfall" title="Off by one with inclusive ranges">
+  If you think of a range as "l to r inclusive", its length is r − l + 1 and its prefix sum is p[r + 1] − p[l].
+  Mixing the two conventions is the classic off-by-one. Pick half-open [l, r) and stick to it.
+</Callout>
+
+- **Forgetting p[0] = 0.** If p has only n cells, sums that start at index 0 need a special case,
+  and every other index shifts by one. Give p n + 1 cells.
+- **Inserting at the front in a loop.** Python `list.insert(0, x)` and JavaScript `unshift(x)` move every
+  element, so each call is O(n). Doing it n times costs O(n²). Append at the end and reverse once, or
+  use a deque (a later lesson).
+- **Building a string with + in a loop.** Strings in Python and JavaScript are immutable arrays of characters.
+  Each concatenation can copy the whole string so far, which adds up to O(n²) for n pieces. Collect the pieces
+  in a list and join once.
+- **Reading past the end.** Valid indices are [0, n). Python raises an error on a[n]; JavaScript quietly
+  returns undefined, which hides the bug.
+
 ## In your language
+
+Python's `list` and JavaScript's `Array` are arrays that can also grow (the next lesson shows how).
+The operations from this lesson map directly onto them:
+
+```python
+a = [3, 8, 1, 9, 4, 6]
+a[2]                 # read by index: O(1)
+a.insert(1, 7)       # shifts 5 elements: O(n - i)
+a.pop(0)             # shifts every element left: O(n)
+a[2:5]               # half-open slice [2, 5), copies 3 elements
+
+from itertools import accumulate
+p = [0, *accumulate(a)]   # prefix sums with the leading 0
+```
+
+```javascript
+const a = [3, 8, 1, 9, 4, 6];
+a[2];                // read by index: O(1)
+a.splice(1, 0, 7);   // insert at 1: shifts 5 elements
+a.shift();           // remove the first element: O(n)
+a.slice(2, 5);       // half-open [2, 5), copies 3 elements
+```
+
+Here is the fixed-capacity array the first player runs. Its `insert_at` and `remove_at` do the shifting
+by hand and raise an error when the array is full or the index is out of range.
+
+<CodeTabs code="arrays/fixed_array" />
+
 ## When to use it
+
+Reach for an array when you read by position, scan in order, or add and remove at the end.
+It is also the most compact layout in memory, and walking it in order is fast in practice because
+neighbouring slots sit next to each other.
+
+If the array is sorted, binary search finds a value in O(log n) worst case. It returns the index of the
+target, or −1 when it is absent, and it only works on sorted data. Keeping the array sorted makes every
+insert O(n), though.
+
+Prefix sums suit data that does not change while you ask many range questions. Two pointers suit two
+sorted sequences, or one sorted array scanned from both ends.
+
+Avoid a plain array when you insert or delete near the front or the middle all the time, or when you
+cannot bound the size in advance. Linked lists, deques and dynamic arrays, the next lessons, cover those cases.
+
 ## Check yourself
+
+<Quiz id="arrays-check" />
+
 ## Practice
+
+<PracticeLinks />
+
 ## Recap
-*/}
+
+- An array finds slot i with one formula, so get and set are O(1) worst case; insert and remove at i shift n − i elements, O(n) worst case.
+- Use half-open ranges [l, r): length r − l, and the empty range [l, l) needs no special case.
+- Prefix sums (n + 1 cells, p[0] = 0) answer the sum of [l, r) as p[r] − p[l] in O(1); merging two sorted arrays with two pointers takes O(|A| + |B|).

@@ -9,7 +9,7 @@ export const meta: LessonMeta = {
   order: 1,
   prerequisites: [],
   minutes: 15,
-  status: "draft",
+  status: "published",
   practice: [
     { slug: "binary-search", why: "Halves the search range every step: the O(log n) growth you meet in this lesson." },
     { slug: "two-sum", why: "The O(n²) pair loop you will speed up in the hash-table lesson." },
