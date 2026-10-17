@@ -13,13 +13,20 @@ import {
   roomSessions,
   submissions,
 } from "@/server/db/schema";
+import { loadCalibration } from "@/server/rooms/draw";
 import { closeIfDueNow, sweepRoomSessions } from "@/server/rooms/lifecycle";
 
 import { processSubmission, startWorker } from "../../worker/loop";
 import { claimNext, finalize, finalizeInternalError, toFinalFields } from "../../worker/queue";
 import type { ExecJob, ExecResult, ExecStatus, Executor } from "../../worker/types";
 import { closeTestDb, createProblem, createTestCases, createUser, getTestDb, resetTestDb } from "../helpers/db";
-import { addSessionParticipant, createRoom, createRoomSession } from "../helpers/rooms";
+import {
+  addSessionParticipant,
+  createRoom,
+  createRoomSession,
+  SAMPLE_STARTED_AT,
+  SAMPLE_SUBMISSIONS,
+} from "../helpers/rooms";
 
 beforeEach(resetTestDb);
 afterAll(closeTestDb);
@@ -451,5 +458,106 @@ describe("due transitions (lazy close and worker sweep, §7.3)", () => {
     } finally {
       await w.stop();
     }
+  });
+});
+
+describe("spec §6.4 sample through finalize()", () => {
+  it("replaying the 13 submits reproduces results, totals, ranks, events and the calibration contribution", async () => {
+    const db = getTestDb();
+    const users = {
+      alice: await createUser({ username: "alice" }),
+      bob: await createUser({ username: "bob" }),
+      carol: await createUser({ username: "carol" }),
+    };
+    const specs = [
+      ["valid-anagram", "easy"],
+      ["house-robber", "medium"],
+      ["coin-change", "medium"],
+      ["edit-distance", "hard"],
+    ] as const;
+    const probs = [];
+    for (const [slug, difficulty] of specs) probs.push(await createProblem({ slug, title: slug, difficulty }));
+    const { room } = await createRoom({ owner: users.alice, members: [users.bob, users.carol] });
+    // The sample's clock times, shifted into the past (SAMPLE_STARTED_AT may lie
+    // ahead), so the lazy close can run before carol's late P3 verdict.
+    const startedAt = new Date(Math.floor((Date.now() - 3 * 24 * 60 * MIN) / 1000) * 1000);
+    const session = await createRoomSession({
+      roomId: room.id,
+      hostId: users.alice.id,
+      status: "live",
+      startedAt,
+      problems: probs.map((p) => ({ problemId: p.id, difficulty: p.difficulty })),
+      participants: [users.alice.id, users.bob.id, users.carol.id],
+    });
+    const fx = { startedAt, session } as unknown as Fx;
+    for (const [i, sub] of SAMPLE_SUBMISSIONS.entries()) {
+      const minutes = (new Date(`2026-10-24T${sub.created}Z`).getTime() - SAMPLE_STARTED_AT.getTime()) / MIN;
+      const row = await runningSubmit(fx, users[sub.user].id, probs[sub.position - 1].id, minutes);
+      if (i === SAMPLE_SUBMISSIONS.length - 1) expect(await closeIfDueNow(db, session.id)).toBe("expired");
+      expect(await finalize(db, row.id, fields(sub.status))).toBe(true);
+    }
+
+    const totals = await db
+      .select({
+        userId: roomSessionParticipants.userId,
+        solved: roomSessionParticipants.solvedCount,
+        penalty: roomSessionParticipants.penaltySec,
+        rank: roomSessionParticipants.rank,
+      })
+      .from(roomSessionParticipants)
+      .where(eq(roomSessionParticipants.sessionId, session.id));
+    const byUser = new Map(totals.map((t) => [t.userId, t]));
+    expect(byUser.get(users.alice.id)).toMatchObject({ solved: 3, penalty: 5200, rank: 1 });
+    expect(byUser.get(users.carol.id)).toMatchObject({ solved: 3, penalty: 8510, rank: 2 });
+    expect(byUser.get(users.bob.id)).toMatchObject({ solved: 2, penalty: 2640, rank: 3 });
+
+    const name = (id: string | null) => Object.entries(users).find(([, u]) => u.id === id)?.[0] ?? null;
+    const cells = (await results(session.id)).map(
+      (r) => `${name(r.userId)} P${r.position} ${r.attempts}/${r.wrongBeforeAccept}/${r.solveSeconds ?? "-"}`,
+    );
+    expect(cells.sort()).toEqual(
+      [
+        "alice P1 1/0/370",
+        "alice P2 2/1/1470",
+        "alice P3 1/0/3060",
+        "alice P4 1/1/-",
+        "bob P1 1/0/240",
+        "bob P2 1/1/-",
+        "bob P3 1/0/2400",
+        "carol P1 2/1/720",
+        "carol P2 1/0/2100",
+        "carol P3 1/0/5390",
+      ].sort(),
+    );
+
+    const evs = (await events(session.id)).map((e) => [e.type, name(e.actor), e.payload]);
+    const solved = (u: string, position: number, solveSeconds: number, wrongBefore: number, firstSolver: boolean, solvedCount: number) =>
+      ["problem_solved", u, { position, solveSeconds, wrongBefore, firstSolver, solvedCount }];
+    const failed = (u: string, position: number, attempts: number) => ["attempt_failed", u, { position, attempts }];
+    // Spec §6.4 events 106–118 (no event for bob's compile error).
+    expect(evs).toEqual([
+      solved("bob", 1, 240, 0, true, 1),
+      solved("alice", 1, 370, 0, false, 1),
+      failed("carol", 1, 1),
+      solved("carol", 1, 720, 1, false, 1),
+      failed("alice", 2, 1),
+      solved("alice", 2, 1470, 1, true, 2),
+      solved("carol", 2, 2100, 0, false, 2),
+      solved("bob", 3, 2400, 0, true, 2),
+      failed("bob", 2, 1),
+      solved("alice", 3, 3060, 0, false, 3),
+      failed("alice", 4, 1),
+      ["session_ended", null, { endedAt: new Date(startedAt.getTime() + 90 * MIN).toISOString(), reason: "time" }],
+      solved("carol", 3, 5390, 0, false, 3),
+    ]);
+
+    // Q4: the calibration contribution of s1 is easy 3/3, medium 5/6, hard 0/3.
+    const calibration = await db.transaction((tx) => loadCalibration(tx, room.id));
+    expect(calibration.sessions).toBe(1);
+    expect(calibration.counts).toEqual({
+      easy: { solved: 3, pairs: 3 },
+      medium: { solved: 5, pairs: 6 },
+      hard: { solved: 0, pairs: 3 },
+    });
   });
 });
