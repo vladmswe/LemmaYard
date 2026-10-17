@@ -13,7 +13,12 @@ export async function SiteFooter() {
       title: "Practice",
       links: [
         { href: "/problems", label: "Problems" },
-        ...(user ? [{ href: "/submissions", label: "Submissions" }] : []),
+        ...(user
+          ? [
+              { href: "/submissions", label: "Submissions" },
+              { href: "/rooms", label: "Rooms" },
+            ]
+          : []),
       ],
     },
     {

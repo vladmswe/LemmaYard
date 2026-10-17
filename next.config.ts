@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/learn/**": ["./src/content/learn/**/code/*", "./problems/*/meta.json"],
   },
+  // Invite links carry their token in the fragment; never leak the page URL
+  // onward either (docs/specs/rooms.md §8.1).
+  async headers() {
+    return [{ source: "/rooms/join", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] }];
+  },
   turbopack: {
     rules: {
       "*.css": {
