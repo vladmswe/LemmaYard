@@ -624,6 +624,11 @@
   .prose-problem sup {
     font-size: 0.75em;
   }
+  /* "Input:" / "Output:" labels in the sample blocks (sans, muted). */
+  .prose-problem .sample-label {
+    font: 600 0.8125rem/1.375rem var(--font-sans);
+    color: var(--muted-foreground);
+  }
 }
 
 /* Reduced motion: no movement anywhere; state changes stay, but instant. */

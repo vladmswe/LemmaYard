@@ -7,9 +7,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function PageSkeleton({
   variant = "table",
   rows = 8,
+  filters = false,
 }: {
   variant?: "table" | "profile";
   rows?: number;
+  /** A filter bar row (search + selects) above the table. */
+  filters?: boolean;
 }) {
   return (
     <div aria-busy="true" aria-live="polite">
@@ -34,17 +37,27 @@ export function PageSkeleton({
             ))}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border bg-card">
-            <div className="h-10 border-b bg-surface-sunken" />
-            {Array.from({ length: rows }, (_, i) => (
-              <div key={i} className="flex h-12 items-center gap-6 border-b px-4 last:border-0">
-                <Skeleton className="h-3.5 w-[8%]" />
-                <Skeleton className="h-3.5 w-[52%]" />
-                <Skeleton className="ml-auto h-3.5 w-[12%]" />
-                <Skeleton className="h-3.5 w-[10%]" />
+          <>
+            {filters && (
+              <div className="mb-5 grid grid-cols-3 gap-3 md:grid-cols-[minmax(0,1fr)_repeat(3,9.5rem)]">
+                <Skeleton className="col-span-3 h-10 md:col-span-1" />
+                <Skeleton className="h-10" />
+                <Skeleton className="h-10" />
+                <Skeleton className="h-10" />
               </div>
-            ))}
-          </div>
+            )}
+            <div className="overflow-hidden rounded-lg border bg-card">
+              <div className="h-10 border-b bg-surface-sunken" />
+              {Array.from({ length: rows }, (_, i) => (
+                <div key={i} className="flex h-12 items-center gap-6 border-b px-4 last:border-0">
+                  <Skeleton className="h-3.5 w-[8%]" />
+                  <Skeleton className="h-3.5 w-[52%]" />
+                  <Skeleton className="ml-auto h-3.5 w-[12%]" />
+                  <Skeleton className="h-3.5 w-[10%]" />
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
