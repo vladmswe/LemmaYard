@@ -20,6 +20,8 @@ import { DESKTOP_QUERY, useMediaQuery } from "./use-media-query";
  * - `console`: right bottom, normally a `<ConsolePane>` (M5: run results).
  * - `footer`: optional mobile-only fixed bar under the content (M5: Run /
  *   Submit action bar). When set, the mobile panels get bottom padding.
+ * - `mobileTab` / `onMobileTabChange`: optional control of the mobile tab
+ *   (Run/Submit in the action bar switch to "code"). Uncontrolled otherwise.
  *
  * >= 768px: resizable split, description 45% (30–65%) | editor 58% (min 25%)
  * over console 42% (min 20%, collapsible); sizes persist in localStorage.
@@ -33,7 +35,11 @@ export type ProblemWorkspaceProps = {
   editor: ReactNode;
   console: ReactNode;
   footer?: ReactNode;
+  mobileTab?: MobileTab;
+  onMobileTabChange?: (tab: MobileTab) => void;
 };
+
+export type MobileTab = "description" | "code";
 
 const paneClasses = "h-full min-h-0 overflow-hidden rounded-lg border bg-card shadow-xs";
 
@@ -104,10 +110,23 @@ function DesktopWorkspace({ description, submissions, editor, console }: Problem
   );
 }
 
-function MobileWorkspace({ description, submissions, editor, console, footer }: ProblemWorkspaceProps) {
+function MobileWorkspace({
+  description,
+  submissions,
+  editor,
+  console,
+  footer,
+  mobileTab,
+  onMobileTabChange,
+}: ProblemWorkspaceProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <Tabs defaultValue="description" className="min-h-0 flex-1 gap-0">
+      <Tabs
+        defaultValue="description"
+        value={mobileTab}
+        onValueChange={onMobileTabChange ? (value) => onMobileTabChange(value as MobileTab) : undefined}
+        className="min-h-0 flex-1 gap-0"
+      >
         <TabsList aria-label="Problem" className="sticky top-0 z-10 shrink-0 bg-card">
           <TabsTrigger value="description" className="h-11 flex-1">
             <FileTextIcon aria-hidden />

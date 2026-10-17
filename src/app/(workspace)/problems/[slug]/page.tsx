@@ -4,17 +4,17 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { EmptyState } from "@/components/empty-state";
-import { ConsolePane } from "@/components/problem/console-pane";
-import { EditorPane } from "@/components/problem/editor-pane";
 import { ProblemDescription } from "@/components/problem/problem-description";
-import { ProblemWorkspace } from "@/components/problem/workspace";
+import { SolveWorkspace } from "@/components/problem/solve-workspace";
 import { getCurrentUser } from "@/server/auth/session";
 import { getProblemPageData } from "@/server/problem-page";
+import { getPollingConfig } from "@/server/submissions/config";
 
 // Deduped per request: generateMetadata and the page share one load.
 const loadProblem = cache(async (slug: string) => {
   const user = await getCurrentUser();
-  return getProblemPageData(slug, user?.id ?? null);
+  const problem = await getProblemPageData(slug, user?.id ?? null);
+  return problem && { ...problem, signedIn: user !== null };
 });
 
 export async function generateMetadata({ params }: PageProps<"/problems/[slug]">): Promise<Metadata> {
@@ -27,11 +27,14 @@ export default async function ProblemPage({ params }: PageProps<"/problems/[slug
   if (!problem) notFound();
 
   return (
-    <ProblemWorkspace
+    <SolveWorkspace
+      slug={problem.slug}
+      signature={problem.signature}
+      samples={problem.samples}
+      signedIn={problem.signedIn}
+      pollingConfig={getPollingConfig()}
       description={<ProblemDescription problem={problem} />}
       submissions={<SubmissionsPlaceholder />}
-      editor={<EditorPane />}
-      console={<ConsolePane />}
     />
   );
 }
