@@ -66,7 +66,7 @@ async function registerAlice() {
 }
 
 /** Simulates the browser sending `token` on the next request. */
-function useToken(token: string | null) {
+function sendToken(token: string | null) {
   state.cookies.clear();
   if (token !== null) state.cookies.set(SESSION_COOKIE, token);
 }
@@ -88,7 +88,7 @@ beforeAll(() => {
 });
 beforeEach(async () => {
   await resetTestDb();
-  useToken(null);
+  sendToken(null);
 });
 afterAll(closeTestDb);
 
@@ -112,7 +112,7 @@ describe("POST /api/auth/register", () => {
     // Secure only in production (tests run with NODE_ENV=test).
     expect(cookie.attrs).not.toContain("secure");
 
-    useToken(cookie.value);
+    sendToken(cookie.value);
     expect(await getCurrentUser()).toMatchObject({ id: row.id, username: "alice" });
   });
 
@@ -169,7 +169,7 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(200);
     const cookie = sessionCookie(res)!;
     expect(cookie.attrs).toEqual(expect.arrayContaining(["httponly", "samesite=lax", "path=/"]));
-    useToken(cookie.value);
+    sendToken(cookie.value);
     expect((await getCurrentUser())?.username).toBe("alice");
   });
 
@@ -249,7 +249,7 @@ describe("session tokens", () => {
 
   it("accepts a token signed with AUTH_SECRET", async () => {
     const user = await createUser({ username: "bob" });
-    useToken(await token(user.id));
+    sendToken(await token(user.id));
     expect((await getCurrentUser())?.username).toBe("bob");
   });
 
@@ -268,14 +268,14 @@ describe("session tokens", () => {
       "garbage",
       await token("not-a-uuid"),
     ]) {
-      useToken(bad);
+      sendToken(bad);
       expect(await getCurrentUser()).toBeNull();
     }
   });
 
   it("treats a valid token of a deleted user as guest", async () => {
     const user = await createUser({ username: "bob" });
-    useToken(await token(user.id));
+    sendToken(await token(user.id));
     await getTestDb().delete(users).where(eq(users.id, user.id));
     expect(await getCurrentUser()).toBeNull();
   });
@@ -288,10 +288,10 @@ describe("protected route /submissions", () => {
   });
 
   it("redirects a forged token to login and renders for a signed-in user", async () => {
-    useToken("forged.token.value");
+    sendToken("forged.token.value");
     expect(await redirectTarget(SubmissionsPage())).toBe("/login?next=%2Fsubmissions");
 
-    useToken(await registerAlice());
+    sendToken(await registerAlice());
     await expect(SubmissionsPage()).resolves.toBeTruthy();
     expect((await requireUser("/submissions")).username).toBe("alice");
   });
