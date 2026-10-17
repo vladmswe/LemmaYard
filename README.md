@@ -13,7 +13,7 @@ project. See [PLAN.md](PLAN.md) for the full plan and milestones.
 
 - Node.js 22+
 - pnpm (version pinned in `package.json` → `packageManager`; `corepack enable` picks it up)
-- Docker (Docker Desktop or compatible) for Postgres and, later, the sandbox
+- Docker (Docker Desktop or compatible) for Postgres and the judge sandbox
 
 ## Run from scratch
 
