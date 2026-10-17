@@ -175,7 +175,21 @@ token lives in the URL fragment, is sent only in POST bodies, and only its
 sha256 is stored; it is shown to the owner once. Join and rotation limits are
 in-process (`src/server/http/rate-limit.ts`, per instance), room creation is
 counted in the DB. E2E: `pnpm exec playwright test tests/e2e/rooms` (users
-`*@example.test`). Sessions, live updates and history are not built yet.
+`*@example.test`).
+
+Sessions (R3, backend only; the session screens are R4, history R5): API under
+`/api/rooms/[roomId]/sessions/**` (handlers in `src/server/rooms/sessions.ts`
+and `state.ts`). A session goes lobby → live → finished (or lobby →
+cancelled); the lobby draw uses the pure selection core with inputs from
+`src/server/rooms/draw.ts`. Expiry (`ends_at`) and stale lobbies (7 days) are
+closed lazily by any request that touches the session and by the worker's
+periodic sweep. A Submit counts for a session only with an explicit
+`roomSessionId` (validated in `src/server/rooms/submit-context.ts`, re-checked
+inside the insert transaction). `finalize()` in `worker/queue.ts` applies the
+session outcome (`src/server/rooms/outcome.ts`) in the same transaction under
+the session's advisory lock, so every executor must finalize through it. The
+live UI polls `GET …/sessions/[sessionId]/state?after=<cursor>` through
+`createPollingEventSource()` (`src/lib/rooms/event-source.ts`).
 
 Known, accepted property: user code can read the **inputs** of hidden tests inside
 the container (never the expected outputs). The per-run frame nonce only stops

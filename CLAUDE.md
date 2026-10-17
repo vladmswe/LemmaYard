@@ -62,6 +62,10 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
   DB enums are built from its tuples. Server code in `src/server/rooms/`;
   every room read goes through `requireRoomMember` / `requireSessionInRoom`
   (null → 404). Test factories: `tests/helpers/rooms.ts`.
+  Room events are written only by `appendRoomEvent` (`src/server/rooms/events.ts`)
+  under the session lock `rs:<id>`; lock order is user → room → session, and a
+  session-lock holder never takes another lock. Session submits are scored in
+  `finalize()` (same transaction, `src/server/rooms/outcome.ts`).
 - Import alias `@/` → `src/`.
 
 ## Rules
