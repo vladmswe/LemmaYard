@@ -59,9 +59,10 @@ describe("lesson registry", () => {
     }
   });
 
-  it("keeps every stub a draft (M-G1 publishes nothing)", () => {
-    expect(LESSONS.every((l) => l.status === "draft")).toBe(true);
-    expect(publishedLessons()).toEqual([]);
+  it("publishes exactly the lessons whose meta says so, in order", () => {
+    const published = LESSONS.filter((l) => l.status === "published");
+    expect(publishedLessons().map((l) => l.slug)).toEqual(published.map((l) => l.slug));
+    for (const l of LESSONS) expect(["draft", "published"]).toContain(l.status);
   });
 
   it("looks lessons up by slug", () => {
@@ -94,8 +95,20 @@ describe("buildRoadmap", () => {
     ]);
   });
 
-  it("is empty while every lesson is a draft", () => {
-    expect(buildRoadmap(LESSONS)).toEqual([]);
+  it("is empty when no lesson is published", () => {
+    expect(buildRoadmap([])).toEqual([]);
+    expect(buildRoadmap(LESSONS.map((l) => ({ ...l, status: "draft" as const })))).toEqual([]);
+  });
+
+  it("lists every published lesson in its track, in order", () => {
+    const roadmap = buildRoadmap(LESSONS);
+    const listed = roadmap.flatMap((s) => s.lessons.map((l) => [s.track, l.slug]));
+    const expected = publishedLessons().map((l) => [l.track, l.slug]);
+    expect([...listed].sort()).toEqual([...expected].sort());
+    for (const s of roadmap) {
+      const orders = s.lessons.map((l) => l.order);
+      expect(orders).toEqual([...orders].sort((a, b) => a - b));
+    }
   });
 });
 

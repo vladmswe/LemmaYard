@@ -55,6 +55,12 @@ describe("lesson glossaries", () => {
       { meta: meta("b"), glossary: [{ id: "y", term: "Y", definition: "y" }] },
     ]);
     expect(publishedGlossary(items).map((i) => i.id)).toEqual(["y"]);
-    expect(publishedGlossary()).toEqual([]); // every lesson is a draft for now
+    // The real glossary: exactly the entries of the published lessons' glossary.ts files.
+    const published = LESSON_SLUGS.filter((s) => LESSON_DATA[s].meta.status === "published");
+    const expected = published.flatMap((s) => LESSON_DATA[s].glossary.map((e) => `${s}/${e.id}`)).sort();
+    expect(publishedGlossary().map((i) => `${i.lesson.slug}/${i.id}`).sort()).toEqual(expected);
+    // With no published lesson, the glossary is empty.
+    const allDrafts = LESSON_SLUGS.map((s) => ({ ...LESSON_DATA[s], meta: { ...LESSON_DATA[s].meta, status: "draft" as const } }));
+    expect(publishedGlossary(buildGlossary(allDrafts))).toEqual([]);
   });
 });
