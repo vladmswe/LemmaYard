@@ -6,7 +6,7 @@ import { verifyDummyPassword, verifyPassword } from "@/server/auth/password";
 import { authLimitKeys, checkLoginLimit, recordLoginFailure } from "@/server/auth/rate-limit";
 import { signSessionToken } from "@/server/auth/token";
 import { findUserByEmail } from "@/server/auth/users";
-import { assertSameOrigin, jsonError, readJsonBody } from "@/server/http/request";
+import { assertSameOrigin, internalServerError, jsonError, readJsonBody } from "@/server/http/request";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,9 @@ export async function POST(request: Request) {
   const limited = checkLoginLimit(limitKeys);
   if (limited) return limited;
 
-  const user = await findUserByEmail(email);
+  // A DB failure is logged without its SQL params (the email).
+  const user = await findUserByEmail(email).catch((error: unknown) => ({ failed: error }) as const);
+  if (user && "failed" in user) return internalServerError("auth.login_failed", user.failed);
   if (!user) {
     // Same argon2 cost as a wrong password, so timing does not reveal emails.
     await verifyDummyPassword(password);

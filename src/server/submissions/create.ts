@@ -11,7 +11,7 @@ import { getCurrentUser } from "@/server/auth/session";
 import { getDb, type Db } from "@/server/db";
 import { problems, submissions } from "@/server/db/schema";
 import { getEnv } from "@/server/env";
-import { assertSameOrigin, jsonError, readJsonBody } from "@/server/http/request";
+import { assertSameOrigin, internalServerError, jsonError, readJsonBody } from "@/server/http/request";
 import { judgeDisabledResponse, judgeEnabled } from "@/server/judge";
 import {
   checkSubmitSession,
@@ -180,6 +180,7 @@ export async function createSubmission(
   }
 
   // (6) + (7) Limits and insert, one transaction under the per-user lock.
+  // A failed insert carries the code in its SQL params: log it safely.
   const outcome = await insertWithLimits(
     db,
     {
@@ -195,7 +196,8 @@ export async function createSubmission(
       maxActive: env.MAX_ACTIVE_PER_USER,
       ratePerMin: kind === "run" ? env.RUN_RATE_PER_MIN : env.SUBMIT_RATE_PER_MIN,
     },
-  );
+  ).catch((error: unknown) => ({ failed: error }) as const);
+  if ("failed" in outcome) return internalServerError(`submissions.${kind}_insert_failed`, outcome.failed);
   if (!outcome.ok && outcome.reason === "session") return rejectSession(outcome.rejection);
   if (!outcome.ok) {
     const message =

@@ -5,7 +5,7 @@ import { setSessionCookie } from "@/server/auth/cookie";
 import { authLimitKeys, hitRegisterLimit } from "@/server/auth/rate-limit";
 import { signSessionToken } from "@/server/auth/token";
 import { createUser } from "@/server/auth/users";
-import { assertSameOrigin, jsonError, readJsonBody } from "@/server/http/request";
+import { assertSameOrigin, internalServerError, jsonError, readJsonBody } from "@/server/http/request";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,9 @@ export async function POST(request: Request) {
   const limited = hitRegisterLimit(authLimitKeys(request, body.data.email));
   if (limited) return limited;
 
-  const result = await createUser(body.data);
+  // A DB failure is logged without its SQL params (email, password hash).
+  const result = await createUser(body.data).catch((error: unknown) => ({ failed: error }) as const);
+  if ("failed" in result) return internalServerError("auth.register_failed", result.failed);
   if (!result.ok) {
     return jsonError(409, "Email or username is already taken", {
       ...(result.taken.email && { email: AUTH_MESSAGES.emailTaken }),
