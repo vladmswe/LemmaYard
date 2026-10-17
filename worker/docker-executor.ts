@@ -270,21 +270,25 @@ async function inspectState(bin: string, id: string): Promise<{ exitCode: number
   return { exitCode: Number(state.ExitCode), oomKilled: state.OOMKilled === true };
 }
 
+/** The single stdin line sent to the container. Inputs only: never `expected`. */
+export function buildSandboxPayload(job: ExecJob, timeLimitMs: number, nonce: string): SandboxPayload {
+  return {
+    language: job.language,
+    code: job.code,
+    signature: job.signature,
+    tests: job.tests.map((t) => ({ input: t.input })),
+    timeLimitMs,
+    stopOnError: job.stopOnFirstFailure,
+    nonce,
+  };
+}
+
 export function createDockerExecutor(config: DockerExecutorConfig): Executor {
   const bin = config.dockerBin ?? "docker";
   return async function dockerExecutor(job: ExecJob): Promise<ExecResult> {
     const effective = effectiveTimeLimitMs(job.language, job.limits.timeMs, config);
     const wallMs = wallBudgetMs(job.tests.length, effective, config.wallCapMs);
-    const payload: SandboxPayload = {
-      language: job.language,
-      code: job.code,
-      signature: job.signature,
-      // Inputs only: expected values never enter the container.
-      tests: job.tests.map((t) => ({ input: t.input })),
-      timeLimitMs: effective,
-      stopOnError: job.stopOnFirstFailure,
-      nonce: randomBytes(16).toString("hex"),
-    };
+    const payload = buildSandboxPayload(job, effective, randomBytes(16).toString("hex"));
     let id: string | null = null;
     try {
       const args = buildCreateArgs(

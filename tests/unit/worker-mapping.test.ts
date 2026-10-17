@@ -3,7 +3,7 @@
 import { DrizzleQueryError } from "drizzle-orm/errors";
 import { describe, expect, it } from "vitest";
 
-import { buildCreateArgs, sandboxCommand } from "../../worker/docker-executor";
+import { buildCreateArgs, buildSandboxPayload, sandboxCommand } from "../../worker/docker-executor";
 import { safeErrorMessage } from "../../worker/loop";
 import { sanitizeValue, TOO_DEEP } from "../../worker/judge";
 import { toFinalFields } from "../../worker/queue";
@@ -93,6 +93,34 @@ describe("safeErrorMessage", () => {
 
   it("keeps the first line of other errors", () => {
     expect(safeErrorMessage(new Error("boom\nsecond line"))).toBe("boom");
+  });
+});
+
+describe("sandbox stdin payload", () => {
+  it("carries inputs only: expected values never enter the container", () => {
+    const payload = buildSandboxPayload(
+      {
+        language: "python",
+        code: "class Solution: ...",
+        signature: { name: "solve", params: [{ name: "x", type: "int" }], returns: "string" },
+        compare: { mode: "exact" },
+        limits: { timeMs: 1000, memoryMb: 128 },
+        tests: [
+          { input: { x: 1 }, expected: "EXPECTED_MARKER_1" },
+          { input: { x: 2 }, expected: "EXPECTED_MARKER_2" },
+        ],
+        stopOnFirstFailure: true,
+      },
+      2000,
+      "nonce",
+    );
+    const line = JSON.stringify(payload);
+    expect(line).not.toContain("EXPECTED_MARKER");
+    expect(line).not.toContain("expected");
+    expect(payload.tests).toEqual([{ input: { x: 1 } }, { input: { x: 2 } }]);
+    expect(Object.keys(payload).sort()).toEqual(
+      ["code", "language", "nonce", "signature", "stopOnError", "tests", "timeLimitMs"].sort(),
+    );
   });
 });
 
