@@ -788,6 +788,9 @@ describe("submit with roomSessionId (AC-S-SES-3)", () => {
     expect(res.status).toBe(400);
     expect(await body(res)).toMatchObject({ code: "not_in_session", error: "This problem is not part of the session" });
     expect((await as(bob, () => api.submit(slugs[0], { language: "python", code: CODE, roomSessionId: "nope" }))).status).toBe(400);
+    // F3 does not exist: a second session kind is an unknown key (strict body) → 400.
+    const both = { language: "python", code: CODE, roomSessionId: id, interviewSessionId: UNKNOWN_ID };
+    expect((await as(bob, () => api.submit(slugs[0], both))).status).toBe(400);
     expect(await dbSnapshot()).toBe(before);
   });
 
@@ -900,6 +903,13 @@ describe("uniform 404 for non-members and cross-room ids (AC-S-SEC-1)", () => {
     expect(await shape(await as(alice, () => route.call({ roomId: "not-a-uuid", sessionId: id }, undefined, route.body)))).toEqual(unknown);
     expect(await shape(await as(alice, () => route.call({ roomId, sessionId: "1" }, undefined, route.body)))).toEqual(unknown);
     expect(await dbSnapshot()).toBe(before);
+  });
+
+  it("GET routes without a session cookie → 401", async () => {
+    const { id } = await createLobby();
+    for (const route of SESSION_ROUTES.filter((r) => !r.mutating)) {
+      expect((await as(null, () => route.call({ roomId, sessionId: id }))).status).toBe(401);
+    }
   });
 
   it("create session: non-member and unknown room get the room 404", async () => {
