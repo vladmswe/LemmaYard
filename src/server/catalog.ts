@@ -35,7 +35,13 @@ export type CatalogRow = {
   status: CatalogStatus | null;
 };
 
-export type CatalogProgress = { solved: Record<CatalogDifficulty, number>; attempted: number };
+export type CatalogProgress = {
+  solved: Record<CatalogDifficulty, number>;
+  /** Submitted to but never accepted. */
+  attempted: number;
+  /** `attempted` by difficulty (the progress card's squares). */
+  attemptedBy: Record<CatalogDifficulty, number>;
+};
 
 export type CatalogPage = {
   rows: CatalogRow[];
@@ -255,12 +261,12 @@ export async function getCatalogPage({
   let progress: CatalogProgress | null = null;
   if (statusRows) {
     const solved: Record<CatalogDifficulty, number> = { easy: 0, medium: 0, hard: 0 };
-    let attempted = 0;
+    const attemptedBy: Record<CatalogDifficulty, number> = { easy: 0, medium: 0, hard: 0 };
     for (const s of statusRows) {
       if (s.solved) solved[s.difficulty] += 1;
-      else attempted += 1;
+      else attemptedBy[s.difficulty] += 1;
     }
-    progress = { solved, attempted };
+    progress = { solved, attempted: attemptedBy.easy + attemptedBy.medium + attemptedBy.hard, attemptedBy };
   }
 
   return {

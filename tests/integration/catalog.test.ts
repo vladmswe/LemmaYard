@@ -257,9 +257,13 @@ describe("acceptance and status (AC-M3-3)", () => {
 
   it("reports progress by difficulty over published problems", async () => {
     const data = await page({}, alice.id);
+    // Attempted: #2 (time_limit) and #4 (internal error only).
+    const attemptedBy = { easy: 0, medium: 0, hard: 0 };
+    for (const n of [2, 4]) attemptedBy[fixture(n).difficulty] += 1;
     expect(data.progress).toEqual({
       solved: { easy: 0, medium: 1, hard: 0 },
       attempted: 2,
+      attemptedBy,
     });
     expect(fixture(1).difficulty).toBe("medium");
   });

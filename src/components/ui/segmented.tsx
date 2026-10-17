@@ -16,7 +16,8 @@ type SegmentedProps<T extends string> = {
   /** Accessible name of the group (required: the options alone are ambiguous). */
   label: string
   className?: string
-  size?: "sm" | "default"
+  /** sm 28 / default 32 / lg 36px buttons (lg: a 44px track, aligned with inputs). */
+  size?: "sm" | "default" | "lg"
 }
 
 function Segmented<T extends string>({
@@ -60,8 +61,9 @@ function Segmented<T extends string>({
             onClick={() => onValueChange(o.value)}
             onKeyDown={(e) => onKeyDown(e, i)}
             className={cn(
-              "inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-sm font-medium whitespace-nowrap text-muted-foreground transition-[color,background-color,box-shadow] duration-200 ease-out hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-md dark:aria-pressed:bg-popover",
-              size === "sm" ? "h-7" : "h-8"
+              // The ::after extends the hit area to the track's full height (+ 4px), DESIGN.md §15.
+              "relative inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-sm font-medium whitespace-nowrap text-muted-foreground transition-[color,background-color,box-shadow] duration-200 ease-out after:absolute after:inset-x-0 after:-inset-y-1 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-md dark:aria-pressed:bg-popover",
+              size === "sm" ? "h-7" : size === "lg" ? "h-9" : "h-8"
             )}
           >
             {o.label}
