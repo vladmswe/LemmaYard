@@ -4,7 +4,7 @@ export const meta: LessonMeta = {
   slug: "queues-and-deques",
   title: "Queues, circular buffers and deques",
   summary:
-    "First in, first out without shifting elements: a circular buffer gives O(1) enqueue and dequeue, and a deque works at both ends.",
+    "First in, first out without shifting: a circular buffer gives O(1) amortized enqueue (the ring grows) and O(1) dequeue; a deque works at both ends.",
   track: "linear",
   order: 6,
   prerequisites: ["stacks"],

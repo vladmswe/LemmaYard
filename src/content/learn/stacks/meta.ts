@@ -4,7 +4,7 @@ export const meta: LessonMeta = {
   slug: "stacks",
   title: "Stacks: last in, first out",
   summary:
-    "Last in, first out: the structure behind undo, the call stack and bracket matching, with every operation at one end in O(1).",
+    "Last in, first out: the structure behind undo, the call stack and bracket matching, every operation O(1), amortized when an array grows.",
   track: "linear",
   order: 5,
   prerequisites: ["dynamic-arrays", "linked-lists"],
