@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { isActivePath } from "@/components/nav-links";
-import { formatMonthYear, formatPercent } from "@/lib/format";
+import { formatMonthYear, formatPercent, formatTagLabel } from "@/lib/format";
 import { initials } from "@/lib/initials";
 import {
   lemmayardDark,
@@ -113,4 +113,16 @@ describe("Monaco themes", () => {
     expect(lemmayardLight.colors["editor.background"]).toBe("#FBFCFE");
     expect(lemmayardDark.colors["editor.background"]).toBe("#0F1A2E");
   });
+});
+
+describe("formatTagLabel", () => {
+  it.each([
+    ["Hash Table", "Hash table"],
+    ["Dynamic Programming", "Dynamic programming"],
+    ["Two Pointers", "Two pointers"],
+    ["Array", "Array"],
+    ["array", "Array"],
+    ["Graph BFS", "Graph BFS"],
+    ["  Prefix   Sum ", "Prefix sum"],
+  ])("%s -> %s", (input, expected) => expect(formatTagLabel(input)).toBe(expected));
 });

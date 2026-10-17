@@ -16,7 +16,7 @@ import {
   TableRow,
   tableLinkClasses,
 } from "@/components/ui/table";
-import { formatPercent } from "@/lib/format";
+import { formatPercent, formatTagLabel } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
 import { getLandingData } from "@/server/landing";
 
@@ -219,7 +219,7 @@ export default async function Home() {
                         <span className="flex flex-wrap gap-1.5">
                           {p.tags.map((t) => (
                             <Badge key={t} variant="tag">
-                              {t}
+                              {formatTagLabel(t)}
                             </Badge>
                           ))}
                         </span>
