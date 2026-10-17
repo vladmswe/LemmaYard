@@ -185,28 +185,27 @@ export async function recomputeSessionScores(
   tx: Tx,
   sessionId: string,
 ): Promise<Map<string, { solvedCount: number; penaltySec: number; rank: number }>> {
-  const [participants, results] = await Promise.all([
-    tx
-      .select({
-        userId: roomSessionParticipants.userId,
-        username: users.username,
-        solvedCount: roomSessionParticipants.solvedCount,
-        penaltySec: roomSessionParticipants.penaltySec,
-        rank: roomSessionParticipants.rank,
-      })
-      .from(roomSessionParticipants)
-      .innerJoin(users, eq(users.id, roomSessionParticipants.userId))
-      .where(eq(roomSessionParticipants.sessionId, sessionId)),
-    tx
-      .select({
-        userId: roomSessionResults.userId,
-        position: roomSessionResults.position,
-        wrongBefore: roomSessionResults.wrongBeforeAccept,
-        solveSeconds: roomSessionResults.solveSeconds,
-      })
-      .from(roomSessionResults)
-      .where(eq(roomSessionResults.sessionId, sessionId)),
-  ]);
+  // Sequential: one transaction is one connection.
+  const participants = await tx
+    .select({
+      userId: roomSessionParticipants.userId,
+      username: users.username,
+      solvedCount: roomSessionParticipants.solvedCount,
+      penaltySec: roomSessionParticipants.penaltySec,
+      rank: roomSessionParticipants.rank,
+    })
+    .from(roomSessionParticipants)
+    .innerJoin(users, eq(users.id, roomSessionParticipants.userId))
+    .where(eq(roomSessionParticipants.sessionId, sessionId));
+  const results = await tx
+    .select({
+      userId: roomSessionResults.userId,
+      position: roomSessionResults.position,
+      wrongBefore: roomSessionResults.wrongBeforeAccept,
+      solveSeconds: roomSessionResults.solveSeconds,
+    })
+    .from(roomSessionResults)
+    .where(eq(roomSessionResults.sessionId, sessionId));
   const score = scoreSession(
     participants.map((p) => ({
       userId: p.userId,
