@@ -1,0 +1,32 @@
+{
+  "kind": "class",
+  "entry": { "python": "Stack", "javascript": "Stack" },
+  "methods": {
+    "push": { "python": "push", "javascript": "push" },
+    "pop": { "python": "pop", "javascript": "pop" },
+    "peek": { "python": "peek", "javascript": "peek" },
+    "snapshot": { "python": "snapshot", "javascript": "snapshot" }
+  },
+  "cases": [
+    {
+      "name": "push, push, pop, peek",
+      "ops": [["push", 3], ["push", 5], ["pop"], ["peek"], ["snapshot"]],
+      "expected": [null, null, 5, 3, [3]]
+    },
+    {
+      "name": "last in, first out",
+      "ops": [["push", 1], ["push", 2], ["push", 3], ["pop"], ["pop"], ["pop"]],
+      "expected": [null, null, null, 3, 2, 1]
+    },
+    {
+      "name": "pop on empty raises",
+      "ops": [["pop"]],
+      "expected": [{ "$error": true }]
+    },
+    {
+      "name": "the stack keeps working after a failed peek",
+      "ops": [["peek"], ["push", 7], ["peek"]],
+      "expected": [{ "$error": true }, null, 7]
+    }
+  ]
+}

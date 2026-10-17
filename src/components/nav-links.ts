@@ -3,6 +3,7 @@ export type NavLink = { href: string; label: string; signedInOnly?: boolean };
 /** Main navigation (header, mobile menu). Submissions only for users. */
 export const NAV_LINKS: readonly NavLink[] = [
   { href: "/problems", label: "Problems" },
+  { href: "/learn", label: "Learn" },
   { href: "/submissions", label: "Submissions", signedInOnly: true },
 ];
 

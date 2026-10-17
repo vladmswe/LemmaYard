@@ -1,0 +1,645 @@
+/*
+ * Lesson styles of the Data Structures guide (/learn), M-G1.
+ * Design tokens only (globals.css / DESIGN.md); no colours or fonts of its own,
+ * so a redesign re-skins the guide by changing the tokens.
+ */
+
+/* ------------------------------------------------------------ lesson shell */
+
+.guide-lesson-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+@media (width >= 80rem) {
+  .guide-lesson-grid {
+    grid-template-columns: minmax(0, 1fr) 15rem;
+    column-gap: 3rem;
+  }
+  .guide-lesson-head,
+  .guide-lesson-body,
+  .guide-lesson-foot {
+    grid-column: 1;
+  }
+  .guide-lesson-aside {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+  .guide-toc {
+    position: sticky;
+    top: 5.5rem;
+  }
+}
+
+.guide-lesson-title {
+  font-family: var(--font-heading);
+  font-size: 1.875rem;
+  line-height: 2.375rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+@media (width >= 40rem) {
+  .guide-lesson-title {
+    font-size: 2.25rem;
+    line-height: 2.75rem;
+  }
+}
+.guide-lesson-summary {
+  margin-top: 0.75rem;
+  max-width: 70ch;
+  font-size: 1.1875rem;
+  line-height: 1.875rem;
+  color: var(--foreground-secondary);
+}
+.guide-lesson-meta {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.guide-link {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.guide-lesson-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+}
+
+/* ------------------------------------------------------------ TOC */
+
+.guide-toc-details {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+.guide-toc-summary {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-inline: 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.guide-toc-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.5rem 0.5rem;
+}
+.guide-toc-link {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-inline: 0.5rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--foreground-secondary);
+}
+.guide-toc-link:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* ------------------------------------------------------------ prose */
+
+.guide-prose {
+  font-size: 1rem;
+  line-height: 1.75rem;
+  color: var(--foreground);
+}
+.guide-prose > * {
+  max-width: 70ch;
+}
+.guide-prose > * + * {
+  margin-top: 1.125rem;
+}
+/* Players, quizzes and code break out of the prose measure. */
+.guide-prose > .guide-wide,
+.guide-prose > .guide-code,
+.guide-prose > .guide-complexity,
+.guide-prose > .guide-quiz {
+  max-width: 1040px;
+}
+.guide-prose h2 {
+  margin-top: 2.75rem;
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  scroll-margin-top: 5.5rem;
+}
+@media (width >= 40rem) {
+  .guide-prose h2 {
+    font-size: 1.75rem;
+    line-height: 2.25rem;
+  }
+}
+.guide-prose h3 {
+  margin-top: 2rem;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  scroll-margin-top: 5.5rem;
+}
+.guide-prose a {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.guide-prose strong {
+  font-weight: 600;
+}
+.guide-prose ul,
+.guide-prose ol:not([role="list"]) {
+  padding-left: 1.375rem;
+}
+.guide-prose > ul {
+  list-style: disc;
+}
+.guide-prose > ol {
+  list-style: decimal;
+}
+.guide-prose li + li {
+  margin-top: 0.375rem;
+}
+.guide-prose > ul li::marker,
+.guide-prose > ol li::marker {
+  color: var(--primary);
+}
+.guide-prose :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+}
+.guide-prose pre,
+.guide-quiz-code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-variant-ligatures: none;
+}
+.guide-prose pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+}
+.guide-table-scroll {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+}
+.guide-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.guide-table-scroll th {
+  text-align: left;
+  font-weight: 600;
+  background: var(--surface-sunken);
+}
+.guide-table-scroll th,
+.guide-table-scroll td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+}
+.guide-prose blockquote {
+  border-left: 3px solid var(--border-strong);
+  padding-left: 1rem;
+  color: var(--foreground-secondary);
+}
+
+.guide-callout [data-slot="alert-description"] > * + * {
+  margin-top: 0.5rem;
+}
+
+/* ------------------------------------------------------------ terms */
+
+.guide-dfn {
+  font-style: normal;
+}
+.guide-prose a.guide-term,
+a.guide-term {
+  color: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--muted-foreground);
+  text-underline-offset: 4px;
+}
+.guide-dfn > a.guide-term {
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------ code (Shiki) */
+
+.guide-code-title {
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.guide-code-body {
+  overflow: auto;
+  max-height: 32rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  padding-block: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  font-variant-ligatures: none;
+}
+.guide-code-body pre code {
+  display: grid;
+  min-width: max-content;
+}
+.guide-code-body .line {
+  display: block;
+  padding-inline: 1rem;
+}
+/* Shiki emits both themes as CSS variables (defaultColor: false). */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+}
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark);
+}
+.shiki {
+  background: transparent !important;
+  margin: 0;
+  font-variant-ligatures: none;
+}
+
+/* ------------------------------------------------------------ complexity table */
+
+.guide-complexity-caption {
+  caption-side: top;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.guide-complexity-op {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.9375rem;
+  color: var(--foreground);
+  white-space: normal;
+}
+.guide-complexity-cost {
+  white-space: normal;
+}
+.guide-complexity-cell {
+  white-space: nowrap;
+}
+.guide-complexity-cell code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  font-variant-ligatures: none;
+}
+.guide-complexity-why {
+  color: var(--foreground-secondary);
+  min-width: 12rem;
+}
+.guide-complexity-notes {
+  margin-top: 0.75rem;
+  padding-left: 1.375rem;
+  list-style: disc;
+  font-size: 0.9375rem;
+  color: var(--foreground-secondary);
+}
+/* Below 640 px each row becomes a stacked card; the table stays a table for assistive tech. */
+@media (width < 40rem) {
+  .guide-complexity thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .guide-complexity table,
+  .guide-complexity tbody,
+  .guide-complexity tr,
+  .guide-complexity th[scope="row"],
+  .guide-complexity td {
+    display: block;
+    width: 100%;
+  }
+  .guide-complexity caption {
+    display: block;
+  }
+  .guide-complexity tr {
+    padding: 0.75rem 1rem;
+  }
+  .guide-complexity th[scope="row"],
+  .guide-complexity td {
+    height: auto;
+    padding: 0.125rem 0;
+    border: 0;
+    background: transparent;
+  }
+  .guide-complexity td::before {
+    content: attr(data-label) ": ";
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+  .guide-complexity-cell {
+    white-space: normal;
+  }
+  .guide-complexity-why {
+    min-width: 0;
+  }
+}
+
+/* ------------------------------------------------------------ quiz */
+
+.guide-quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.guide-quiz-question {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  padding: 1rem;
+}
+@media (width >= 40rem) {
+  .guide-quiz-question {
+    padding: 1.25rem 1.5rem;
+  }
+}
+.guide-quiz-question[data-result="correct"] {
+  border-color: var(--success);
+}
+.guide-quiz-question[data-result="incorrect"] {
+  border-color: var(--warning);
+}
+.guide-quiz-prompt {
+  float: left; /* legend inside the box, not on the border */
+  width: 100%;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+.guide-quiz-prompt + * {
+  clear: both;
+}
+.guide-quiz-number {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.guide-quiz-code {
+  margin-bottom: 0.75rem;
+  clear: both;
+}
+.guide-quiz-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  clear: both;
+}
+.guide-quiz-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.guide-quiz-choice:hover {
+  background: var(--accent);
+}
+.guide-quiz-feedback {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.125rem 0 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+  color: var(--foreground-secondary);
+}
+.guide-quiz-icon {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.25rem;
+}
+.guide-quiz-icon[data-verdict="right"] {
+  color: var(--success);
+}
+.guide-quiz-icon[data-verdict="wrong"],
+.guide-quiz-icon[data-verdict="missed"] {
+  color: var(--danger);
+}
+.guide-quiz-icon[data-verdict="other"] {
+  color: var(--muted-foreground);
+}
+.guide-quiz-order {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  clear: both;
+}
+.guide-quiz-order-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+}
+.guide-quiz-order-pos {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+.guide-quiz-order-label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.guide-quiz-order-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+.guide-quiz-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.guide-quiz-saved {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+.guide-quiz-explain {
+  margin-top: 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  padding: 0.75rem 1rem;
+}
+.guide-quiz-score {
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------ practice */
+
+.guide-practice-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+}
+@media (width >= 40rem) {
+  .guide-practice-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.guide-practice-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin: 0 !important;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  padding: 0.75rem 1rem;
+}
+.guide-prose .guide-practice-link,
+.guide-practice-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.75rem;
+  font-weight: 600;
+  color: var(--link);
+}
+.guide-practice-why {
+  flex-basis: 100%;
+  font-size: 0.9375rem;
+  color: var(--foreground-secondary);
+}
+.guide-practice-note {
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------ completion + nav */
+
+.guide-complete-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+.guide-lesson-nav {
+  display: grid;
+  gap: 0.75rem;
+}
+@media (width >= 40rem) {
+  .guide-lesson-nav {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.guide-lesson-nav-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 2.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  padding: 0.75rem 1rem;
+}
+.guide-lesson-nav-link:hover {
+  border-color: var(--border-strong);
+}
+.guide-lesson-nav-next {
+  text-align: right;
+  align-items: flex-end;
+  grid-column: 2;
+}
+@media (width < 40rem) {
+  .guide-lesson-nav-next {
+    grid-column: auto;
+  }
+}
+.guide-lesson-nav-dir {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+.guide-lesson-nav-title {
+  font-weight: 600;
+  color: var(--link);
+}
+
+/* ------------------------------------------------------------ roadmap + glossary */
+
+.guide-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.guide-card-link:focus-visible {
+  outline: none;
+}
+.guide-card:has(.guide-card-link:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.guide-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.guide-roadmap-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+}
+.guide-glossary {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.guide-glossary-term {
+  font-size: 1.125rem;
+  font-weight: 600;
+  scroll-margin-top: 5.5rem;
+}
+.guide-glossary-def > * + * {
+  margin-top: 0.25rem;
+}

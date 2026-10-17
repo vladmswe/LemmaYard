@@ -1,0 +1,58 @@
+import { fixtureStackViz } from "./viz";
+
+## Why it exists
+
+This page is the content pipeline's own test. It uses every lesson component once,
+so a broken component shows up here before it reaches a real lesson. A stack is a
+<Term id="fixture-lifo">LIFO</Term> structure, and the <Term id="fixture-lifo">LIFO</Term> rule
+decides what pop returns.
+
+## Mental model
+
+Think of a pile of plates: you add to the top and you take from the top.
+Read more on the [problems page](/problems) or on [MDN](https://developer.mozilla.org/).
+
+<Viz def={fixtureStackViz} id="fixture-stack" code="_fixture/fixture_stack" hint="Fixture hint: the server built this trace." />
+
+## Cost
+
+<ComplexityTable id="fixture-stack-ops" />
+
+| Operation | Touches |
+|---|---|
+| push | the top slot |
+| pop | the top slot |
+
+## Pitfalls
+
+<Callout kind="pitfall" title="Popping an empty stack">
+  Check for an empty stack first. Our `pop` raises a clear error instead of returning garbage.
+</Callout>
+
+<Callout kind="tip">
+  A plain callout without a title.
+</Callout>
+
+## In your language
+
+```python
+stack = []
+stack.append(3)
+top = stack.pop()
+```
+
+<CodeTabs code="_fixture/fixture_stack" />
+
+## Check yourself
+
+<Quiz id="fixture-check" />
+
+## Practice
+
+<PracticeLinks />
+
+## Recap
+
+- A stack adds and removes at the top.
+- Push, pop and peek are O(1).
+- Pop on an empty stack raises.
