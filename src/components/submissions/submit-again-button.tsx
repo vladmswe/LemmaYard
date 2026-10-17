@@ -13,13 +13,23 @@ import { getBrowserStorage, saveDraft, saveLanguage } from "@/lib/workspace/stor
  * restores, AC-M5-2). A plain link without JS: the problem opens with the
  * current draft.
  */
-export function SubmitAgainLink({ slug, language, code }: { slug: string; language: Language; code: string }) {
+export function SubmitAgainLink({
+  slug,
+  language,
+  code,
+  className,
+}: {
+  slug: string;
+  language: Language;
+  code: string;
+  className?: string;
+}) {
   const router = useRouter();
   const href = `/problems/${slug}`;
   return (
     <a
       href={href}
-      className={buttonVariants({ variant: "secondary" })}
+      className={buttonVariants({ variant: "secondary", className })}
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
         event.preventDefault();

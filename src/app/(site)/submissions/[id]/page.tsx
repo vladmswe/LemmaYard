@@ -79,7 +79,7 @@ export default async function SubmissionPage({ params }: PageProps<"/submissions
           aria-labelledby="verdict-heading"
           data-testid="verdict-card"
           data-status={submission.status}
-          className={cn("rounded-lg border border-l-4 bg-card p-6 shadow-xs", meta.edge)}
+          className={cn("rounded-lg border border-l-4 bg-card p-4 shadow-xs sm:p-6", meta.edge)}
         >
           <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
             <div className="flex min-w-0 flex-col gap-1.5">
@@ -89,7 +89,6 @@ export default async function SubmissionPage({ params }: PageProps<"/submissions
               <p className="text-sm text-muted-foreground tabular-nums">
                 Submitted{" "}
                 <time dateTime={submission.createdAt}>{formatDateTime(createdAt)}</time>
-                {view?.type === "submit" && showMetrics && <> · {view.summary}</>}
               </p>
             </div>
             <p className="flex flex-wrap items-center gap-x-2 text-[0.9375rem]">
@@ -109,7 +108,7 @@ export default async function SubmissionPage({ params }: PageProps<"/submissions
 
           <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
             {showMetrics ? (
-              <dl className="flex flex-wrap gap-2">
+              <dl className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                 <Metric label="Runtime" value={formatMs(submission.runtimeMs)} />
                 <Metric label="Memory" value={formatMemory(submission.memoryKb)} />
                 <Metric label="Tests passed" value={`${submission.passedCount} / ${submission.totalCount}`} />
@@ -118,9 +117,14 @@ export default async function SubmissionPage({ params }: PageProps<"/submissions
               <span />
             )}
             {problemPublished && (
-              <div className="flex flex-wrap gap-2">
-                <SubmitAgainLink slug={submission.problem.slug} language={submission.language} code={code} />
-                <Link href={problemHref} className={buttonVariants({ variant: "default" })}>
+              <div className="flex w-full gap-2 sm:w-auto">
+                <SubmitAgainLink
+                  slug={submission.problem.slug}
+                  language={submission.language}
+                  code={code}
+                  className="flex-1 sm:flex-none"
+                />
+                <Link href={problemHref} className={buttonVariants({ variant: "default", className: "flex-1 sm:flex-none" })}>
                   Open problem
                   <ArrowRightIcon aria-hidden />
                 </Link>
@@ -144,7 +148,7 @@ export default async function SubmissionPage({ params }: PageProps<"/submissions
         </section>
 
         {view?.type === "submit" && (view.failedCase || view.error || view.stdout) && (
-          <section aria-labelledby="details-heading" className="flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-xs">
+          <section aria-labelledby="details-heading" className="flex flex-col gap-4 rounded-lg border bg-card p-4 shadow-xs sm:p-6">
             <h2 id="details-heading" className="text-[1.0625rem]/6 font-semibold">
               {view.failedCase ? "Failed case" : view.error ? (submission.status === "compile_error" ? "Compile error" : "Error") : "Output"}
               {view.failedCase && view.failedOn && (
@@ -162,7 +166,8 @@ export default async function SubmissionPage({ params }: PageProps<"/submissions
             )}
             {view.error && (
               <TextBlock
-                label={submission.status === "compile_error" ? "Compile error" : "Error"}
+                // The section heading already names it, unless a failed case comes first.
+                label={view.failedCase ? (submission.status === "compile_error" ? "Compile error" : "Error") : undefined}
                 text={view.error}
                 tone={submission.status === "compile_error" ? "compile" : "runtime"}
               />
@@ -179,7 +184,7 @@ export default async function SubmissionPage({ params }: PageProps<"/submissions
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-32 rounded-md border bg-surface-sunken p-3">
+    <div className="min-w-0 rounded-md border bg-surface-sunken p-3 sm:min-w-32">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="font-semibold text-foreground tabular-nums">{value}</dd>
     </div>

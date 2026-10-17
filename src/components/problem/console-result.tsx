@@ -173,10 +173,11 @@ export function InputBlock({ input }: { input: InputView }) {
   );
 }
 
-export function TextBlock({ label, text, tone }: { label: string; text: string; tone?: "runtime" | "compile" }) {
+/** `label` may be left out when a surrounding heading already names the block. */
+export function TextBlock({ label, text, tone }: { label?: string; text: string; tone?: "runtime" | "compile" }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
+      {label && <span className="text-xs font-semibold text-muted-foreground">{label}</span>}
       <pre
         className={cn(
           "max-h-64 overflow-auto rounded-md border px-3 py-2 font-mono text-[13px]/5 whitespace-pre-wrap break-words",

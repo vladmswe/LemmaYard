@@ -65,6 +65,9 @@ export function SubmissionList({
   /** Where the table replaces the card list (`none`: always the table). */
   breakpoint?: "md" | "none";
 }) {
+  // DESIGN.md: history = Submitted | Problem | Language | Verdict | …;
+  // problem tab = Time | Verdict | Language | ….
+  const verdictFirst = !showProblem;
   return (
     <>
       <Table
@@ -75,10 +78,11 @@ export function SubmissionList({
         <caption className="sr-only">{caption}</caption>
         <TableHeader>
           <TableRow>
-            <TableHead>Submitted</TableHead>
+            <TableHead>{showProblem ? "Submitted" : "Time"}</TableHead>
             {showProblem && <TableHead>Problem</TableHead>}
-            <TableHead>Verdict</TableHead>
+            {verdictFirst && <TableHead>Verdict</TableHead>}
             <TableHead>Language</TableHead>
+            {!verdictFirst && <TableHead>Verdict</TableHead>}
             <TableHead numeric>Runtime</TableHead>
             <TableHead numeric>Memory</TableHead>
           </TableRow>
@@ -87,6 +91,17 @@ export function SubmissionList({
           {rows.map((row) => {
             const runtime = formatMs(row.runtimeMs);
             const memory = formatMemory(row.memoryKb);
+            const verdict = (
+              <TableCell>
+                <Link
+                  href={detailHref(row)}
+                  aria-label={viewLabel(row, now)}
+                  className="inline-flex rounded-full transition-opacity duration-120 hover:opacity-85"
+                >
+                  <VerdictBadge status={row.status} compact />
+                </Link>
+              </TableCell>
+            );
             return (
               <TableRow key={row.id} data-testid="submission-row" data-id={row.id}>
                 <TableCell className="whitespace-nowrap text-muted-foreground">
@@ -97,16 +112,9 @@ export function SubmissionList({
                     <ProblemTitle row={row} />
                   </TableCell>
                 )}
-                <TableCell>
-                  <Link
-                    href={detailHref(row)}
-                    aria-label={viewLabel(row, now)}
-                    className="inline-flex rounded-full transition-opacity duration-120 hover:opacity-85"
-                  >
-                    <VerdictBadge status={row.status} compact />
-                  </Link>
-                </TableCell>
+                {verdictFirst && verdict}
                 <TableCell className="whitespace-nowrap">{LANGUAGE_LABELS[row.language]}</TableCell>
+                {!verdictFirst && verdict}
                 <TableCell numeric className={metric(runtime)}>
                   {runtime}
                 </TableCell>
@@ -123,18 +131,20 @@ export function SubmissionList({
         <ul aria-label={caption} className="divide-y overflow-hidden rounded-lg border bg-card shadow-xs md:hidden">
           {rows.map((row) => (
             <li key={row.id} className="px-4 py-3" data-testid="submission-card">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <Link href={detailHref(row)} aria-label={viewLabel(row, now)} className="inline-flex rounded-full">
+              <div className="flex min-w-0 items-center gap-2">
+                <Link href={detailHref(row)} aria-label={viewLabel(row, now)} className="inline-flex shrink-0 rounded-full">
                   <VerdictBadge status={row.status} compact />
                 </Link>
                 {showProblem && (
-                  <span className="min-w-0 truncate font-semibold">
+                  <span className="min-w-0 truncate font-semibold" title={row.problem.title}>
                     <ProblemTitle row={row} />
                   </span>
                 )}
               </div>
+              {/* DESIGN.md §9.5: language · runtime · time; a missing runtime is left out. */}
               <p className="mt-1 text-sm text-muted-foreground tabular-nums">
-                {LANGUAGE_LABELS[row.language]} · {formatMs(row.runtimeMs)} · {formatMemory(row.memoryKb)} ·{" "}
+                {LANGUAGE_LABELS[row.language]}
+                {row.runtimeMs !== null && <> · {formatMs(row.runtimeMs)}</>} ·{" "}
                 <RelativeTime date={row.createdAt} now={now} />
               </p>
             </li>

@@ -85,7 +85,8 @@ async function ProfileStats({ userId, own }: { userId: string; own: boolean }) {
         </StatCard>
       </dl>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[1.2fr_1fr]">
+      {/* minmax(0, …): long solved titles truncate instead of widening the page. */}
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <Reveal as="section" index={3} aria-labelledby="progress-heading" className="rounded-lg border bg-card p-6 shadow-xs">
           <h2 id="progress-heading" className="text-lg/7 font-semibold">
             Progress by difficulty
@@ -141,7 +142,7 @@ async function ProfileStats({ userId, own }: { userId: string; own: boolean }) {
             <ol className="mt-2 divide-y px-6 pb-2" data-testid="recent-solved">
               {stats.recentSolved.map((p) => (
                 <li key={p.slug} className="flex items-center gap-3 py-3">
-                  <Link href={`/problems/${p.slug}`} className={cn(tableLinkClasses(), "min-w-0 flex-1 truncate")}>
+                  <Link href={`/problems/${p.slug}`} title={p.title} className={cn(tableLinkClasses(), "min-w-0 flex-1 truncate")}>
                     {p.title}
                   </Link>
                   <DifficultyBadge difficulty={p.difficulty} variant="text" className="shrink-0 text-sm" />

@@ -42,13 +42,9 @@ export async function ProblemSubmissions({ slug, userId }: { slug: string; userI
 
   return (
     <div className="flex flex-col gap-3 p-4" data-testid="problem-submissions">
-      <SubmissionList
-        rows={rows}
-        now={new Date()}
-        showProblem={false}
-        caption="Your submissions for this problem"
-        breakpoint="none"
-      />
+      {/* Below md the list sits under the description, where the tab label is not visible. */}
+      <h2 className="text-[1.0625rem]/6 font-semibold md:sr-only">Your submissions</h2>
+      <SubmissionList rows={rows} now={new Date()} showProblem={false} caption="Your submissions for this problem" />
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
         <span className="tabular-nums">
           {rows.length >= PROBLEM_TAB_LIMIT ? `Latest ${PROBLEM_TAB_LIMIT}` : `${rows.length} ${rows.length === 1 ? "submission" : "submissions"}`}

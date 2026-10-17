@@ -81,6 +81,14 @@ describe("/submissions/[id] (AC-M6-2)", () => {
     expect(await generateMetadata(props(aliceSubmit))).toEqual({ title: "Accepted · Two Sum · LemmaYard" });
   });
 
+  it("renders a submit still being judged (the console's 'Taking longer' link)", async () => {
+    const problem = await createProblem();
+    const running = await createSubmission({ userId: alice.id, problemId: problem.id, status: "running", startedAt: new Date() });
+    await signIn(alice);
+    expect(await outcome(SubmissionPage(props(running.id)))).toBe("ok");
+    expect(await generateMetadata(props(running.id))).toEqual({ title: `Running · ${problem.title} · LemmaYard` });
+  });
+
   it("answers the same 404 for another user's submit, a run, an unknown and a malformed id", async () => {
     await signIn(alice);
     for (const id of [bobSubmit, aliceRun, "00000000-0000-4000-8000-000000000000", "nope", "1;drop", `${aliceSubmit}0`]) {
