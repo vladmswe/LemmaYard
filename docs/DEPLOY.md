@@ -76,6 +76,7 @@ the `AUTH_URL` note):
 | `DATABASE_SSL` | no | `no-verify` | `disable`, `require` or `no-verify`; see section 4. |
 | `DATABASE_SSL_CA` | no | `-----BEGIN CERTIFICATE-----\n...` | PEM CA for verified TLS; see section 4. |
 | `DATABASE_POOL_MAX` | no | `1` | Connections per function instance. Default 1 on Vercel (detected from Vercel's `VERCEL` system variable), 10 elsewhere. |
+| `JUDGE_ENABLED` | no | `1` | Code execution (Run, Submit, room session start). Unset: **off on Vercel**, on everywhere else. Leave it unset on Vercel while no worker is deployed (section 7); set `1` only once a judge serves this database, `0` to switch it off anywhere. Only `0` and `1` are accepted. |
 
 Do **not** set `DATABASE_URL_DIRECT` on Vercel; the web app never uses it.
 Do not set `NODE_ENV` or `PORT` either; Vercel manages them.
@@ -177,8 +178,10 @@ notices for these tables are expected and intended (deny by default). The
 
 ## 6. Check the deployment
 
-1. `https://<production domain>/api/health` must answer `200 {"ok":true,"db":"up"}`.
-   `503 {"ok":false,"db":"down"}` means the app cannot reach or query the
+1. `https://<production domain>/api/health` must answer
+   `200 {"ok":true,"db":"up","judge":"disabled"}` (`judge` is the configured
+   `JUDGE_ENABLED` mode, not a probe of a worker; it never changes the status).
+   `503 {"ok":false,"db":"down",...}` means the app cannot reach or query the
    database; the reason is only in the logs (step 3), never in the response.
 2. Open `/`: it shows the problem count and the "Start with these" table. If
    the database is down, the home page still renders, but without numbers,
@@ -194,9 +197,12 @@ notices for these tables are expected and intended (deny by default). The
 ## 7. What does not work yet in production
 
 **Run and Submit need the judge worker**, which runs user code in Docker
-containers on a long-lived host. Vercel has no Docker, so with only the web
-app deployed, any submission would stay `queued` (no worker picks it up).
-Pages, accounts and profiles work. The plan (PLAN.md §13) is a Vercel Sandbox executor behind the
+containers on a long-lived host. Vercel has no Docker, so the app runs in
+"judge disabled" mode there by default (`JUDGE_ENABLED` unset + Vercel's
+`VERCEL` variable): Run and Submit are disabled on the problem page with a
+note, the API answers `503 {"code":"judge_disabled"}` without queuing
+anything, and room sessions can be set up but not started. Pages, accounts,
+profiles, the guide and room lobbies work. The plan (PLAN.md §13) is a Vercel Sandbox executor behind the
 existing `Executor` interface (isolated microVMs, started from Vercel
 Functions), or alternatively a small VPS running only the worker.
 
