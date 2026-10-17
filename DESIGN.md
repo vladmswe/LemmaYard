@@ -526,7 +526,7 @@ Content `rounded-lg bg-popover p-1 shadow-md ring-1 ring-border min-w-48`. Item 
 Overlay `bg-[#0E1A38]/50 dark:bg-black/60`. Panel `max-w-md rounded-lg bg-popover p-6 shadow-lg border`. Title `text-lg font-semibold` (sans). Footer `flex justify-end gap-2 mt-6`. Reset confirm (AC-M5-2): title "Reset to the starter code?", body "Your current Python 3 code for this problem will be replaced. This can't be undone.", actions `secondary` "Cancel" and `destructive` "Reset code". Focus goes to Cancel.
 
 ### 8.10 Toast (`sonner` via `ui/sonner.tsx`, add)
-Bottom-right desktop, top-center mobile. `rounded-lg bg-popover border shadow-md text-sm`, with a leading status icon in the semantic color. Used for: rate limit 429 ("Too many runs. Try again in 12 s."), network errors and "Code reset". Never used for verdicts (verdicts live in the console).
+Bottom-right desktop, top-center mobile. `rounded-lg bg-popover border shadow-md text-sm`, with a leading status icon in the semantic color. Used for: rate limit 429 ("Too many runs. Try again in 12 s."), network errors and "Code reset". Never used for verdicts (verdicts live in the console). Room toasts (§9.9): other people's events, on the problem page only (the session screen announces through its Activity feed); never the viewer's own verdict. Sonner's region is `aria-live="polite"` (checked in R4).
 
 ### 8.11 Progress (`ui/progress.tsx`, add)
 Track `h-2 rounded-full bg-muted`, indicator `rounded-full bg-primary` (or `bg-difficulty-{x}` on the profile). `role="progressbar" aria-valuenow aria-valuemax aria-label="Easy: 10 of 16 solved"`. Always show the numbers next to it (`10 / 16`, tabular).
@@ -715,6 +715,18 @@ Desktop grid `lg:grid-cols-[1.2fr_1fr] gap-6`, stat cards `grid-cols-3` (mobile:
 - `loading.tsx` per route: skeletons as in §8.12, never a full-page spinner.
 
 ---
+
+### 9.9 Rooms: session screen and problem-page banner (`docs/specs/rooms.md` §7.4)
+
+Components live in `src/components/rooms/live/` (session screen, countdown, scoreboard, Activity feed, notification settings, banner, room card) and `src/components/rooms/lobby/` (settings form, calibration panel, slots, pin dialog). Copy and view models are pure TypeScript in `src/lib/rooms/` (`live-clock`, `live-view`, `lobby-copy`, `notifications`). Only existing tokens and primitives; new primitive `ui/popover.tsx`.
+
+- **Head band** (`bg-surface-sunken border-b`): breadcrumb Rooms › room › Session, h1 "Session · Oct 24" + `SessionStatusBadge` (Lobby `Clock` muted, Live `Radio` info, Finished `Flag` outline, Cancelled `Ban` muted; icon + word). Right: countdown (live, ≥ lg), `Bell` notification settings, host **End session** (secondary; destructive only inside its AlertDialog).
+- **Countdown**: serif 30/36 numerals, `tabular-nums`, `role="timer"` with "Time left: 47 minutes 12 seconds"; under 10 minutes `text-warning` plus the word "left" in semibold. Milestones (10 min, 1 min) go to one polite sr-only region, never every second. Below lg a 48px sticky bar under the masthead carries the inline countdown and "You 1/4 · Leader 2/4".
+- **Lobby**: `lg:grid-cols-[1.4fr_1fr]`. Slots are bordered rows with a numbered square (serif numeral on `bg-surface-sunken`), title (host only), `DifficultyBadge`, topics, muted draw note; icon buttons Re-roll (`Dices`), Pin, Unpin with Tooltips. Draw errors are a warning Alert with the counts; calibration is a small card with a rates table and a "How is this calculated?" disclosure. Topic chips are checkbox labels (h-10, selected `bg-secondary border-blue-300`).
+- **Live**: ≥ lg `grid-cols-[1fr_20rem]`: problem cards (numbered square, difficulty pill, stretched title link, own status icon + word; solved card border `border-success/40`) and the scoreboard on the left, Activity card on the right. Below lg: Tabs Problems | Scoreboard | Activity (`keepMounted`, 44px triggers).
+- **Scoreboard**: table ≥ md (caption sr-only, participant row headers, viewer row `bg-secondary` + "(you)", Host outline badge), card list below md. Cells: solved `CircleCheck` + time (+ "−1"), attempted `CircleDashed` + "−2", untouched "—"; "First" with `Medal` (info) and "Solved before" (finished) always as words; sr-only sentence per cell. A changed cell fades in (`motion-safe:animate-enter-fade`). Footnote "Time includes 5 min per wrong attempt before a solve." No verdict names or code ever.
+- **States**: "Reconnecting…" muted inline with `LoaderCircle`; gone = danger Alert "You no longer have access to this room."; pending judging = muted line while live, info Alert when finished; cancelled = EmptyState + Back to room.
+- **Problem-page banner**: 40px strip (`bg-info-bg border-b text-sm`, wraps on mobile) between the compact masthead and the workspace: `Users` icon, **room** · Problem 2 of 4 · countdown · progress, prev/next chevrons (`aria-label="Problem 1"`), Session link, notification settings. The console shows an info strip "Submit counts for the session: …" and warning Alerts with actions for rejections.
 
 ## 10. Monaco themes
 
