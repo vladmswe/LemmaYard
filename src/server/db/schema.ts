@@ -2,6 +2,7 @@
 // except migration 0002 (deploy phase): row level security on every table,
 // without policies. The app connects as the table owner and bypasses RLS;
 // other roles (e.g. Supabase's REST API roles) are denied by default.
+// Migration 0003 (Rooms, docs/specs/rooms.md) is the first feature migration.
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
