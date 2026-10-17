@@ -40,7 +40,9 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
 /** A fetch stub answering with the given sequence of statuses (the last one repeats). */
 function sequence(steps: Array<SubmissionStatus | Response | Error>) {
   let i = 0;
-  return vi.fn(async () => {
+  return vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => {
+    void _url;
+    void _init;
     const step = steps[Math.min(i++, steps.length - 1)];
     if (step instanceof Error) throw step;
     if (step instanceof Response) return step.clone();
