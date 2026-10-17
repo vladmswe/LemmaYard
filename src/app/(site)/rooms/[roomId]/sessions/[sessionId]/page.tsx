@@ -6,6 +6,7 @@ import { NOT_FOUND_TITLE } from "@/components/not-found-content";
 import { SessionScreen } from "@/components/rooms/live/session-screen";
 import { getCurrentUser, requireUser } from "@/server/auth/session";
 import { getDb } from "@/server/db";
+import { judgeEnabled } from "@/server/judge";
 import { getSessionPageData } from "@/server/rooms/session-page";
 
 export const dynamic = "force-dynamic";
@@ -32,5 +33,5 @@ export default async function SessionPage({ params }: PageProps<"/rooms/[roomId]
   const user = await requireUser(`/rooms/${roomId}/sessions/${sessionId}`);
   const data = await load(roomId, sessionId, user.id);
   if (!data) notFound();
-  return <SessionScreen data={data} />;
+  return <SessionScreen data={data} judgeEnabled={judgeEnabled()} />;
 }

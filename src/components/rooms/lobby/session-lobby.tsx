@@ -32,6 +32,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { JUDGE_DISABLED_CODE, JUDGE_DISABLED_LOBBY_NOTE, JUDGE_DISABLED_LOBBY_TITLE } from "@/lib/judge-availability";
 import type { SessionSnapshot } from "@/lib/rooms/events";
 import { availableLine, humanizeTag } from "@/lib/rooms/lobby-copy";
 import type { SessionSettingsBody } from "@/lib/rooms/session-schemas";
@@ -58,6 +59,8 @@ export type SessionLobbyProps = {
   /** Poll now (after an own change). */
   refresh: () => void;
   onJoinedChange: (joined: boolean) => void;
+  /** False: this deployment runs no code (JUDGE_ENABLED), so the session cannot start. */
+  judgeEnabled: boolean;
 };
 
 export function SessionLobby({
@@ -71,7 +74,10 @@ export function SessionLobby({
   tags,
   refresh,
   onJoinedChange,
+  judgeEnabled,
 }: SessionLobbyProps) {
+  // Also set when Start answers 503 `judge_disabled` to a page that thought otherwise.
+  const [judgeOff, setJudgeOff] = useState(!judgeEnabled);
   const [busy, setBusy] = useState<string | null>(null);
   const [notices, setNotices] = useState<DrawNoticeView[]>(lobby.notices);
   const [drawProblem, setDrawProblem] = useState<DrawProblem | null>(lobby.drawError ?? null);
@@ -93,7 +99,9 @@ export function SessionLobby({
     const res = await call();
     setBusy(null);
     if (!res.ok) {
-      if ((res.code === "pool_too_small" || res.code === "mix_infeasible") && res.counts) {
+      if (res.code === JUDGE_DISABLED_CODE) {
+        setJudgeOff(true);
+      } else if ((res.code === "pool_too_small" || res.code === "mix_infeasible") && res.counts) {
         setDrawProblem({ code: res.code, error: res.error, counts: res.counts, requested: res.requested });
       } else {
         toast.error(res.error);
@@ -233,6 +241,15 @@ export function SessionLobby({
         aria-labelledby="lobby-people"
         className="flex min-w-0 flex-col gap-4 self-start lg:col-start-2 lg:row-span-2 lg:row-start-1"
       >
+        {judgeOff && (
+          <Alert variant="info" id="judge-disabled-lobby" data-testid="judge-disabled-lobby">
+            <InfoIcon aria-hidden />
+            <AlertTitle>{JUDGE_DISABLED_LOBBY_TITLE}</AlertTitle>
+            <AlertDescription>
+              <p>{JUDGE_DISABLED_LOBBY_NOTE}</p>
+            </AlertDescription>
+          </Alert>
+        )}
         <Card>
           <CardContent className="flex flex-col gap-4">
             <div>
@@ -279,7 +296,8 @@ export function SessionLobby({
               <div className="flex flex-col gap-2 border-t pt-4">
                 <Button
                   size="lg"
-                  disabled={busy !== null || !filled || participants.length === 0 || drawProblem !== null}
+                  disabled={busy !== null || !filled || participants.length === 0 || drawProblem !== null || judgeOff}
+                  aria-describedby={judgeOff ? "judge-disabled-lobby" : undefined}
                   onClick={() => setConfirm("start")}
                   data-testid="start-session"
                 >
@@ -292,7 +310,7 @@ export function SessionLobby({
                   Cancel session
                 </Button>
               </div>
-            ) : (
+            ) : judgeOff ? null : (
               <p
                 className="flex items-center gap-2 border-t pt-4 text-sm text-foreground-secondary"
                 data-testid="waiting-host"

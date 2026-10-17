@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Rea
 import { toast } from "sonner";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { JUDGE_DISABLED_SHORT } from "@/lib/judge-availability";
 import type { Signature } from "@/lib/problems/schema";
 import { pollSubmission, startRun, startSubmit } from "@/lib/submission-client";
 import { isFinalStatus, LANGUAGES, type Language, type PollingConfig } from "@/lib/submission-dto";
@@ -44,6 +45,7 @@ import { ConsoleResult } from "./console-result";
 import { ConsoleTestcase, type TestMode } from "./console-testcase";
 import { EditorPane } from "./editor-pane";
 import { EditorToolbar, RunSubmitButtons } from "./editor-toolbar";
+import { JudgeDisabledBarNote } from "./judge-disabled-note";
 import { DESKTOP_QUERY, useMediaQuery } from "./use-media-query";
 import { SessionSubmitNote, SESSION_SUBMIT_CODES, type SessionSubmitIssue } from "./session-submit-note";
 import { OWN_SUBMIT_FINAL_EVENT, useSubmitSession } from "./submit-context";
@@ -62,6 +64,8 @@ export type SolveWorkspaceProps = {
   samples: { input: Record<string, unknown>; expected: unknown }[];
   signedIn: boolean;
   pollingConfig: PollingConfig;
+  /** False: this deployment runs no code (JUDGE_ENABLED); Run / Submit are off, editing still works. */
+  judgeEnabled: boolean;
   description: ReactNode;
   submissions: ReactNode;
 };
@@ -78,6 +82,7 @@ export function SolveWorkspace({
   samples,
   signedIn,
   pollingConfig,
+  judgeEnabled,
   description,
   submissions,
 }: SolveWorkspaceProps) {
@@ -188,7 +193,10 @@ export function SolveWorkspace({
 
   // --- Run / Submit (AC-M5-3, -5, -6, -10) ------------------------------
   const [judge, setJudge] = useState<JudgeState>(IDLE);
-  const [consoleTab, setConsoleTab] = useState<ConsoleTab>("testcase");
+  // Also set when the server answers 503 `judge_disabled` to a page that thought otherwise.
+  const [judgeOff, setJudgeOff] = useState(!judgeEnabled);
+  // Judge off: open on Result, whose idle state explains why Run / Submit are off.
+  const [consoleTab, setConsoleTab] = useState<ConsoleTab>(judgeEnabled ? "testcase" : "result");
   const [mobileTab, setMobileTab] = useState<MobileTab>("description");
   const abortRef = useRef<AbortController | null>(null);
   const busyRef = useRef(false);
@@ -244,7 +252,7 @@ export function SolveWorkspace({
   // Resume a submission that was still pending when the page was reloaded (AC-M5-6).
   useEffect(() => {
     const pending = loadPending(getBrowserStorage("session"), slug);
-    if (pending && signedIn) {
+    if (pending && signedIn && judgeEnabled) {
       // Defer out of the effect body: `poll` sets state.
       queueMicrotask(() => {
         setConsoleTab("result");
@@ -252,10 +260,16 @@ export function SolveWorkspace({
       });
     }
     return () => abortRef.current?.abort();
-  }, [slug, signedIn, poll]);
+  }, [slug, signedIn, judgeEnabled, poll]);
 
   const start = useCallback(
     async (action: JudgeAction, options: { withoutSession?: boolean } = {}) => {
+      if (judgeOff) {
+        // Shortcuts land here (the buttons are disabled): say why, send nothing.
+        setConsoleTab("result");
+        toast(JUDGE_DISABLED_SHORT, { id: "judge-disabled" });
+        return;
+      }
       if (!signedIn) {
         router.push(loginHref);
         return;
@@ -285,6 +299,11 @@ export function SolveWorkspace({
         }
         const failed = stateFromStartError(action, result);
         setJudge(failed);
+        if (failed.phase === "judge_disabled") {
+          // Not an error: the deployment runs no code. Explained in the console, no toast, no retry.
+          setJudgeOff(true);
+          return;
+        }
         if (sessionId && result.code && SESSION_SUBMIT_CODES.has(result.code)) {
           // Explained with its actions in the console, no toast.
           setSessionIssue({ code: result.code, message: result.error });
@@ -297,7 +316,7 @@ export function SolveWorkspace({
       savePending(getBrowserStorage("session"), slug, { id: result.id, kind: action, custom });
       await poll(result.id, action, custom);
     },
-    [signedIn, router, loginHref, testMode, customValidation, language, code, slug, poll, roomSession],
+    [judgeOff, signedIn, router, loginHref, testMode, customValidation, language, code, slug, poll, roomSession],
   );
 
   const startFromBar = useCallback(
@@ -324,13 +343,18 @@ export function SolveWorkspace({
     busyAction: busyAction(judge),
     disabled: busy,
     runBlockedReason,
+    unavailableReason: judgeOff ? JUDGE_DISABLED_SHORT : null,
     onRun: () => void start("run"),
     onSubmit: () => void start("submit"),
   };
 
-  const view = toResultView(judge, paramOrder);
+  const view = toResultView(judge, paramOrder, { judgeEnabled: !judgeOff });
   const retryAction: JudgeAction | null =
-    judge.phase === "done" ? judge.submission.kind : judge.phase === "idle" || judge.phase === "starting" || judge.phase === "pending" ? null : judge.action;
+    judgeOff || judge.phase === "idle" || judge.phase === "starting" || judge.phase === "pending"
+      ? null
+      : judge.phase === "done"
+        ? judge.submission.kind
+        : judge.action;
 
   return (
     <ProblemWorkspace
@@ -405,13 +429,16 @@ export function SolveWorkspace({
       }
       footer={
         desktop === false ? (
-          <div className="flex gap-2">
-            <RunSubmitButtons
-              {...runSubmit}
-              variant="bar"
-              onRun={() => startFromBar("run")}
-              onSubmit={() => startFromBar("submit")}
-            />
+          <div className="flex flex-col gap-2">
+            {judgeOff && <JudgeDisabledBarNote />}
+            <div className="flex gap-2">
+              <RunSubmitButtons
+                {...runSubmit}
+                variant="bar"
+                onRun={() => startFromBar("run")}
+                onSubmit={() => startFromBar("submit")}
+              />
+            </div>
           </div>
         ) : undefined
       }
