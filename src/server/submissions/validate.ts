@@ -14,12 +14,17 @@ export const MAX_CUSTOM_INPUT_BYTES = 16 * 1024;
 const language = z.enum(LANGUAGES, { error: "Language must be python or javascript" });
 const code = z.string({ error: "Code must be a string" }).min(1, "Code is required");
 
-export const submitBodySchema = z.strictObject({ language, code });
+/** Rooms (docs/specs/rooms.md §3.4): the session this submit should count for. */
+const roomSessionId = z.uuid({ error: "roomSessionId must be a session id" }).optional();
+
+export const submitBodySchema = z.strictObject({ language, code, roomSessionId });
 export const runBodySchema = z.strictObject({
   language,
   code,
   // Shape is checked against the signature later (validateInput).
   customInput: z.unknown().optional(),
+  // Accepted and ignored: Runs never count for a session (spec §3.4).
+  roomSessionId,
 });
 
 export type RunBody = z.infer<typeof runBodySchema>;

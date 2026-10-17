@@ -1,12 +1,13 @@
 // Submission queue on the `submissions` table (PLAN.md sections 3 and 4,
 // AC-M4-4): atomic claim with `FOR UPDATE SKIP LOCKED`, finalize guarded by
 // `status = 'running'`, stale sweep (never requeues) and Run cleanup.
-import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { compareSchema, signatureSchema } from "@/lib/problems/schema";
 import { validateInput } from "@/lib/types";
 import type { Db } from "@/server/db";
 import { problems, submissions, testCases } from "@/server/db/schema";
+import { applySessionOutcome } from "@/server/rooms/outcome";
 
 import { sanitizeText, sanitizeValue } from "./judge";
 import type { ExecJob, ExecResult, ExecStatus } from "./types";
@@ -54,14 +55,47 @@ export type FinalFields = {
 /**
  * Writes the final result, only if the row is still `running` (a stale sweep
  * or a shutdown may have finalized it already). Returns whether it was written.
+ *
+ * Rooms (docs/specs/rooms.md §3.4): a submission without a room session keeps
+ * the one-statement path. A session submit is finalized in a transaction
+ * that also applies the session outcome (results row, participant totals,
+ * ranks, `problem_solved` / `attempt_failed` event) under the session's
+ * advisory lock, so verdict and score commit together and event ids follow
+ * commit order. Every executor must finalize through this function.
  */
 export async function finalize(db: Db, id: string, fields: FinalFields): Promise<boolean> {
-  const rows = await db
+  const plain = await db
     .update(submissions)
     .set({ ...fields, finishedAt: sql`now()` })
-    .where(and(eq(submissions.id, id), eq(submissions.status, "running")))
+    .where(and(eq(submissions.id, id), eq(submissions.status, "running"), isNull(submissions.roomSessionId)))
     .returning({ id: submissions.id });
-  return rows.length === 1;
+  if (plain.length === 1) return true;
+
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .update(submissions)
+      .set({ ...fields, finishedAt: sql`now()` })
+      .where(and(eq(submissions.id, id), eq(submissions.status, "running")))
+      .returning({
+        id: submissions.id,
+        kind: submissions.kind,
+        userId: submissions.userId,
+        problemId: submissions.problemId,
+        roomSessionId: submissions.roomSessionId,
+      });
+    const row = rows[0];
+    // Already finalized (sweep, shutdown, a second call): nothing else happens.
+    if (!row) return false;
+    if (row.kind === "submit" && row.roomSessionId !== null) {
+      await applySessionOutcome(tx, {
+        sessionId: row.roomSessionId,
+        userId: row.userId,
+        problemId: row.problemId,
+        submissionId: row.id,
+      });
+    }
+    return true;
+  });
 }
 
 /** `internal_error` with no metrics; counters are kept as they are. */
