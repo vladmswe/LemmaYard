@@ -152,7 +152,12 @@ def main():
     del nonce
     capture = _Capture()
 
+    main_pid = os.getpid()
+
     def emit(frame):
+        if os.getpid() != main_pid:
+            # A process forked by user code must never write frames.
+            os._exit(1)
         frame.setdefault("stdout", capture.take())
         frame.setdefault("memoryKb", _memory_kb())
         data = prefix + json.dumps(frame, ensure_ascii=True).encode() + b"\n"
@@ -250,6 +255,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _main_pid = os.getpid()
+    try:
+        main()
+    finally:
+        if os.getpid() != _main_pid:
+            os._exit(1)
     # Skip interpreter teardown (user atexit hooks, threads, __del__).
     os._exit(0)

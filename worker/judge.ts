@@ -215,7 +215,9 @@ export function decideVerdict(job: ExecJob, obs: RunObservation): ExecResult {
   let fatal: { status: "error" | "timeout"; error: string } | null = null;
   let received = 0;
 
+  let stopped = false; // Submit: nothing after the first failing test counts
   for (const frame of obs.frames) {
+    if (stopped) break;
     stdout += frame.stdout;
     memoryKb = Math.max(memoryKb ?? 0, frame.memoryKb);
     if (frame.kind === "compile_error") compileError ??= frame.error;
@@ -238,6 +240,7 @@ export function decideVerdict(job: ExecJob, obs: RunObservation): ExecResult {
         c.status = frame.memory ? "memory_limit" : "runtime_error";
         if (frame.error !== undefined) c.error = frame.error;
       }
+      stopped = job.stopOnFirstFailure && c.status !== "passed";
     }
   }
 

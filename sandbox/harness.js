@@ -37,12 +37,18 @@ function writeAll(data) {
   }
 }
 
-function limitText(text, limit) {
+/** The first `bytes` bytes of `text` in UTF-8, never splitting a character. */
+function cutBytes(text, bytes) {
   const data = Buffer.from(text, "utf8");
-  if (data.length <= limit) return text;
-  const suffix = "\n[truncated]";
-  // Decoding a cut buffer may end with U+FFFD; drop it.
-  return data.subarray(0, limit - suffix.length).toString("utf8").replace(/�$/, "") + suffix;
+  if (data.length <= bytes) return text;
+  let end = Math.max(bytes, 0);
+  while (end > 0 && (data[end] & 0xc0) === 0x80) end--;
+  return data.subarray(0, end).toString("utf8");
+}
+
+function limitText(text, limit) {
+  if (Buffer.byteLength(text) <= limit) return text;
+  return cutBytes(text, limit - Buffer.byteLength(TRUNCATED)) + TRUNCATED;
 }
 
 function createCapture() {
