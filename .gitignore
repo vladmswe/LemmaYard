@@ -47,3 +47,6 @@ next-env.d.ts
 /blob-report/
 /playwright/.cache/
 .gstack/
+
+# Claude Code local state / agent worktrees
+.claude/
