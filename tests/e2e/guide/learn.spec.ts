@@ -5,6 +5,9 @@ import { randomBytes } from "node:crypto";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 
+import { LESSONS, publishedLessons } from "@/content/learn";
+import { publishedGlossary } from "@/content/learn/glossary";
+
 import {
   collectConsoleErrors,
   expectAxeClean,
@@ -16,23 +19,8 @@ import {
 
 const FIXTURE = "/learn/dev-fixtures/lesson";
 const PROGRESS_KEY = "lemmayard.learn.progress.v1";
-const SLUGS = [
-  "complexity-basics",
-  "arrays",
-  "dynamic-arrays",
-  "linked-lists",
-  "stacks",
-  "queues-and-deques",
-  "hash-tables",
-  "heaps",
-  "binary-search-trees",
-  "balanced-trees",
-  "graphs",
-  "graph-traversal",
-  "tries",
-  "bloom-filters",
-  "choosing-a-structure",
-];
+// Draft and published lessons come from the registry, so publishing a lesson needs no edit here.
+const DRAFT_SLUGS = LESSONS.filter((l) => l.status === "draft").map((l) => l.slug);
 
 let consoleErrors: string[] = [];
 test.beforeEach(({ page }) => {
@@ -82,16 +70,26 @@ async function gotoFixture(page: Page): Promise<void> {
 }
 
 test.describe("AC-G-1-2 roadmap and draft lessons", () => {
-  test("/learn has the h1 and the empty state while every lesson is a draft", async ({ page }) => {
+  test("/learn has the h1 and lists every published lesson in its track, in order", async ({ page }) => {
     const res = await page.goto("/learn");
     expect(res?.status()).toBe(200);
     await expect(page.locator("h1")).toHaveText("Data Structures");
-    await expect(page.locator("[data-roadmap-empty]")).toBeVisible();
-    await expect(page.locator("[data-roadmap-card]")).toHaveCount(0);
     await expect(page).toHaveTitle("Learn data structures · LemmaYard");
+    const published = publishedLessons();
+    await expect(page.locator("[data-roadmap-card]")).toHaveCount(published.length);
+    if (published.length === 0) {
+      await expect(page.locator("[data-roadmap-empty]")).toBeVisible();
+      return;
+    }
+    await expect(page.locator("[data-roadmap-empty]")).toHaveCount(0);
+    for (const track of [...new Set(published.map((l) => l.track))]) {
+      const cards = page.locator(`section[data-track="${track}"] [data-roadmap-card]`);
+      const slugs = await cards.evaluateAll((els) => els.map((e) => e.getAttribute("data-roadmap-card")));
+      expect(slugs, track).toEqual(published.filter((l) => l.track === track).map((l) => l.slug));
+    }
   });
 
-  for (const slug of SLUGS) {
+  for (const slug of DRAFT_SLUGS) {
     test(`/learn/${slug} is a noindex draft`, async ({ request }) => {
       const res = await request.get(`/learn/${slug}`);
       expect(res.status()).toBe(200);
@@ -218,10 +216,28 @@ test.describe("fixture lesson: components (AC-G-1-5, AC-G-1-6, AC-G-1-13, AC-G-1
     await expect(lessonNav.locator('[data-nav="prev"]')).toHaveAttribute("href", "/learn/choosing-a-structure");
   });
 
-  test("draft lessons have no prev/next while nothing is published", async ({ page }) => {
-    await page.goto("/learn/stacks");
+  test("a draft lesson's prev/next link only to published lessons", async ({ page }) => {
+    const draft = LESSONS.find((l) => l.status === "draft");
+    test.skip(!draft, "no draft lesson left");
+    await page.goto(`/learn/${draft!.slug}`);
     await expect(page.locator("[data-draft-banner]")).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Lesson" })).toHaveCount(0);
+    const published = new Set(publishedLessons().map((l) => `/learn/${l.slug}`));
+    const hrefs = await page.locator("[data-nav]").evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
+    if (published.size === 0) expect(hrefs).toEqual([]);
+    for (const href of hrefs) expect(published.has(href), href).toBe(true);
+  });
+
+  test("a published lesson's prev/next are its published neighbours in order", async ({ page }) => {
+    const published = publishedLessons();
+    for (const [k, lesson] of published.entries()) {
+      await page.goto(`/learn/${lesson.slug}`);
+      const prev = page.locator('[data-nav="prev"]');
+      const next = page.locator('[data-nav="next"]');
+      if (k > 0) await expect(prev).toHaveAttribute("href", `/learn/${published[k - 1]!.slug}`);
+      else await expect(prev).toHaveCount(0);
+      if (k < published.length - 1) await expect(next).toHaveAttribute("href", `/learn/${published[k + 1]!.slug}`);
+      else await expect(next).toHaveCount(0);
+    }
   });
 
   test("TOC is a keyboard disclosure on small screens", async ({ page }) => {
@@ -414,11 +430,17 @@ test.describe("AC-G-1-16 server-rendered text", () => {
 });
 
 test.describe("AC-G-1-17 glossary", () => {
-  test("empty state while no lesson is published", async ({ page }) => {
+  test("lists the terms of the published lessons (empty state when none is published)", async ({ page }) => {
     const res = await page.goto("/learn/glossary");
     expect(res?.status()).toBe(200);
     await expect(page.locator("h1")).toHaveText("Glossary");
-    await expect(page.locator("[data-glossary-empty]")).toHaveText("The glossary grows as lessons are published.");
+    const terms = publishedGlossary();
+    if (terms.length === 0) {
+      await expect(page.locator("[data-glossary-empty]")).toHaveText("The glossary grows as lessons are published.");
+      return;
+    }
+    await expect(page.locator("[data-glossary-empty]")).toHaveCount(0);
+    for (const t of terms) await expect(page.locator(`dt[id="${t.id}"]`), t.id).toHaveCount(1);
   });
 });
 

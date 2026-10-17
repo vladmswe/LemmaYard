@@ -1,0 +1,13 @@
+{
+  "kind": "function",
+  "entry": { "python": "binary_search", "javascript": "binarySearch" },
+  "cases": [
+    { "name": "default: 71 in the 32-number array", "args": [[1, 4, 6, 9, 13, 15, 18, 22, 25, 27, 31, 34, 38, 40, 43, 47, 50, 52, 56, 59, 61, 64, 68, 71, 73, 77, 80, 84, 86, 89, 93, 96], 71], "expected": 23 },
+    { "name": "absent target inside the range", "args": [[1, 4, 6, 9, 13, 15, 18, 22, 25, 27, 31, 34, 38, 40, 43, 47, 50, 52, 56, 59, 61, 64, 68, 71, 73, 77, 80, 84, 86, 89, 93, 96], 60], "expected": -1 },
+    { "name": "target at index 0", "args": [[2, 5, 9, 14], 2], "expected": 0 },
+    { "name": "target larger than every value", "args": [[2, 5, 9, 14], 99], "expected": -1 },
+    { "name": "repeated value returns the first index", "args": [[2, 3, 3, 3, 6, 8, 8, 9], 3], "expected": 1 },
+    { "name": "empty array", "args": [[], 5], "expected": -1 },
+    { "name": "one element, absent", "args": [[5], 1], "expected": -1 }
+  ]
+}

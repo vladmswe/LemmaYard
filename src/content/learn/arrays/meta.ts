@@ -9,7 +9,7 @@ export const meta: LessonMeta = {
   order: 2,
   prerequisites: ["complexity-basics"],
   minutes: 20,
-  status: "draft",
+  status: "published",
   practice: [
     { slug: "product-of-array-except-self", why: "Prefix and suffix products in two passes." },
     { slug: "best-time-to-buy-and-sell-stock", why: "Keep a running prefix minimum." },

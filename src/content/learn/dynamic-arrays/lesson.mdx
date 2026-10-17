@@ -1,14 +1,166 @@
-This lesson is being written.
+import { dynArrayOps } from "@/components/guide/viz/dynarray/defs";
 
-{/* Required h2 headings, in this order (PLAN-GUIDE 1.3):
 ## Why it exists
+
+You read the lines of a file into memory, and you do not know how many there are. A fixed array
+forces a guess. Guess too low and it fills up: in the previous lesson, inserting into a full array
+simply failed. Guess too high and the unused slots waste memory.
+
+A <Term id="dynamic-array">dynamic array</Term> removes the guess. It is an ordinary array with spare room
+at the end. When the room runs out, it moves everything into a bigger block and carries on.
+
+That move copies every element, so one append can be slow. The trick is to grow by enough each time that
+moves become rare. Then appends cost O(1) amortized, which is why Python's `list` and JavaScript's `Array`
+work this way.
+
 ## Mental model
-<operation sections>
+
+Keep two numbers apart. The size is how many elements you have stored. The
+<Term id="capacity">capacity</Term> is how many slots the underlying block, the
+<Term id="buffer">buffer</Term>, has. Slots 0 to size − 1 hold your elements; the rest are free.
+The rule at all times: size ≤ capacity.
+
+Appending while a slot is free is the cheap case: write into slot `size`, then add one to size.
+Appending when size equals capacity needs a <Term id="resize">resize</Term>:
+
+1. Allocate a new buffer, twice as large.
+2. Copy the elements over, one by one.
+3. Switch to the new buffer and free the old one.
+
+Only then does the new value go in. Popping works from the same end, so it never shifts anything.
+
+## Append and grow
+
+The player starts from capacity 1, appends five values and then pops three. Watch the second buffer row
+appear on each resize, and the copies counter jump.
+
+<Viz def={dynArrayOps} id="dynamic-array" code="dynamic-arrays/dynamic_array" hint="Try: press Next, or pick the 'Append 1..17' preset." />
+
+When the buffer of 4 is full, the player asks how many copies the next append will cause. Every
+element already stored is copied once, so the answer is the current size, 4.
+
+Below the buffers, the chart draws the cost of each operation: one write, plus the copies if it
+resized. The line is the running average. Most bars are short, a few are tall, and the line stays low.
+
+## Why appends are cheap on average
+
+A single append that resizes costs O(n): it copies all n elements. So "append is O(1)" is wrong as a
+worst-case claim. The true claim is about a sequence, and you can prove it by adding up the whole
+sequence. That is called <Term id="aggregate-analysis">aggregate analysis</Term>.
+
+Start from capacity 1 and double whenever the buffer is full. Do n appends in a row.
+
+- Every append writes its own value once: n writes in total.
+- Resizes happen when the size reaches 1, 2, 4, 8, and so on. Each copies that many elements.
+- Let c be the largest of those sizes, so c < n. The copies add up to 1 + 2 + 4 + … + c = 2c − 1.
+- A sum of doublings is less than twice its last term, so the copies are fewer than 2c, which is less than 2n.
+
+So n appends cost fewer than n + 2n = 3n steps. Spread over n appends, that is under 3 steps each:
+O(1) amortized. One append can still take O(n) in the worst case; the average over the sequence cannot exceed 3.
+
+Check it with the "Append 1..17" preset. The resizes copy 1 + 2 + 4 + 8 + 16 = 31 elements, plus
+17 writes, for 48 steps. That is about 2.8 per append, and the capacity ends at 32 after 5 resizes.
+
+Doubling is not magic. Any <Term id="growth-factor">growth factor</Term> above 1, such as 1.5, keeps
+appends O(1) amortized: the copies still form a geometric series, just a longer one. Pick "Grow x1.5"
+to see more frequent, smaller resizes.
+
+What breaks the guarantee is growing by a fixed amount. Suppose you add 10 slots each time. Then a resize
+happens every 10 appends, and they copy 10, 20, 30 and so on elements. That sum grows like n²/20, so each
+append costs O(n) amortized. Grow by a factor, never by a constant.
+
+## Pop and shrink
+
+Pop removes the last element: lower the size by one, read the value and clear the slot. It returns the
+removed value. Popping an empty array is an error, and our code raises one instead of returning garbage.
+Try the "Pop on empty" preset.
+
+After many pops, a big buffer may hold just a few elements. To give memory back, the array can shrink.
+The rule we use: when the size drops to a quarter of the capacity, move to a buffer half as large.
+In the default run, the third pop leaves 2 elements in 8 slots. The player asks what the capacity will be;
+it becomes 4.
+
+Why a quarter, and not as soon as the array is half empty? Picture capacity 8, all full. One append grows it
+to 16 and copies 8 elements. If the rule were "shrink at half", one pop would bring the size back to 8 out of 16
+and shrink it to 8, copying again. The next append grows it again. Alternate append and pop and every
+single operation copies the whole array. That is called <Term id="thrashing">thrashing</Term>.
+
+Compare the presets "Thrash at the boundary (shrink at 1/2)" and "Same ops, shrink at 1/4". Over the same
+12 alternating operations, the first resizes 12 times and the second only once.
+
+Shrinking to half at a quarter leaves the new buffer half full. Many appends or pops must happen before the
+next resize, and those operations pay for its copies. So pop stays O(1) amortized too.
+
 ## Cost
+
+<ComplexityTable id="dynamic-array-ops" />
+
+The tall bars in the cost chart are the O(n) worst cases; the running average is the amortized bound.
+
 ## Pitfalls
+
+<Callout kind="pitfall" title="Calling append O(1) without a qualifier">
+  Say "O(1) amortized". A single append can copy the whole array, which matters when one slow
+  operation is a problem, such as a frame of a game or a request with a strict deadline.
+</Callout>
+
+- **Growing by a constant.** Adding a fixed number of slots on each resize makes n appends cost O(n²) in
+  total. Multiply the capacity instead.
+- **Shrinking at half.** It thrashes when the size moves back and forth across the boundary. Shrink at a quarter, to half.
+- **Removing from the front.** Python `list.pop(0)` and JavaScript `shift()` move every remaining element,
+  so each call is O(n). Use a deque when you need both ends (a later lesson).
+- **Growing one by one when you know the size.** If you know you need n slots, allocate them once,
+  for example with `[0] * n` in Python or `new Array(n)` in JavaScript, and skip the resizes.
+- **Insert in the middle is still slow.** A dynamic array is still an array. Inserting or removing at index i
+  shifts every later element: O(n) in the worst case.
+
 ## In your language
+
+Both languages give you a dynamic array as the default list type:
+
+```python
+a = []
+a.append(7)       # O(1) amortized, O(n) worst
+a.pop()           # removes and returns the last value; IndexError if empty
+a[0]              # O(1)
+```
+
+```javascript
+const a = [];
+a.push(7);        // O(1) amortized
+a.pop();          // returns the last value, or undefined if empty
+a[0];             // O(1)
+```
+
+CPython's `list` <Term id="over-allocation">over-allocates</Term> by roughly one eighth of the size plus a small constant, rather than
+doubling. The exact formula has changed between CPython versions, so treat the details as an
+implementation choice. It still grows by a factor, so append stays O(1) amortized. JavaScript arrays are
+managed by the engine. V8 also grows its backing store by a factor, but the details are internal; do not rely
+on them. Note that JavaScript's `pop()` on an empty array returns undefined instead of failing.
+
+Here is the from-scratch version the player highlights. It doubles when full, shrinks at a quarter, and
+`pop` returns the value or raises on an empty array.
+
+<CodeTabs code="dynamic-arrays/dynamic_array" />
+
 ## When to use it
+
+Use a dynamic array as your default sequence: reading by index, appending, and popping at the end
+are all fast, and the memory is compact. It is the structure behind most stacks, as you will see in a later lesson.
+
+Look elsewhere when you need fast inserts or removals at the front or in the middle, or when every single
+operation must have a small worst case. A linked list or a deque does better there.
+
 ## Check yourself
+
+<Quiz id="dynamic-arrays-check" />
+
 ## Practice
+
+<PracticeLinks />
+
 ## Recap
-*/}
+
+- Size is what you stored, capacity is the buffer you have; when they are equal, the next append doubles the buffer and copies everything.
+- n appends with doubling copy fewer than 2n elements in total, so append is O(1) amortized and O(n) worst case; any constant growth factor above 1 works, a constant increment does not.
+- Pop returns the last value and fails on an empty array; shrinking to half at a quarter full avoids thrashing and keeps pop O(1) amortized.

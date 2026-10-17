@@ -9,7 +9,7 @@ export const meta: LessonMeta = {
   order: 3,
   prerequisites: ["arrays"],
   minutes: 20,
-  status: "draft",
+  status: "published",
   practice: [],
   updated: "2026-10-17",
 };

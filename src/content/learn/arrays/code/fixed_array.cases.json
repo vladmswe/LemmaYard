@@ -1,0 +1,26 @@
+{
+  "kind": "class",
+  "entry": { "python": "FixedArray", "javascript": "FixedArray" },
+  "methods": {
+    "insert": { "python": "insert_at", "javascript": "insertAt" },
+    "remove": { "python": "remove_at", "javascript": "removeAt" },
+    "snapshot": { "python": "snapshot", "javascript": "snapshot" }
+  },
+  "cases": [
+    {
+      "name": "default: insert 7 at 1, then remove index 0",
+      "ops": [["insert", 0, 3], ["insert", 1, 8], ["insert", 2, 1], ["insert", 3, 9], ["insert", 4, 4], ["insert", 5, 6], ["insert", 1, 7], ["snapshot"], ["remove", 0], ["snapshot"]],
+      "expected": [null, null, null, null, null, null, null, [3, 7, 8, 1, 9, 4, 6], 3, [7, 8, 1, 9, 4, 6]]
+    },
+    { "name": "insert at the end moves nothing", "ops": [["insert", 0, 5], ["insert", 1, 6], ["snapshot"]], "expected": [null, null, [5, 6]] },
+    { "name": "remove the last element", "ops": [["insert", 0, 5], ["insert", 1, 6], ["remove", 1], ["snapshot"]], "expected": [null, null, 6, [5]] },
+    { "name": "empty array snapshot", "ops": [["snapshot"]], "expected": [[]] },
+    { "name": "remove on empty raises", "ops": [["remove", 0]], "expected": [{ "$error": true }] },
+    { "name": "insert past the size raises", "ops": [["insert", 1, 5]], "expected": [{ "$error": true }] },
+    {
+      "name": "insert into a full array raises",
+      "ops": [["insert", 0, 1], ["insert", 0, 2], ["insert", 0, 3], ["insert", 0, 4], ["insert", 0, 5], ["insert", 0, 6], ["insert", 0, 7], ["insert", 0, 8], ["insert", 0, 9], ["insert", 0, 10], ["insert", 0, 11]],
+      "expected": [null, null, null, null, null, null, null, null, null, null, { "$error": true }]
+    }
+  ]
+}
