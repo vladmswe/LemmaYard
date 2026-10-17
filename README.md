@@ -1,8 +1,16 @@
 # LemmaYard
 
-A LeetCode-style practice site: problem catalog, in-browser editor, and a judge
-that runs Python and JavaScript solutions in a Docker sandbox. Local-only pet
-project. See [PLAN.md](PLAN.md) for the full plan and milestones.
+LemmaYard is a practice platform for algorithms and data structures: problems,
+an in-browser editor, a sandboxed judge in Python and JavaScript, and guided
+learning. Local-only pet project. See [PLAN.md](PLAN.md) for the full plan and
+milestones.
+
+> Naming: the project was renamed from its working title to LemmaYard. The
+> Postgres user, password and database names in `docker-compose.yml` and
+> `.env.example`, and the test-database prefix, still use the old name
+> (`leetcopy`, `leetcopy_test_<suffix>`; brand-rename: keep). They are internal
+> database names, kept so existing local volumes keep working; they can be
+> renamed together with a fresh Postgres volume.
 
 > Status: **M2 (authentication)** and **M4 (judge: sandbox, executor, queue,
 > worker)** on top of M1 (database, types, problem pipeline). The catalog and
