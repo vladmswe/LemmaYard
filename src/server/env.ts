@@ -8,6 +8,9 @@ export const envSchema = z.object({
     .default("development"),
   DATABASE_URL: z.url(),
   TEST_DATABASE_URL: z.url().optional(),
+  // Integration tests use database leetcopy_test_<suffix>; defaults to the git
+  // worktree directory name so parallel worktrees never share a test DB.
+  TEST_DB_SUFFIX: z.string().optional(),
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
   AUTH_URL: z.url().default("http://localhost:3000"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
