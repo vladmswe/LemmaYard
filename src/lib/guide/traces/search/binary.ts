@@ -91,7 +91,11 @@ export function generateBinary(input: SearchInput): Trace<SearchState, number> {
       pointers: rangePointers(lo, hi, mid),
       line: "search.binary.compare",
       phase: "Check the middle",
-      narration: `The middle of [${lo}, ${hi}) is index ${mid}, holding ${v}. Is ${v} smaller than ${target}? ${less ? "Yes" : "No"}.`,
+      // Round 1 leaves the comparison open: the next frame's prompt asks which half the search keeps.
+      narration:
+        round === 1
+          ? `The middle of [${lo}, ${hi}) is index ${mid}, holding ${v}. Compare it with the target ${target}.`
+          : `The middle of [${lo}, ${hi}) is index ${mid}, holding ${v}. Is ${v} smaller than ${target}? ${less ? "Yes" : "No"}.`,
       counters: { comparisons },
       ...(prompt ? { prompt } : {}),
       ...(round === 1 ? { key: true } : {}),

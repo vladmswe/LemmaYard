@@ -92,10 +92,11 @@ export function generateShift(input: ArrayInput): Trace<ArrayState, ArrayOpOutco
         roles: {},
         line: "array.insert.range",
         phase: `Insert at ${i}`,
+        // The move count is told on the first shift frame: a prompt may ask for it while this frame is on screen.
         narration:
           need === 0
             ? `Insert ${op.value} at index ${i}: that is the end of the array, so no element has to move.`
-            : `Insert ${op.value} at index ${i}: the ${plural(need, "element")} at indices ${i} to ${size - 1} must each move one slot right, starting from the end.`,
+            : `Insert ${op.value} at index ${i}. First open a gap there, starting from the end.`,
       });
       let done = 0;
       for (let k = size - 1; k >= i; k--) {
@@ -120,7 +121,10 @@ export function generateShift(input: ArrayInput): Trace<ArrayState, ArrayOpOutco
           roles: { [item.id]: "current" },
           line: "array.insert.shift",
           phase: "Shift right",
-          narration: `Move ${item.value} from index ${k} to index ${k + 1} (move ${done} of ${need}).`,
+          narration:
+            done === 1
+              ? `The ${plural(need, "element")} at indices ${i} to ${size - 1} each move one slot right, from the end. Move ${item.value} from index ${k} to index ${k + 1} (move 1 of ${need}).`
+              : `Move ${item.value} from index ${k} to index ${k + 1} (move ${done} of ${need}).`,
           ...(prompt ? { prompt } : {}),
         });
       }
@@ -169,7 +173,7 @@ export function generateShift(input: ArrayInput): Trace<ArrayState, ArrayOpOutco
       narration:
         need === 0
           ? `Remove index ${i}: read its value ${removed.value}. It is the last element, so nothing has to move.`
-          : `Remove index ${i}: read its value ${removed.value}. The ${plural(need, "element")} after it must each move one slot left to close the gap.`,
+          : `Remove index ${i}: read its value ${removed.value}. Then close the gap it leaves.`,
     });
     let done = 0;
     for (let k = i; k < size - 1; k++) {
@@ -194,7 +198,10 @@ export function generateShift(input: ArrayInput): Trace<ArrayState, ArrayOpOutco
         roles: { [item.id]: "current" },
         line: "array.remove.shift",
         phase: "Shift left",
-        narration: `Move ${item.value} from index ${k + 1} to index ${k} (move ${done} of ${need}).`,
+        narration:
+          done === 1
+            ? `The ${plural(need, "element")} after index ${i} each move one slot left to close the gap. Move ${item.value} from index ${k + 1} to index ${k} (move 1 of ${need}).`
+            : `Move ${item.value} from index ${k + 1} to index ${k} (move ${done} of ${need}).`,
         ...(prompt ? { prompt } : {}),
       });
     }

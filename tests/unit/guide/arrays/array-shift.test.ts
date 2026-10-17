@@ -108,7 +108,7 @@ describe("array.shift (S3: golden examples)", () => {
       ["remove-moves", "n6"],
     ]);
     // Shifting starts from the end: the first move takes 6 from index 5 to index 6.
-    expect(t.frames.find((f) => f.line === "array.insert.shift")?.narration).toMatch(/^Move 6 from index 5 to index 6/);
+    expect(t.frames.find((f) => f.line === "array.insert.shift")?.narration).toMatch(/Move 6 from index 5 to index 6 \(move 1 of 5\)\.$/);
   });
 
   it("an element keeps its id while it moves (so it glides)", () => {

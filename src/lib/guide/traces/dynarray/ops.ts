@@ -189,13 +189,16 @@ export function generateDyn(input: DynInput): Trace<DynState, DynResult> {
       writes++;
       completed++;
       costs.push(1 + opCopies);
+      const cost = opCopies === 0 ? "1 write" : `1 write + ${copiesText(opCopies)}`;
       push({
         roles: { [cell.id]: "new" },
         line: "dynarray.append.write",
         phase: "Write at the end",
-        narration: `Write ${op.value} into slot ${size - 1}; size ${size}, capacity ${buffer.capacity}. Cost of this append: ${
-          opCopies === 0 ? "1 write" : `1 write + ${copiesText(opCopies)}`
-        }. Average so far: ${formatAverage(costs)} per op.`,
+        // A full buffer is the setup of the "how many copies" prompt on the next append: no counts here.
+        narration:
+          size === buffer.capacity
+            ? `Write the new value into the last free slot: the buffer is now full. Cost of this append: ${cost}.`
+            : `Write ${op.value} into slot ${size - 1}; size ${size}, capacity ${buffer.capacity}. Cost of this append: ${cost}. Average so far: ${formatAverage(costs)} per op.`,
       });
       continue;
     }
@@ -226,9 +229,11 @@ export function generateDyn(input: DynInput): Trace<DynState, DynResult> {
       roles: { [cell.id]: "removed" },
       line: "dynarray.pop.read",
       phase: "Pop the last",
-      narration: `Pop returns ${cell.value} from slot ${size} and clears it; size is now ${size} of ${buffer.capacity}.${
-        cap === null ? ` Cost: 1 write. Average so far: ${formatAverage(costs)} per op.` : ""
-      }`,
+      // Before a shrink, the next frame asks for the new capacity: name neither size nor capacity.
+      narration:
+        cap === null
+          ? `Pop returns ${cell.value} from slot ${size} and clears it; size is now ${size} of ${buffer.capacity}. Cost: 1 write. Average so far: ${formatAverage(costs)} per op.`
+          : `Pop returns ${cell.value} and clears its slot. Now check whether the buffer has become too sparse.`,
     });
     buffer.slots[size] = null;
     if (cap !== null) {

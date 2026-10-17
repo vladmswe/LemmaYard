@@ -69,7 +69,7 @@ export function generateLinear(input: SearchInput): Trace<SearchState, number> {
     const equal = v === target;
     return {
       id: "linear-stop",
-      question: `Index 2 holds ${v}. Will the search stop there?`,
+      question: `Next the search compares the cell at index 2 with ${target}. Will it stop there?`,
       choices: [
         { id: "yes", label: `Yes, ${v} is the target` },
         { id: "no", label: `No, ${v} is not ${target}` },
@@ -95,7 +95,7 @@ export function generateLinear(input: SearchInput): Trace<SearchState, number> {
         idx === -1
           ? {
               id: "linear-total",
-              question: `No match in the first ${EXPLICIT} cells. How many comparisons will linear search have made when it gives up on all ${n} cells?`,
+              question: `No match in the first ${EXPLICIT} cells. How many comparisons will linear search have made in total when it returns -1?`,
               choices: numberChoices(n, [Math.ceil(Math.log2(n + 1)), Math.floor(n / 2), n - EXPLICIT]),
               answerId: `n${n}`,
               explain: `A missing target is the worst case: linear search compares every one of the ${n} cells, so it makes ${n} comparisons.`,
