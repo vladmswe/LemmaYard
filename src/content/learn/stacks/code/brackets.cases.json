@@ -1,0 +1,14 @@
+{
+  "kind": "function",
+  "entry": { "python": "is_balanced", "javascript": "isBalanced" },
+  "cases": [
+    { "name": "the compiler line: other characters are skipped", "args": ["if (x * (y + z[1]) < 137) { x = 1; }"], "expected": true },
+    { "name": "nested pairs", "args": ["((())())()"], "expected": true },
+    { "name": "a closer comes first", "args": [")()("], "expected": false },
+    { "name": "one closer too many", "args": ["())"], "expected": false },
+    { "name": "crossed pairs", "args": ["([)]"], "expected": false },
+    { "name": "openers left over", "args": ["(("], "expected": false },
+    { "name": "empty text", "args": [""], "expected": true },
+    { "name": "no brackets at all", "args": ["x = 1"], "expected": true }
+  ]
+}
