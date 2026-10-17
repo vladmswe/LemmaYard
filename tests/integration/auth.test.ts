@@ -124,14 +124,14 @@ describe("POST /api/auth/register", () => {
     );
     expect(dupEmail.status).toBe(409);
     expect((await dupEmail.json()).fieldErrors).toEqual({
-      email: "This email is already registered",
+      email: "This email is already registered.",
     });
 
     const dupUsername = await register(
       post("/api/auth/register", { ...alice, email: "new@example.com" }),
     );
     expect(dupUsername.status).toBe(409);
-    expect((await dupUsername.json()).fieldErrors).toEqual({ username: "This username is taken" });
+    expect((await dupUsername.json()).fieldErrors).toEqual({ username: "This username is taken." });
 
     const both = await register(post("/api/auth/register", alice));
     expect(Object.keys((await both.json()).fieldErrors).sort()).toEqual(["email", "username"]);

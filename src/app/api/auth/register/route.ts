@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { registerSchema } from "@/lib/auth/schemas";
+import { AUTH_MESSAGES, registerSchema } from "@/lib/auth/schemas";
 import { setSessionCookie } from "@/server/auth/cookie";
 import { signSessionToken } from "@/server/auth/token";
 import { createUser } from "@/server/auth/users";
@@ -20,8 +20,8 @@ export async function POST(request: Request) {
   const result = await createUser(body.data);
   if (!result.ok) {
     return jsonError(409, "Email or username is already taken", {
-      ...(result.taken.email && { email: "This email is already registered" }),
-      ...(result.taken.username && { username: "This username is taken" }),
+      ...(result.taken.email && { email: AUTH_MESSAGES.emailTaken }),
+      ...(result.taken.username && { username: AUTH_MESSAGES.usernameTaken }),
     });
   }
 
