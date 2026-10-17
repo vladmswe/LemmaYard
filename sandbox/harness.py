@@ -108,21 +108,27 @@ def _format_error(exc):
     return _limit(_clean("".join(lines)).rstrip("\n"))
 
 
-def _check_ints(value, depth=0):
-    """Raises ValueError for ints outside ±(2^53−1) (JSON-unsafe for the judge)."""
-    if depth > 64:
-        return
-    if isinstance(value, bool):
-        return
-    if isinstance(value, int):
-        if value > MAX_SAFE_INT or value < -MAX_SAFE_INT:
-            raise OverflowError("integer result outside the range ±(2^53−1)")
-    elif isinstance(value, (list, tuple)):
-        for item in value:
-            _check_ints(item, depth + 1)
-    elif isinstance(value, dict):
-        for item in value.values():
-            _check_ints(item, depth + 1)
+def _check_ints(value):
+    """Raises OverflowError for ints outside ±(2^53−1) (JSON-unsafe for the judge).
+
+    Iterative and without a depth cap, so no nesting depth lets a big int
+    through; containers already seen are skipped (cycles are rejected later
+    by json.dumps).
+    """
+    stack = [value]
+    seen = set()
+    while stack:
+        item = stack.pop()
+        if isinstance(item, bool):
+            continue
+        if isinstance(item, int):
+            if item > MAX_SAFE_INT or item < -MAX_SAFE_INT:
+                raise OverflowError("integer result outside the range ±(2^53−1)")
+        elif isinstance(item, (list, tuple, dict)):
+            if id(item) in seen:
+                continue
+            seen.add(id(item))
+            stack.extend(item.values() if isinstance(item, dict) else item)
 
 
 def _to_float(value, type_name):
