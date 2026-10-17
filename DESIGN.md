@@ -555,7 +555,7 @@ Row `flex justify-between items-center`: left "Showing 21–40 of 45" (`text-sm 
 - Brand: logo mark plus the serif wordmark `text-[1.3rem] font-semibold`.
 - Nav links: `h-10 px-3 rounded-md text-[0.9375rem] font-medium text-header-muted hover:text-header-foreground hover:bg-white/8`. Active: `text-header-foreground shadow-[inset_0_-2px_0_var(--gold)] rounded-none` + `aria-current="page"`. Items: Problems, Submissions (Submissions only for signed-in users).
 - Right side: ThemeToggle (`icon` ghost, on-dark variant `hover:bg-white/10`). Guest: "Log in" (ghost on-dark) + "Sign up" (light mode: `bg-white text-blue-800`; dark mode: `bg-primary text-primary-foreground`). Signed in: account menu trigger = Avatar + username + `ChevronDown`.
-- Below `md`: nav collapses into a `Menu` icon button that opens a `Sheet` from the right (`ui/sheet.tsx`, add) with nav links, then Log in / Sign up or the account items. At <640px the username label is hidden (avatar only).
+- Below `md`: nav collapses into a `Menu` icon button that opens a `Sheet` from the right (`ui/sheet.tsx`, add) with nav links, then Log in / Sign up or the account items (avatar + username, Profile, Log out; Submissions only once, in the nav block). The account menu trigger is hidden below `md`, so there is one menu per width. The sheet closes itself when the viewport grows to `md`. The guest "Sign up" button stays in the bar at every width.
 - Copy note: the current UI says "Login"/"Register". Change the visible labels to **"Log in" / "Sign up"**. Page routes stay `/login` and `/register`.
 
 ### 8.19 Account menu (`components/user-menu.tsx`, change)
