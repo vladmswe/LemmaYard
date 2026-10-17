@@ -148,7 +148,7 @@
   .ly-note {
     position: absolute;
     right: -6px;
-    top: 12px;
+    top: -14px;
     z-index: 3;
     display: flex;
     align-items: center;
