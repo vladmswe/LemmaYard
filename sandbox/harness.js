@@ -23,6 +23,7 @@ const STDOUT_LIMIT = 64 * 1024;
 const TRUNCATED = "\n[truncated]";
 const ERROR_LIMIT = 8 * 1024;
 const ACTUAL_LIMIT = 256 * 1024;
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function writeAll(data) {
   let buf = Buffer.from(data, "utf8");
@@ -145,8 +146,13 @@ function main(line) {
     { microtaskMode: "afterEvaluate" },
   );
 
-  // Helpers created inside the context before user code runs, so JSON and the
-  // marker encoding use the context's own (not yet tampered) builtins.
+  // Helpers created inside the context before user code runs: they capture the
+  // context's JSON.parse/JSON.stringify functions before user code can replace
+  // them. This is not tamper-proof: user code can still change what those
+  // functions see (Array/Object.prototype.toJSON, getters, a Proxy result),
+  // so it can change its own `actual`. That is harmless: frames are written by
+  // `emit` with the outer realm's JSON and builtins, which context code cannot
+  // reach through these helpers, and expected values are not in the container.
   const hook = "__lc_" + crypto.randomBytes(8).toString("hex");
   const helpers = new vm.Script(`(function () {
     "use strict";
@@ -209,8 +215,16 @@ function main(line) {
   }
 
   const name = signature.name;
+  // The name goes into a script below: plain identifiers only (the importer
+  // already enforces this; defense in depth against a row written without it).
+  if (typeof name !== "string" || !IDENTIFIER.test(name)) {
+    emit({ kind: "fatal", status: "error", error: "invalid function name" });
+    return;
+  }
   let fn;
   try {
+    // `typeof` also finds top-level let/const/class bindings, which are not
+    // properties of the context object, so the lookup stays a script.
     fn = vm.runInContext(`typeof ${name} === "function" ? ${name} : undefined`, context, {
       timeout,
     });
