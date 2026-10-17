@@ -1,0 +1,31 @@
+{
+  "number": 1,
+  "slug": "two-sum",
+  "title": "Two Sum",
+  "difficulty": "easy",
+  "tags": [
+    "array",
+    "hash-table"
+  ],
+  "signature": {
+    "name": "twoSum",
+    "params": [
+      {
+        "name": "nums",
+        "type": "int[]"
+      },
+      {
+        "name": "target",
+        "type": "int"
+      }
+    ],
+    "returns": "int[]"
+  },
+  "compare": {
+    "mode": "unordered"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}

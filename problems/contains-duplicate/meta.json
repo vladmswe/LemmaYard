@@ -1,0 +1,27 @@
+{
+  "number": 3,
+  "slug": "contains-duplicate",
+  "title": "Contains Duplicate",
+  "difficulty": "easy",
+  "tags": [
+    "array",
+    "hash-table"
+  ],
+  "signature": {
+    "name": "containsDuplicate",
+    "params": [
+      {
+        "name": "nums",
+        "type": "int[]"
+      }
+    ],
+    "returns": "bool"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}
