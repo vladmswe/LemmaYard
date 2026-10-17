@@ -17,6 +17,7 @@ const eslintConfig = defineConfig([
     // Problem solutions and fixtures define a global function by design.
     "problems/**",
     "tests/fixtures/**",
+    "tests/unit/__golden__/**",
   ]),
 ]);
 

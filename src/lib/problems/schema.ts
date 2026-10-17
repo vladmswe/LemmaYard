@@ -76,7 +76,8 @@ export const metaSchema = z
     limits: limitsSchema.default(DEFAULT_LIMITS),
   })
   .superRefine((meta, ctx) => {
-    if (meta.compare.mode === "unordered" && parseType(meta.signature.returns)?.kind !== "array") {
+    const returns = parseType(meta.signature.returns);
+    if (meta.compare.mode === "unordered" && returns && returns.kind !== "array") {
       ctx.addIssue({
         code: "custom",
         path: ["compare", "mode"],
