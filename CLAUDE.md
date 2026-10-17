@@ -44,7 +44,8 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
 - Integration tests use `tests/helpers/db.ts` (factories, `resetTestDb()`);
   Docker sandbox tests use `tests/helpers/sandbox.ts`.
 - Auth: `src/server/auth/`. `getCurrentUser()` / `requireUser(nextPath)` from
-  `session.ts` are the only way to read the session (no middleware/proxy).
+  `session.ts` are the only way to read the session (no middleware/proxy;
+  `src/proxy.ts` only turns malformed `%` escapes in the path into a 404).
   Every mutating route handler starts with `assertSameOrigin(request)` and
   reads its body with `readJsonBody()` (`src/server/http/request.ts`).
   Redirect targets from `?next=` go through `safeRedirectPath()`.
