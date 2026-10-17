@@ -32,7 +32,10 @@ export async function SiteFooter() {
       <div className="container-page">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-[2fr_1fr_1fr]">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="inline-flex rounded-md text-foreground">
+            <Link
+              href="/"
+              className="relative inline-flex rounded-md text-foreground after:absolute after:-inset-y-1.5"
+            >
               <Logo />
             </Link>
             <p className="mt-3 max-w-[22rem] text-muted-foreground">
@@ -42,12 +45,13 @@ export async function SiteFooter() {
           {columns.map((col) => (
             <div key={col.title}>
               <h2 className="eyebrow mb-3">{col.title}</h2>
-              <ul className="grid gap-2">
+              {/* Below md each link is a 40px row (DESIGN.md §12 touch target). */}
+              <ul className="-my-2.5 grid md:my-0 md:gap-2">
                 {col.links.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="rounded-sm text-foreground-secondary underline-offset-4 transition-colors duration-120 hover:text-link hover:underline"
+                      className="inline-flex min-h-10 min-w-10 items-center rounded-sm text-foreground-secondary underline-offset-4 transition-colors duration-120 hover:text-link hover:underline md:min-h-0"
                     >
                       {link.label}
                     </Link>
