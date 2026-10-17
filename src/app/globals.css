@@ -375,6 +375,27 @@
   }
 }
 
+/* Page container (DESIGN.md §6.4): 1200px, 16px gutter (24px from sm). */
+@utility container-page {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 1200px;
+  padding-inline: 1rem;
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+}
+
+/* Uppercase eyebrow / section label. */
+@utility eyebrow {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
 /* ---------- Motion ------------------------------------------------------ */
 
 @keyframes enter-up {

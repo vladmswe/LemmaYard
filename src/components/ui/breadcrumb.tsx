@@ -2,12 +2,14 @@ import * as React from "react"
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cn } from "cn"
-import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
+import { ChevronRightIcon } from "lucide-react"
+
+// DESIGN.md §8.17. Use `render={<Link href="…" />}` on BreadcrumbLink.
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
   return (
     <nav
-      aria-label="breadcrumb"
+      aria-label="Breadcrumb"
       data-slot="breadcrumb"
       className={cn(className)}
       {...props}
@@ -47,7 +49,10 @@ function BreadcrumbLink({
     defaultTagName: "a",
     props: mergeProps<"a">(
       {
-        className: cn("transition-colors hover:text-foreground", className),
+        className: cn(
+          "rounded-sm underline-offset-4 transition-colors duration-120 hover:text-link hover:underline",
+          className
+        ),
       },
       props
     ),
@@ -62,10 +67,8 @@ function BreadcrumbPage({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="breadcrumb-page"
-      role="link"
-      aria-disabled="true"
       aria-current="page"
-      className={cn("font-normal text-foreground", className)}
+      className={cn("text-foreground-secondary", className)}
       {...props}
     />
   )
@@ -84,32 +87,8 @@ function BreadcrumbSeparator({
       className={cn("[&>svg]:size-3.5", className)}
       {...props}
     >
-      {children ?? (
-        <ChevronRightIcon />
-      )}
+      {children ?? <ChevronRightIcon />}
     </li>
-  )
-}
-
-function BreadcrumbEllipsis({
-  className,
-  ...props
-}: React.ComponentProps<"span">) {
-  return (
-    <span
-      data-slot="breadcrumb-ellipsis"
-      role="presentation"
-      aria-hidden="true"
-      className={cn(
-        "flex size-5 items-center justify-center [&>svg]:size-4",
-        className
-      )}
-      {...props}
-    >
-      <MoreHorizontalIcon
-      />
-      <span className="sr-only">More</span>
-    </span>
   )
 }
 
@@ -120,5 +99,4 @@ export {
   BreadcrumbLink,
   BreadcrumbPage,
   BreadcrumbSeparator,
-  BreadcrumbEllipsis,
 }

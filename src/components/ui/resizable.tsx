@@ -3,6 +3,8 @@
 import { cn } from "cn"
 import * as ResizablePrimitive from "react-resizable-panels"
 
+// Split panes for the problem workspace (DESIGN.md §8.21). Not used yet.
+
 function ResizablePanelGroup({
   className,
   ...props
@@ -23,25 +25,21 @@ function ResizablePanel({ ...props }: ResizablePrimitive.PanelProps) {
   return <ResizablePrimitive.Panel data-slot="resizable-panel" {...props} />
 }
 
+/** 8px hit area with a 2x32px grip that turns primary on hover and drag. */
 function ResizableHandle({
-  withHandle,
   className,
   ...props
-}: ResizablePrimitive.SeparatorProps & {
-  withHandle?: boolean
-}) {
+}: ResizablePrimitive.SeparatorProps) {
   return (
     <ResizablePrimitive.Separator
       data-slot="resizable-handle"
       className={cn(
-        "relative flex w-px items-center justify-center bg-border ring-offset-background after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden aria-[orientation=horizontal]:h-px aria-[orientation=horizontal]:w-full aria-[orientation=horizontal]:after:left-0 aria-[orientation=horizontal]:after:h-1 aria-[orientation=horizontal]:after:w-full aria-[orientation=horizontal]:after:translate-x-0 aria-[orientation=horizontal]:after:-translate-y-1/2 [&[aria-orientation=horizontal]>div]:rotate-90",
+        "group/handle relative flex w-2 shrink-0 items-center justify-center bg-transparent outline-none focus-visible:outline-2 focus-visible:outline-ring aria-[orientation=horizontal]:h-2 aria-[orientation=horizontal]:w-full",
         className
       )}
       {...props}
     >
-      {withHandle && (
-        <div className="z-10 flex h-6 w-1 shrink-0 rounded-lg bg-border" />
-      )}
+      <div className="h-8 w-0.5 rounded-full bg-border-strong transition-colors duration-120 group-hover/handle:bg-primary group-focus-visible/handle:bg-primary group-aria-[orientation=horizontal]/handle:h-0.5 group-aria-[orientation=horizontal]/handle:w-8" />
     </ResizablePrimitive.Separator>
   )
 }

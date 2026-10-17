@@ -1,82 +1,52 @@
-"use client"
-
-import { Progress as ProgressPrimitive } from "@base-ui/react/progress"
+import * as React from "react"
 import { cn } from "cn"
 
+import { progressPercent } from "@/lib/progress"
+
+// DESIGN.md §8.11. Server-renderable. The indicator is a full-width bar moved
+// with transform (fills in on mount, see `.progress-indicator`); always show
+// the numbers next to it ("10 / 16").
 function Progress({
-  className,
-  children,
   value,
+  max,
+  label,
+  className,
+  indicatorClassName,
+  delayMs,
   ...props
-}: ProgressPrimitive.Root.Props) {
+}: Omit<React.ComponentProps<"div">, "children"> & {
+  value: number
+  max: number
+  /** Accessible name, e.g. "Easy: 10 of 16 solved". */
+  label: string
+  indicatorClassName?: string
+  /** Stagger for several bars in a group. */
+  delayMs?: number
+}) {
+  const percent = progressPercent(value, max)
   return (
-    <ProgressPrimitive.Root
-      value={value}
+    <div
       data-slot="progress"
-      className={cn("flex flex-wrap gap-3", className)}
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-valuenow={Math.min(Math.max(value, 0), max)}
+      className={cn("relative h-2 w-full overflow-hidden rounded-full bg-muted", className)}
       {...props}
     >
-      {children}
-      <ProgressTrack>
-        <ProgressIndicator />
-      </ProgressTrack>
-    </ProgressPrimitive.Root>
+      <div
+        data-slot="progress-indicator"
+        className={cn("progress-indicator h-full w-full rounded-full bg-primary", indicatorClassName)}
+        style={
+          {
+            "--progress-value": `${percent}%`,
+            ...(delayMs === undefined ? {} : { "--progress-delay": `${delayMs}ms` }),
+          } as React.CSSProperties
+        }
+      />
+    </div>
   )
 }
 
-function ProgressTrack({ className, ...props }: ProgressPrimitive.Track.Props) {
-  return (
-    <ProgressPrimitive.Track
-      className={cn(
-        "relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted",
-        className
-      )}
-      data-slot="progress-track"
-      {...props}
-    />
-  )
-}
-
-function ProgressIndicator({
-  className,
-  ...props
-}: ProgressPrimitive.Indicator.Props) {
-  return (
-    <ProgressPrimitive.Indicator
-      data-slot="progress-indicator"
-      className={cn("h-full bg-primary transition-all", className)}
-      {...props}
-    />
-  )
-}
-
-function ProgressLabel({ className, ...props }: ProgressPrimitive.Label.Props) {
-  return (
-    <ProgressPrimitive.Label
-      className={cn("text-sm font-medium", className)}
-      data-slot="progress-label"
-      {...props}
-    />
-  )
-}
-
-function ProgressValue({ className, ...props }: ProgressPrimitive.Value.Props) {
-  return (
-    <ProgressPrimitive.Value
-      className={cn(
-        "ml-auto text-sm text-muted-foreground tabular-nums",
-        className
-      )}
-      data-slot="progress-value"
-      {...props}
-    />
-  )
-}
-
-export {
-  Progress,
-  ProgressTrack,
-  ProgressIndicator,
-  ProgressLabel,
-  ProgressValue,
-}
+export { Progress }
