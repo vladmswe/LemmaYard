@@ -98,6 +98,50 @@ describe("CHECK constraints", () => {
     expect(await pgCode(createSubmission({ ...ids, passedCount: -1 }))).toBe(CHECK);
     await expect(createSubmission({ ...ids, passedCount: 2, totalCount: 2 })).resolves.toBeDefined();
   });
+
+  it("running needs started_at; final statuses need finished_at", async () => {
+    const user = await createUser();
+    const problem = await createProblem();
+    const ids = { userId: user.id, problemId: problem.id };
+    const now = new Date();
+    expect(await pgCode(createSubmission({ ...ids, status: "running" }))).toBe(CHECK);
+    await expect(createSubmission({ ...ids, status: "running", startedAt: now })).resolves.toBeDefined();
+    await expect(createSubmission({ ...ids, status: "queued" })).resolves.toBeDefined();
+    for (const status of [
+      "accepted",
+      "wrong_answer",
+      "time_limit",
+      "memory_limit",
+      "runtime_error",
+      "compile_error",
+      "internal_error",
+    ] as const) {
+      expect(await pgCode(createSubmission({ ...ids, status, startedAt: now }))).toBe(CHECK);
+      await expect(
+        createSubmission({ ...ids, status, startedAt: now, finishedAt: now }),
+      ).resolves.toBeDefined();
+    }
+  });
+
+  it("runtime_ms and memory_kb are non-negative when set", async () => {
+    const user = await createUser();
+    const problem = await createProblem();
+    const ids = { userId: user.id, problemId: problem.id };
+    expect(await pgCode(createSubmission({ ...ids, runtimeMs: -1 }))).toBe(CHECK);
+    expect(await pgCode(createSubmission({ ...ids, memoryKb: -1 }))).toBe(CHECK);
+    await expect(createSubmission({ ...ids, runtimeMs: 0, memoryKb: 0 })).resolves.toBeDefined();
+  });
+
+  it("failed_test_index is within [0, total_count)", async () => {
+    const user = await createUser();
+    const problem = await createProblem();
+    const ids = { userId: user.id, problemId: problem.id, totalCount: 3 };
+    expect(await pgCode(createSubmission({ ...ids, failedTestIndex: -1 }))).toBe(CHECK);
+    expect(await pgCode(createSubmission({ ...ids, failedTestIndex: 3 }))).toBe(CHECK);
+    expect(await pgCode(createSubmission({ ...ids, totalCount: 0, failedTestIndex: 0 }))).toBe(CHECK);
+    await expect(createSubmission({ ...ids, failedTestIndex: 2 })).resolves.toBeDefined();
+    await expect(createSubmission({ ...ids, failedTestIndex: null })).resolves.toBeDefined();
+  });
 });
 
 describe("enums", () => {
@@ -150,14 +194,28 @@ describe("enums", () => {
       userId: user.id,
       problemId: problem.id,
       status: "wrong_answer",
+      startedAt: new Date(),
+      finishedAt: new Date(),
+      passedCount: 3,
+      totalCount: 5,
       failedTestIndex: 3,
       failedCase: { input: { x: 1 }, expected: [1, 2], actual: null },
-      caseResults: [{ index: 0, status: "ok", input: { x: 1 }, actual: 1, timeMs: 4 }],
+      caseResults: [
+        { index: 0, status: "passed", input: { x: 1 }, expected: 1, actual: 1, timeMs: 4 },
+        { index: 1, status: "runtime_error", input: { x: 2 }, error: "ZeroDivisionError" },
+        { index: 2, status: "not_run", input: { x: 3 } },
+      ],
       customInput: { x: 9007199254740991 },
     });
     const [row] = await getTestDb().select().from(submissions).where(eq(submissions.id, s.id));
     expect(row.failedCase).toEqual({ input: { x: 1 }, expected: [1, 2], actual: null });
     expect(row.caseResults?.[0].timeMs).toBe(4);
+    expect(row.caseResults?.[1]).toEqual({
+      index: 1,
+      status: "runtime_error",
+      input: { x: 2 },
+      error: "ZeroDivisionError",
+    });
     expect(row.customInput).toEqual({ x: 9007199254740991 });
   });
 });
@@ -203,7 +261,7 @@ describe("foreign keys and cascades", () => {
 });
 
 describe("indexes", () => {
-  it("has the plan's indexes including the two partial ones", async () => {
+  it("has the plan's indexes including the partial ones", async () => {
     const { rows } = await getTestDb().execute<{ indexname: string; indexdef: string }>(
       sql`SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public'`,
     );
@@ -214,5 +272,14 @@ describe("indexes", () => {
     expect(defs.submissions_running_idx).toMatch(/\(status, started_at\) WHERE \(status = 'running'/);
     expect(defs.problems_difficulty_idx).toMatch(/\(difficulty\)/);
     expect(defs.problems_published_idx).toMatch(/\(published\)/);
+    // Migration 0001.
+    expect(defs.submissions_user_active_idx).toMatch(
+      /\(user_id\) WHERE \(status = ANY \(ARRAY\['queued'::submission_status, 'running'::submission_status\]\)\)/,
+    );
+    expect(defs.submissions_run_created_idx).toMatch(/\(created_at\) WHERE \(kind = 'run'/);
+    expect(defs.submissions_user_problem_created_idx).toMatch(
+      /\(user_id, problem_id, created_at DESC( NULLS LAST)?\)/,
+    );
+    expect(defs.problem_tags_tag_idx).toMatch(/ON public\.problem_tags USING btree \(tag_id\)/);
   });
 });

@@ -95,7 +95,10 @@ export const problemTags = pgTable(
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.problemId, t.tagId] })],
+  (t) => [
+    primaryKey({ columns: [t.problemId, t.tagId] }),
+    index("problem_tags_tag_idx").on(t.tagId),
+  ],
 );
 
 export const testCases = pgTable(
@@ -119,14 +122,28 @@ export const testCases = pgTable(
 /** `{input, expected, actual}` of the first failing test of a submit. */
 export type FailedCase = { input: unknown; expected: unknown; actual: unknown };
 
-/** Per-case result of a Run. */
+/**
+ * Per-case result of a Run. Frozen contract shared by M4 (executor) and M5
+ * (API/UI), PLAN.md section 4: import it from here. Harness statuses
+ * (`ok|error|timeout`) are mapped by the executor into this union. For custom
+ * input `expected` is absent and a successful run is `passed`.
+ */
+export type CaseResultStatus =
+  | "passed"
+  | "failed"
+  | "runtime_error"
+  | "time_limit"
+  | "memory_limit"
+  | "not_run";
+
 export type CaseResult = {
   index: number;
-  status: string;
-  input: unknown;
+  status: CaseResultStatus;
+  input: Record<string, unknown>;
   expected?: unknown;
   actual?: unknown;
-  timeMs: number;
+  timeMs?: number;
+  error?: string;
 };
 
 export const submissions = pgTable(
@@ -171,9 +188,39 @@ export const submissions = pgTable(
     index("submissions_running_idx")
       .on(t.status, t.startedAt)
       .where(sql`${t.status} = 'running'`),
+    // Active-submission limit per user (queued + running).
+    index("submissions_user_active_idx")
+      .on(t.userId)
+      .where(sql`${t.status} IN ('queued', 'running')`),
+    // Run rows by age (PLAN.md section 4).
+    index("submissions_run_created_idx")
+      .on(t.createdAt)
+      .where(sql`${t.kind} = 'run'`),
+    // Per-problem history of a user.
+    index("submissions_user_problem_created_idx").on(
+      t.userId,
+      t.problemId,
+      t.createdAt.desc(),
+    ),
     check(
       "submissions_counts_valid",
       sql`${t.passedCount} >= 0 AND ${t.totalCount} >= 0 AND ${t.passedCount} <= ${t.totalCount}`,
+    ),
+    check(
+      "submissions_running_started",
+      sql`${t.status} <> 'running' OR ${t.startedAt} IS NOT NULL`,
+    ),
+    check(
+      "submissions_final_finished",
+      sql`${t.status} IN ('queued', 'running') OR ${t.finishedAt} IS NOT NULL`,
+    ),
+    check(
+      "submissions_metrics_nonnegative",
+      sql`(${t.runtimeMs} IS NULL OR ${t.runtimeMs} >= 0) AND (${t.memoryKb} IS NULL OR ${t.memoryKb} >= 0)`,
+    ),
+    check(
+      "submissions_failed_index_range",
+      sql`${t.failedTestIndex} IS NULL OR (${t.failedTestIndex} >= 0 AND ${t.failedTestIndex} < ${t.totalCount})`,
     ),
   ],
 );

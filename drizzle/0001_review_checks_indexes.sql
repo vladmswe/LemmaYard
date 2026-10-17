@@ -1,0 +1,8 @@
+CREATE INDEX "problem_tags_tag_idx" ON "problem_tags" USING btree ("tag_id");--> statement-breakpoint
+CREATE INDEX "submissions_user_active_idx" ON "submissions" USING btree ("user_id") WHERE "submissions"."status" IN ('queued', 'running');--> statement-breakpoint
+CREATE INDEX "submissions_run_created_idx" ON "submissions" USING btree ("created_at") WHERE "submissions"."kind" = 'run';--> statement-breakpoint
+CREATE INDEX "submissions_user_problem_created_idx" ON "submissions" USING btree ("user_id","problem_id","created_at" DESC NULLS LAST);--> statement-breakpoint
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_running_started" CHECK ("submissions"."status" <> 'running' OR "submissions"."started_at" IS NOT NULL);--> statement-breakpoint
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_final_finished" CHECK ("submissions"."status" IN ('queued', 'running') OR "submissions"."finished_at" IS NOT NULL);--> statement-breakpoint
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_metrics_nonnegative" CHECK (("submissions"."runtime_ms" IS NULL OR "submissions"."runtime_ms" >= 0) AND ("submissions"."memory_kb" IS NULL OR "submissions"."memory_kb" >= 0));--> statement-breakpoint
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_failed_index_range" CHECK ("submissions"."failed_test_index" IS NULL OR ("submissions"."failed_test_index" >= 0 AND "submissions"."failed_test_index" < "submissions"."total_count"));
