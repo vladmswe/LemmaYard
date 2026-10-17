@@ -1,6 +1,7 @@
 import { and, asc, count, countDistinct, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/server/db";
+import { logError } from "@/server/log";
 import { problems, problemTags, submissions, tags } from "@/server/db/schema";
 
 type Difficulty = (typeof problems.$inferSelect)["difficulty"];
@@ -149,4 +150,30 @@ export async function getUserProgress(userId: string): Promise<UserProgress> {
     submits,
     acceptance: submits > 0 ? (submitRow?.accepted ?? 0) / submits : null,
   };
+}
+
+export type LandingData = {
+  /** Null when the database is unavailable: the page then shows no numbers. */
+  stats: CatalogStats | null;
+  featured: FeaturedProblem[];
+  progress: UserProgress | null;
+};
+
+/**
+ * Everything the landing page reads from the database. A database failure is
+ * logged (without connection details) and degrades to "no data" instead of
+ * failing the page.
+ */
+export async function getLandingData(userId: string | null): Promise<LandingData> {
+  try {
+    const [stats, featured, progress] = await Promise.all([
+      getCatalogStats(),
+      getFeaturedProblems(),
+      userId ? getUserProgress(userId) : Promise.resolve(null),
+    ]);
+    return { stats, featured, progress };
+  } catch (error) {
+    logError("landing.db_unavailable", error);
+    return { stats: null, featured: [], progress: null };
+  }
 }

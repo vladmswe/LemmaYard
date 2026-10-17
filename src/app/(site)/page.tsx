@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { formatPercent } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
-import { getCatalogStats, getFeaturedProblems, getUserProgress } from "@/server/landing";
+import { getLandingData } from "@/server/landing";
 
 const VALUE_PROPS = [
   {
@@ -44,11 +44,9 @@ const STEPS = [
 
 export default async function Home() {
   const user = await getCurrentUser();
-  const [stats, featured, progress] = await Promise.all([
-    getCatalogStats(),
-    getFeaturedProblems(),
-    user ? getUserProgress(user.id) : Promise.resolve(null),
-  ]);
+  // With the database unavailable, `stats` is null: the page renders without
+  // counts, featured table and progress card (never with made-up numbers).
+  const { stats, featured, progress } = await getLandingData(user?.id ?? null);
 
   return (
     <>
@@ -79,12 +77,14 @@ export default async function Home() {
               </Link>
             </div>
             <ul className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-              <li className="inline-flex items-center gap-1.5">
-                <BookOpenIcon aria-hidden className="size-4 text-primary" />
-                <span className="tabular-nums">
-                  {stats.total} original {stats.total === 1 ? "problem" : "problems"}
-                </span>
-              </li>
+              {stats && (
+                <li className="inline-flex items-center gap-1.5">
+                  <BookOpenIcon aria-hidden className="size-4 text-primary" />
+                  <span className="tabular-nums">
+                    {stats.total} original {stats.total === 1 ? "problem" : "problems"}
+                  </span>
+                </li>
+              )}
               <li className="inline-flex items-center gap-1.5">
                 <CodeIcon aria-hidden className="size-4 text-primary" />
                 Python 3 &amp; JavaScript
@@ -264,20 +264,22 @@ export default async function Home() {
               </Link>
             )}
           </Reveal>
-          <Reveal index={1}>
-            {progress ? (
-              <ProgressPreview
-                numbers={{
-                  solved: progress.solved,
-                  totals: stats.byDifficulty,
-                  submits: progress.submits,
-                  acceptance: progress.acceptance,
-                }}
-              />
-            ) : (
-              <ProgressPreview numbers={exampleProgress(stats.byDifficulty)} example />
-            )}
-          </Reveal>
+          {stats && (
+            <Reveal index={1}>
+              {progress ? (
+                <ProgressPreview
+                  numbers={{
+                    solved: progress.solved,
+                    totals: stats.byDifficulty,
+                    submits: progress.submits,
+                    acceptance: progress.acceptance,
+                  }}
+                />
+              ) : (
+                <ProgressPreview numbers={exampleProgress(stats.byDifficulty)} example />
+              )}
+            </Reveal>
+          )}
         </div>
       </section>
     </>
