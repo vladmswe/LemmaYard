@@ -1,5 +1,6 @@
 import { cn } from "cn";
 
+import { QedLoader } from "@/components/brand/qed-loader";
 import { Badge } from "@/components/ui/badge";
 
 import { VERDICTS, type SubmissionStatus } from "./verdict";
@@ -41,7 +42,10 @@ export function VerdictBadge({
   );
 }
 
-/** Verdict name as a heading-style label (serif), e.g. the console result. */
+/**
+ * Verdict name as a display word (Instrument Serif, 28px by default: the
+ * serif is never smaller), e.g. the console result or the submission head.
+ */
 export function VerdictLabel({
   status,
   className,
@@ -54,7 +58,7 @@ export function VerdictLabel({
     <span
       data-status={status}
       className={cn(
-        "inline-flex items-center gap-2 font-heading text-[1.375rem]/7 font-semibold",
+        "inline-flex items-center gap-2.5 font-display text-[1.75rem]/[1.1] font-normal tracking-[-0.005em]",
         v.text,
         className,
       )}
@@ -65,7 +69,10 @@ export function VerdictLabel({
   );
 }
 
-/** The verdict's icon; a spinning one turns static under reduced motion. */
+/**
+ * The verdict's icon. "Running" shows the ∎ loader (DESIGN.md §6.2), which
+ * turns into a static clock under reduced motion.
+ */
 export function VerdictIcon({
   status,
   className,
@@ -79,7 +86,12 @@ export function VerdictIcon({
   if (!Static) return <Icon aria-hidden className={className} />;
   return (
     <>
-      <Icon aria-hidden className={cn("animate-spin-slow motion-reduce:hidden", className)} />
+      <span
+        aria-hidden
+        className={cn("inline-grid size-4 shrink-0 place-items-center motion-reduce:hidden", className)}
+      >
+        <QedLoader className="size-[70%]" />
+      </span>
       <Static aria-hidden className={cn("hidden motion-reduce:block", className)} />
     </>
   );

@@ -6,7 +6,7 @@ import { cn } from "cn"
 // icon carries the semantic color. Pass `role="alert"` only for form-level
 // errors that must be announced; default is a static `role="status"`-less div.
 const alertVariants = cva(
-  "group/alert relative grid w-full gap-0.5 rounded-md border px-4 py-3 text-left text-sm text-foreground has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-3 *:[svg]:row-span-2 *:[svg]:mt-0.5 *:[svg:not([class*='size-'])]:size-4",
+  "group/alert relative grid w-full gap-0.5 rounded-lg border px-4 py-3 text-left text-sm text-foreground has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-3 *:[svg]:row-span-2 *:[svg]:mt-0.5 *:[svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

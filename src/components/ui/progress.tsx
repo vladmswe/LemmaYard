@@ -32,7 +32,7 @@ function Progress({
       aria-valuemin={0}
       aria-valuemax={max}
       aria-valuenow={Math.min(Math.max(value, 0), max)}
-      className={cn("relative h-2 w-full overflow-hidden rounded-full bg-muted", className)}
+      className={cn("relative h-1.5 w-full overflow-hidden rounded-full border border-border bg-surface-sunken", className)}
       {...props}
     >
       <div

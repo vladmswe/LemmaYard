@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronDownIcon, HistoryIcon, LoaderCircleIcon, LogOutIcon, UserIcon } from "lucide-react";
+import { ChevronDownIcon, HistoryIcon, LogOutIcon, UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { QedLoader } from "@/components/brand/qed-loader";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,7 +45,7 @@ export function UserMenu({ username }: { username: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="header" className="gap-2 px-1.5 sm:px-2" />
+          <Button variant="ghost" className="gap-2 pr-3 pl-1.5" />
         }
       >
         <Avatar name={username} />
@@ -54,7 +55,7 @@ export function UserMenu({ username }: { username: string }) {
         <span className="sr-only">, account menu</span>
         <ChevronDownIcon
           aria-hidden
-          className="hidden size-3.5! transition-transform duration-180 ease-out group-aria-expanded/button:rotate-180 sm:block"
+          className="hidden size-3.5! transition-transform duration-200 ease-out group-aria-expanded/button:rotate-180 sm:block"
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -76,7 +77,7 @@ export function UserMenu({ username }: { username: string }) {
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={pending} onClick={logout}>
           {pending ? (
-            <LoaderCircleIcon aria-hidden className="animate-spin-slow text-muted-foreground" />
+            <QedLoader className="size-3.5 text-muted-foreground" />
           ) : (
             <LogOutIcon aria-hidden className="text-muted-foreground" />
           )}

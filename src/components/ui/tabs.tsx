@@ -37,7 +37,7 @@ function TabsList({
       <TabsPrimitive.Indicator
         data-slot="tabs-indicator"
         renderBeforeHydration
-        className="absolute bottom-[-1px] left-0 h-0.5 w-(--active-tab-width) translate-x-(--active-tab-left) bg-primary transition-transform duration-180 ease-out"
+        className="absolute bottom-[-1px] left-0 h-0.5 w-[calc(var(--active-tab-width)-20px)] translate-x-[calc(var(--active-tab-left)+10px)] bg-primary transition-transform duration-200 ease-out"
       />
     </TabsPrimitive.List>
   )
@@ -48,7 +48,7 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
       className={cn(
-        "relative inline-flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-t-md px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors duration-120 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-selected:font-semibold aria-selected:text-foreground data-active:font-semibold data-active:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "relative inline-flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-t-md px-3.5 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors duration-120 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-selected:font-semibold aria-selected:text-foreground data-active:font-semibold data-active:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}

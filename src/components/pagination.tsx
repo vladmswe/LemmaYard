@@ -5,10 +5,10 @@ import { cn } from "cn";
 import { pageRange, pageWindow } from "@/lib/pagination";
 
 const itemClasses =
-  "inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-border-strong bg-card px-2.5 text-sm font-medium text-foreground tabular-nums transition-colors duration-120 hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "inline-flex size-[38px] min-w-[38px] items-center justify-center rounded-md border border-border-strong bg-card px-2 font-mono text-[0.8125rem] font-medium text-foreground tabular-nums transition-colors duration-120 hover:border-foreground-secondary hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 /**
- * Link-based pagination (DESIGN.md §8.16): `?page=` lives in the URL, so
+ * Link-based pagination (DESIGN.md §12: 38px squares, mono numbers, current = ink fill): `?page=` lives in the URL, so
  * every page is a real link. `hrefFor(page)` builds the URL (keep filters).
  */
 export function Pagination({
@@ -61,7 +61,7 @@ export function Pagination({
                   className={cn(
                     itemClasses,
                     item === current &&
-                      "border-primary bg-primary text-primary-foreground hover:bg-primary-hover",
+                      "border-foreground bg-foreground text-background hover:border-foreground hover:bg-foreground",
                   )}
                 >
                   {item}

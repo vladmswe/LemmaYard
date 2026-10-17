@@ -10,13 +10,16 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Qed } from "@/components/brand/qed";
 import { Reveal } from "@/components/motion/reveal";
 
 export type Crumb = { label: string; href?: string };
 
 /**
- * Page head band (DESIGN.md §9): breadcrumb + the page's single h1 + subtitle
- * on a sunken background. The last crumb is the current page (no link).
+ * Page head (DESIGN.md §13): breadcrumb, the page's single h1 in the display
+ * serif (`size` d2 by default, d1 for section index pages), an optional ∎,
+ * a meta line and an aside slot (`actions`, e.g. a progress card). On paper
+ * with a faint grid; the last crumb is the current page (no link).
  */
 export function PageHead({
   crumbs,
@@ -24,6 +27,8 @@ export function PageHead({
   subtitle,
   leading,
   actions,
+  size = "d2",
+  qed = false,
   className,
 }: {
   crumbs: Crumb[];
@@ -32,12 +37,20 @@ export function PageHead({
   /** e.g. the profile avatar, shown left of the title. */
   leading?: ReactNode;
   actions?: ReactNode;
+  /** Display size of the h1: "d1" (44–84px) or "d2" (36–60px). */
+  size?: "d1" | "d2";
+  /** End the title with the ∎ tombstone (one ∎ headline per viewport). */
+  qed?: boolean;
   className?: string;
 }) {
   return (
-    <div className={cn("border-b bg-surface-sunken py-8", className)}>
-      <Reveal className="container-page">
-        <Breadcrumb className="mb-2.5">
+    <div className={cn("relative overflow-hidden border-b py-10 min-[961px]:py-14", className)}>
+      <div
+        aria-hidden
+        className="grid-paper [mask-image:radial-gradient(60%_90%_at_80%_30%,#000_20%,transparent_75%)]"
+      />
+      <Reveal className="container-page relative">
+        <Breadcrumb className="mb-4">
           <BreadcrumbList>
             {crumbs.map((crumb, i) => {
               const last = i === crumbs.length - 1;
@@ -60,14 +73,15 @@ export function PageHead({
             })}
           </BreadcrumbList>
         </Breadcrumb>
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-5">
           <div className="flex min-w-0 items-center gap-4">
             {leading}
             <div className="min-w-0">
-              <h1 className="font-heading text-3xl/[2.375rem] font-semibold tracking-[-0.015em] text-balance sm:text-4xl/11">
+              <h1 className={cn("break-words", size === "d1" ? "display-1" : "display-2")}>
                 {title}
+                {qed && <Qed />}
               </h1>
-              {subtitle && <p className="mt-2 text-muted-foreground">{subtitle}</p>}
+              {subtitle && <p className="mt-4 text-foreground-secondary">{subtitle}</p>}
             </div>
           </div>
           {actions && <div className="flex shrink-0 gap-3">{actions}</div>}
