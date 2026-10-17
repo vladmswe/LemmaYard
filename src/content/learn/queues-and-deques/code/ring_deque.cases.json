@@ -1,0 +1,39 @@
+{
+  "kind": "class",
+  "entry": { "python": "RingDeque", "javascript": "RingDeque" },
+  "methods": {
+    "push_front": { "python": "push_front", "javascript": "pushFront" },
+    "push_back": { "python": "push_back", "javascript": "pushBack" },
+    "pop_front": { "python": "pop_front", "javascript": "popFront" },
+    "pop_back": { "python": "pop_back", "javascript": "popBack" }
+  },
+  "cases": [
+    {
+      "name": "default: head wraps backwards, the full ring grows, one pop from each end",
+      "ops": [["push_back", 10], ["push_back", 20], ["push_back", 30], ["push_front", 5], ["push_front", 4], ["push_front", 3], ["push_front", 2], ["push_front", 1], ["push_front", 0], ["pop_back"], ["pop_front"], ["pop_front"], ["pop_back"]],
+      "expected": [null, null, null, null, null, null, null, null, null, 30, 0, 1, 20]
+    },
+    {
+      "name": "push at the front only: the last pushed comes out first",
+      "ops": [["push_front", 1], ["push_front", 2], ["push_front", 3], ["push_front", 4], ["pop_front"], ["pop_back"]],
+      "expected": [null, null, null, null, 4, 1]
+    },
+    {
+      "name": "take from both ends",
+      "ops": [["push_back", 1], ["push_back", 2], ["push_back", 3], ["push_back", 4], ["push_back", 5], ["pop_front"], ["pop_back"], ["pop_front"], ["pop_back"], ["pop_front"]],
+      "expected": [null, null, null, null, null, 1, 5, 2, 4, 3]
+    },
+    { "name": "pop_front on empty raises", "ops": [["pop_front"]], "expected": [{ "$error": true }] },
+    { "name": "pop_back on empty raises", "ops": [["pop_back"], ["push_back", 7], ["pop_back"]], "expected": [{ "$error": true }, null, 7] },
+    {
+      "name": "grow from the back after the front wrapped",
+      "ops": [["push_front", 1], ["push_front", 2], ["push_back", 3], ["push_back", 4], ["push_back", 5], ["push_back", 6], ["push_back", 7], ["push_back", 8], ["push_back", 9], ["pop_front"], ["pop_back"], ["pop_front"]],
+      "expected": [null, null, null, null, null, null, null, null, null, 2, 9, 1]
+    },
+    {
+      "name": "empty again after popping the only value",
+      "ops": [["push_front", 5], ["pop_back"], ["pop_front"]],
+      "expected": [null, 5, { "$error": true }]
+    }
+  ]
+}
