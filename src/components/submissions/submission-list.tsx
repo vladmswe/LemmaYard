@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cn } from "cn";
 
+import { VERDICTS } from "@/components/judge/verdict";
 import { VerdictBadge } from "@/components/judge/verdict-badge";
 import {
   Table,
@@ -14,7 +15,6 @@ import {
 import { formatDateTime, formatRelativeTime, MISSING } from "@/lib/format";
 import { formatMemory, formatMs } from "@/lib/workspace/judge-state";
 import { LANGUAGE_LABELS } from "@/lib/workspace/languages";
-import { VERDICTS } from "@/components/judge/verdict";
 import type { HistoryRow } from "@/server/submissions/history";
 
 /** "3 min ago" with the absolute UTC time as title (DESIGN.md §9.5). */
@@ -56,14 +56,11 @@ export function SubmissionList({
   now,
   showProblem = true,
   caption,
-  breakpoint = "md",
 }: {
   rows: HistoryRow[];
   now: Date;
   showProblem?: boolean;
   caption: string;
-  /** Where the table replaces the card list (`none`: always the table). */
-  breakpoint?: "md" | "none";
 }) {
   // DESIGN.md: history = Submitted | Problem | Language | Verdict | …;
   // problem tab = Time | Verdict | Language | ….
@@ -72,7 +69,7 @@ export function SubmissionList({
     <>
       <Table
         density="compact"
-        containerClassName={cn(breakpoint === "md" && "hidden md:block")}
+        containerClassName="hidden md:block"
         data-testid="submissions-table"
       >
         <caption className="sr-only">{caption}</caption>
@@ -127,7 +124,7 @@ export function SubmissionList({
         </TableBody>
       </Table>
 
-      {breakpoint === "md" && (
+      {(
         <ul aria-label={caption} className="divide-y overflow-hidden rounded-lg border bg-card shadow-xs md:hidden">
           {rows.map((row) => (
             <li key={row.id} className="px-4 py-3" data-testid="submission-card">

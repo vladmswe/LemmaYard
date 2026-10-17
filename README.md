@@ -159,6 +159,30 @@ Docker integration tests (`tests/integration/sandbox-*.test.ts`) need Docker and
 `pnpm sandbox:build`; they run with `pnpm test:integration` (whose global setup
 also needs Postgres) and do not touch the database.
 
+### Submission history and profile
+
+`/submissions` lists the signed-in user's **submit** rows (never runs), newest
+first, `PAGE_SIZE` per page, `?page=` and `?problem=<slug>` in the URL (an
+unknown slug shows an empty state). `/submissions/[id]` shows one of the
+user's own submits with the code in a read-only Monaco; another user's id, a
+Run id (including the console's "Taking longer than expected" link after a
+Run), an unknown and a malformed id all give the same 404. "Submit again"
+writes the submission's code into the problem's local editor draft for that
+language and opens the problem. The problem page's Submissions tab shows the
+latest 20 submits for that problem and is re-rendered by the `router.refresh()`
+after each finished Submit. Queries: `src/server/submissions/history.ts`.
+
+`/u/[username]` is public: solved problems by difficulty against the published
+totals, submissions, acceptance and the 10 most recently solved problems
+(date of the first accepted submit), never code. The counting rules are in
+`summarizeUserStats` (`src/lib/progress.ts`): only submits on published
+problems count, a problem is solved once however many accepted submits it
+has, and `internal_error` / `queued` / `running` are left out of both the
+submission count and acceptance. The landing progress card uses the same
+helper (`getUserStats`, `src/server/progress.ts`). Browser test (inserts
+finished rows into `DATABASE_URL`, no judge needed):
+`pnpm exec playwright test tests/e2e/history`.
+
 ### Rooms (in progress)
 
 Private friend rooms with timed sessions, spec `docs/specs/rooms.md`. Tables
