@@ -45,6 +45,8 @@ import { ConsoleTestcase, type TestMode } from "./console-testcase";
 import { EditorPane } from "./editor-pane";
 import { EditorToolbar, RunSubmitButtons } from "./editor-toolbar";
 import { DESKTOP_QUERY, useMediaQuery } from "./use-media-query";
+import { SessionSubmitNote, SESSION_SUBMIT_CODES, type SessionSubmitIssue } from "./session-submit-note";
+import { OWN_SUBMIT_FINAL_EVENT, useSubmitSession } from "./submit-context";
 import { ProblemWorkspace, type MobileTab } from "./workspace";
 
 const LazyCodeEditor = dynamic(() => import("./code-editor"), {
@@ -193,6 +195,12 @@ export function SolveWorkspace({
   const consoleRef = useRef<HTMLDivElement | null>(null);
   const paramOrder = useMemo(() => signature.params.map((p) => p.name), [signature]);
 
+  // --- Room session context of Submit (Rooms §3.4; only Submit, never Run) --
+  const roomSession = useSubmitSession();
+  const [sessionIssue, setSessionIssue] = useState<SessionSubmitIssue | null>(null);
+  /** Whether the latest Submit was sent with the session id (null: none yet). */
+  const [lastSubmitCounted, setLastSubmitCounted] = useState<boolean | null>(null);
+
   const loginHref = `/login?next=${encodeURIComponent(pathname || `/problems/${slug}`)}`;
 
   const poll = useCallback(
@@ -225,7 +233,10 @@ export function SolveWorkspace({
       if (next.phase === "failed") toast.error(next.message);
       // A finished Submit changes the problem's status (solved / attempted):
       // re-render the server parts; client state (editor, console) is kept.
-      if (next.phase === "done" && next.submission.kind === "submit") router.refresh();
+      if (next.phase === "done" && next.submission.kind === "submit") {
+        router.refresh();
+        window.dispatchEvent(new Event(OWN_SUBMIT_FINAL_EVENT));
+      }
     },
     [pollingConfig, router, slug, loginHref],
   );
@@ -244,7 +255,7 @@ export function SolveWorkspace({
   }, [slug, signedIn, poll]);
 
   const start = useCallback(
-    async (action: JudgeAction) => {
+    async (action: JudgeAction, options: { withoutSession?: boolean } = {}) => {
       if (!signedIn) {
         router.push(loginHref);
         return;
@@ -260,10 +271,12 @@ export function SolveWorkspace({
       setConsoleTab("result");
       setJudge({ phase: "starting", action, custom });
       const body = { language, code };
+      const sessionId = action === "submit" && !options.withoutSession ? (roomSession?.roomSessionId ?? null) : null;
+      if (action === "submit") setSessionIssue(null);
       const result =
         action === "run"
           ? await startRun(slug, custom && customValidation.ok ? { ...body, customInput: customValidation.input } : body)
-          : await startSubmit(slug, body);
+          : await startSubmit(slug, sessionId ? { ...body, roomSessionId: sessionId } : body);
       if (!result.ok) {
         busyRef.current = false;
         if (result.status === 401) {
@@ -272,13 +285,19 @@ export function SolveWorkspace({
         }
         const failed = stateFromStartError(action, result);
         setJudge(failed);
+        if (sessionId && result.code && SESSION_SUBMIT_CODES.has(result.code)) {
+          // Explained with its actions in the console, no toast.
+          setSessionIssue({ code: result.code, message: result.error });
+          return;
+        }
         if (failed.phase === "failed") toast.error(failed.message);
         return;
       }
+      if (action === "submit") setLastSubmitCounted(sessionId !== null);
       savePending(getBrowserStorage("session"), slug, { id: result.id, kind: action, custom });
       await poll(result.id, action, custom);
     },
-    [signedIn, router, loginHref, testMode, customValidation, language, code, slug, poll],
+    [signedIn, router, loginHref, testMode, customValidation, language, code, slug, poll, roomSession],
   );
 
   const startFromBar = useCallback(
@@ -370,7 +389,16 @@ export function SolveWorkspace({
               />
             }
             result={
-              <ConsoleResult view={view} onRetry={retryAction ? () => void start(retryAction) : undefined} />
+              <>
+                <SessionSubmitNote
+                  session={roomSession}
+                  issue={sessionIssue}
+                  lastSubmitCounted={judge.phase === "idle" ? null : lastSubmitCounted}
+                  busy={busy}
+                  onSubmitWithoutSession={() => void start("submit", { withoutSession: true })}
+                />
+                <ConsoleResult view={view} onRetry={retryAction ? () => void start(retryAction) : undefined} />
+              </>
             }
           />
         </div>
