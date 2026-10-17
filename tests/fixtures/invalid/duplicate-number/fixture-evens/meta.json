@@ -1,0 +1,23 @@
+{
+  "number": 9001,
+  "slug": "fixture-evens",
+  "title": "Fixture: Even Numbers",
+  "difficulty": "medium",
+  "tags": [
+    "array",
+    "fixture"
+  ],
+  "signature": {
+    "name": "evens",
+    "params": [
+      {
+        "name": "nums",
+        "type": "int[]"
+      }
+    ],
+    "returns": "int[]"
+  },
+  "compare": {
+    "mode": "unordered"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "number": 9003,
+  "slug": "fixture-average",
+  "title": "Fixture: Average",
+  "difficulty": "hard",
+  "tags": [
+    "math",
+    "fixture"
+  ],
+  "signature": {
+    "name": "average",
+    "params": [
+      {
+        "name": "matrix",
+        "type": "float[][]"
+      }
+    ],
+    "returns": "float"
+  },
+  "compare": {
+    "mode": "float"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "number": 9001,
+  "slug": "fixture-join-words",
+  "title": "Fixture: Join Words",
+  "difficulty": "easy",
+  "tags": [
+    "string",
+    "fixture"
+  ],
+  "signature": {
+    "name": "join-words",
+    "params": [
+      {
+        "name": "words",
+        "type": "string[]"
+      },
+      {
+        "name": "upper",
+        "type": "bool"
+      }
+    ],
+    "returns": "string"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 1000,
+    "memoryMb": 128
+  }
+}

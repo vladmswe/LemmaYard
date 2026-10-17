@@ -1,0 +1,51 @@
+[
+  {
+    "input": {
+      "words": [
+        "a",
+        "b"
+      ],
+      "def": false
+    },
+    "expected": "a b",
+    "sample": true
+  },
+  {
+    "input": {
+      "words": [
+        "hi"
+      ],
+      "def": true
+    },
+    "expected": "HI",
+    "sample": true
+  },
+  {
+    "input": {
+      "words": [],
+      "def": false
+    },
+    "expected": ""
+  },
+  {
+    "input": {
+      "words": [
+        "x",
+        "y",
+        "z"
+      ],
+      "def": true
+    },
+    "expected": "X Y Z"
+  },
+  {
+    "input": {
+      "words": [
+        "Mixed",
+        "Case"
+      ],
+      "def": false
+    },
+    "expected": "Mixed Case"
+  }
+]

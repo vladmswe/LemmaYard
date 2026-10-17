@@ -1,0 +1,8 @@
+[
+  { "input": { "matrix": [[1, 2], [3, 4]] }, "expected": 2.5, "sample": true },
+  { "input": { "matrix": [[0.1, 0.2]] }, "expected": 0.15, "sample": true },
+  { "input": { "matrix": [[5]] }, "expected": 5 },
+  { "input": { "matrix": [[-1.5], [1.5]] }, "expected": 0 },
+  { "input": { "matrix": [[1e10, 1e10, 1e10]] }, "expected": 1e10 },
+  { "input": { "matrix": [[], [2, 4]] }, "expected": 3 }
+]

@@ -1,0 +1,7 @@
+[
+  { "input": { "words": ["a", "b"], "upper": false }, "expected": "a b", "sample": true },
+  { "input": { "words": ["hi"], "upper": true }, "expected": "HI", "sample": true },
+  { "input": { "words": [], "upper": false }, "expected": "" },
+  { "input": { "words": ["x", "y", "z"], "upper": true }, "expected": "X Y Z" },
+  { "input": { "words": ["Mixed", "Case"], "upper": false }, "expected": "Mixed Case" }
+]
