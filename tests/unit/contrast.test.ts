@@ -1,5 +1,7 @@
-// WCAG contrast of the design tokens, read from globals.css (DESIGN.md §4.7).
-// Port of the spec's tokens.py check: text pairs >= 4.5:1, UI boundaries >= 3:1.
+// WCAG contrast of the design v2 tokens, read from the real globals.css
+// (:root = light, .dark = dark; DESIGN.md §6.3). Port of the spec's
+// tokens.py / monaco.py checks: every text pair >= 4.5:1 and every UI
+// boundary >= 3:1, in both themes, plus the Monaco token colours.
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
@@ -8,22 +10,41 @@ import { lemmayardDark, lemmayardLight, type MonacoThemeData } from "@/lib/monac
 
 const css = readFileSync(new URL("../../src/app/globals.css", import.meta.url), "utf8");
 
+/** Custom properties of a top-level block (`:root {`, `.dark {`). */
 function block(selector: string): Record<string, string> {
   const start = css.indexOf(`\n${selector} {`);
   if (start < 0) throw new Error(`no ${selector} block`);
   const body = css.slice(start, css.indexOf("\n}", start));
   const vars: Record<string, string> = {};
-  for (const m of body.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\s*;/gi)) vars[m[1]] = m[2];
+  for (const m of body.matchAll(/--([a-z0-9-]+):\s*([^;]+);/gi)) vars[m[1]] = m[2].trim();
   return vars;
 }
 
-const light = block(":root");
-const dark = { ...light, ...block(".dark") };
+/** Resolves `var(--x)` aliases to the hex value they point at. */
+function resolve(vars: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  const get = (name: string, depth = 0): string | undefined => {
+    const v = vars[name];
+    if (v === undefined || depth > 8) return undefined;
+    const alias = /^var\(--([a-z0-9-]+)\)$/i.exec(v);
+    if (alias) return get(alias[1], depth + 1);
+    return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : undefined;
+  };
+  for (const name of Object.keys(vars)) {
+    const v = get(name);
+    if (v) out[name] = v;
+  }
+  return out;
+}
+
+const rootVars = block(":root");
+const light = resolve(rootVars);
+const dark = resolve({ ...rootVars, ...block(".dark") });
 
 function luminance(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((i) => {
     const c = parseInt(hex.slice(i, i + 2), 16) / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
@@ -33,90 +54,150 @@ export function ratio(fg: string, bg: string): number {
   return (a + 0.05) / (b + 0.05);
 }
 
-const SURFACES = ["background", "card"];
-const TEXT_PAIRS: [string, string][] = [
-  ["foreground", "background"],
-  ["foreground", "card"],
-  ["foreground", "surface-sunken"],
-  ["foreground", "muted"],
-  ["foreground-secondary", "background"],
-  ["foreground-secondary", "card"],
-  ["muted-foreground", "background"],
-  ["muted-foreground", "card"],
-  ["muted-foreground", "muted"],
-  ["muted-foreground", "surface-sunken"],
-  ["muted-foreground", "accent"],
-  ["faint-foreground", "background"],
-  ["faint-foreground", "card"],
-  ["primary-foreground", "primary"],
-  ["primary-foreground", "primary-hover"],
-  ["primary-foreground", "primary-active"],
-  ["secondary-foreground", "secondary"],
-  ["accent-foreground", "accent"],
-  ["link", "background"],
-  ["link", "card"],
-  ["link", "surface-sunken"],
-  ["link-visited", "background"],
-  ["primary", "background"],
-  ["primary", "card"],
-  ["header-foreground", "header"],
-  ["header-muted", "header"],
-  ["destructive-foreground", "destructive"],
-  ["destructive-foreground", "destructive-hover"],
+// The spec's short names (tokens.py) → the CSS custom properties (§6.4).
+const NAME: Record<string, string> = {
+  bg: "background",
+  surface: "card",
+  sunken: "surface-sunken",
+  raised: "popover",
+  ink: "foreground",
+  "ink-2": "foreground-secondary",
+  muted: "muted-foreground",
+  faint: "faint-foreground",
+  "on-primary": "primary-foreground",
+  "primary-soft": "secondary",
+  "on-primary-soft": "secondary-foreground",
+  "on-destructive": "destructive-foreground",
+};
+const cssName = (n: string) =>
+  NAME[n] ?? n.replace(/^v-/, "verdict-").replace(/^d-(easy|medium|hard)/, "difficulty-$1");
+
+// tokens.py TEXT pairs (>= 4.5:1).
+const TEXT: [string, string][] = [
+  ...["bg", "surface", "sunken", "raised", "highlight", "primary-soft"].map((s): [string, string] => ["ink", s]),
+  ...["ink-2", "muted", "faint"].flatMap((t) =>
+    ["bg", "surface", "sunken", "raised"].map((s): [string, string] => [t, s]),
+  ),
+  ["on-primary", "primary"],
+  ["on-primary", "primary-hover"],
+  ["on-primary", "primary-active"],
+  ["on-primary-soft", "primary-soft"],
+  ["link", "bg"],
+  ["link", "surface"],
+  ["link", "sunken"],
+  ["primary", "bg"],
+  ["primary", "surface"],
+  ["on-cobalt", "cobalt"],
+  ["on-cobalt-2", "cobalt"],
+  ["on-night", "night"],
+  ["on-night-2", "night"],
+  ["gutter-ink", "editor-bg"],
+  ["ink", "editor-bg"],
   ["tooltip-fg", "tooltip-bg"],
-  ["avatar-fg", "avatar-bg"],
-  ["popover-foreground", "popover"],
-  ...(["success", "warning", "danger", "info"] as const).flatMap((s): [string, string][] => [
-    [s, `${s}-bg`],
-    [s, "card"],
+  ["on-destructive", "destructive"],
+  ["on-destructive", "destructive-hover"],
+  ["primary", "primary-soft"],
+  ["muted", "primary-soft"],
+  ...["success", "warning", "danger", "info", "live"].flatMap((k): [string, string][] => [
+    [k, `${k}-bg`],
+    [k, "surface"],
+    [k, "bg"],
   ]),
   ...["accepted", "wrong", "tle", "mle", "runtime", "compile", "internal", "queued", "running"].flatMap(
-    (v): [string, string][] => [
-      [`verdict-${v}`, `verdict-${v}-bg`],
-      ...SURFACES.map((s): [string, string] => [`verdict-${v}`, s]),
+    (k): [string, string][] => [
+      [`v-${k}`, `v-${k}-bg`],
+      [`v-${k}`, "surface"],
+      [`v-${k}`, "editor-bg"],
     ],
   ),
-  ...["easy", "medium", "hard"].flatMap((d): [string, string][] => [
-    [`difficulty-${d}`, `difficulty-${d}-bg`],
-    ...[...SURFACES, "surface-sunken", "accent"].map((s): [string, string] => [`difficulty-${d}`, s]),
+  ...["easy", "medium", "hard"].flatMap((k): [string, string][] => [
+    [`d-${k}`, `d-${k}-bg`],
+    [`d-${k}`, "surface"],
+    [`d-${k}`, "bg"],
   ]),
 ];
-const UI_PAIRS: [string, string][] = [
-  ["ring", "background"],
-  ["ring", "card"],
-  ["input", "background"],
-  ["input", "card"],
+
+// tokens.py UI pairs (>= 3:1).
+const UI: [string, string][] = [
+  ["input", "surface"],
+  ["input", "bg"],
+  ["input", "sunken"],
+  ["ring", "bg"],
+  ["ring", "surface"],
+  ["primary", "bg"],
+  ["cobalt-line", "cobalt"],
+  ["sky", "night"],
+  ["primary", "raised"],
+];
+
+// Pairs of the shadcn-only names the app also uses (row hover, avatar,
+// header, visited links, sidebar).
+const EXTRA_TEXT: [string, string][] = [
+  ["accent-foreground", "accent"],
+  ["muted-foreground", "accent"],
+  ["foreground", "muted"],
+  ["muted-foreground", "muted"],
+  ["link-visited", "background"],
+  ["link-visited", "card"],
+  ["avatar-fg", "avatar-bg"],
+  ["header-foreground", "header"],
+  ["header-muted", "header"],
+  ["popover-foreground", "popover"],
+  ["card-foreground", "card"],
+  ["sidebar-foreground", "sidebar"],
+  ["sidebar-accent-foreground", "sidebar-accent"],
+  ["sidebar-primary-foreground", "sidebar-primary"],
+  ...["easy", "medium", "hard"].flatMap((d): [string, string][] => [
+    [`difficulty-${d}`, "surface-sunken"],
+    [`difficulty-${d}`, "accent"],
+  ]),
 ];
 
 describe.each([
   ["light", light],
   ["dark", dark],
 ])("%s theme contrast", (_name, t) => {
-  it.each(TEXT_PAIRS)("text %s on %s >= 4.5:1", (fg, bg) => {
+  it("covers the spec's 99 rows (on-cobalt-2/cobalt is listed twice there)", () => {
+    expect(TEXT.length + UI.length + 1).toBe(99);
+  });
+
+  it.each(TEXT)("text %s on %s >= 4.5:1", (fg, bg) => {
+    const [f, b] = [t[cssName(fg)], t[cssName(bg)]];
+    expect(f, `--${cssName(fg)}`).toBeDefined();
+    expect(b, `--${cssName(bg)}`).toBeDefined();
+    expect(ratio(f, b)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(UI)("ui %s on %s >= 3:1", (fg, bg) => {
+    const [f, b] = [t[cssName(fg)], t[cssName(bg)]];
+    expect(f, `--${cssName(fg)}`).toBeDefined();
+    expect(b, `--${cssName(bg)}`).toBeDefined();
+    expect(ratio(f, b)).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(EXTRA_TEXT)("text %s on %s >= 4.5:1", (fg, bg) => {
     expect(t[fg], `--${fg}`).toBeDefined();
     expect(t[bg], `--${bg}`).toBeDefined();
     expect(ratio(t[fg], t[bg])).toBeGreaterThanOrEqual(4.5);
   });
 
-  it.each(UI_PAIRS)("ui %s on %s >= 3:1", (fg, bg) => {
-    expect(ratio(t[fg], t[bg])).toBeGreaterThanOrEqual(3);
-  });
-});
-
-describe("header focus ring", () => {
-  // site-header.tsx overrides --ring with blue-300 because the default ring
-  // (#2457C5) is only 2.65:1 on the navy masthead.
-  it("is visible on the masthead in both themes", () => {
-    expect(ratio("#9dbcee", light.header)).toBeGreaterThanOrEqual(3);
-    expect(ratio("#9dbcee", dark.header)).toBeGreaterThanOrEqual(3);
+  it("the short v2 aliases resolve to the canonical tokens", () => {
+    for (const [short, canonical] of Object.entries(NAME)) {
+      // `muted` stays the shadcn surface (= sunken), not an alias of the text colour.
+      if (short === "muted" || rootVars[short] === undefined) continue;
+      expect(t[short], `--${short}`).toBe(t[canonical]);
+    }
   });
 });
 
 describe.each([
-  ["lemmayard-light", lemmayardLight],
-  ["lemmayard-dark", lemmayardDark],
-] as [string, MonacoThemeData][])("%s token contrast", (_name, theme) => {
+  ["lemmayard-light", lemmayardLight, light],
+  ["lemmayard-dark", lemmayardDark, dark],
+] as [string, MonacoThemeData, Record<string, string>][])("%s", (_name, theme, tokens) => {
   const bg = theme.colors["editor.background"];
+  it("uses the editor-bg token as its background", () => {
+    expect(bg.toLowerCase()).toBe(tokens["editor-bg"]);
+  });
   it.each(theme.rules.filter((r) => r.foreground).map((r) => [r.token || "(default)", r.foreground!]))(
     "%s >= 4.5:1 on the editor background",
     (_token, fg) => {
@@ -125,11 +206,19 @@ describe.each([
   );
   it("line numbers >= 4.5:1", () => {
     expect(ratio(theme.colors["editorLineNumber.foreground"], bg)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(theme.colors["editorLineNumber.activeForeground"], bg)).toBeGreaterThanOrEqual(4.5);
+  });
+  it("cursor and bracket border >= 3:1", () => {
+    expect(ratio(theme.colors["editorCursor.foreground"], bg)).toBeGreaterThanOrEqual(3);
+    expect(ratio(theme.colors["editorBracketMatch.border"], bg)).toBeGreaterThanOrEqual(3);
   });
 });
 
-it("matches the spec's computed reference values", () => {
-  expect(ratio("#14213d", "#ffffff")).toBeCloseTo(15.97, 1);
-  expect(ratio("#2457c5", "#ffffff")).toBeCloseTo(6.47, 1);
-  expect(ratio("#8293ae", "#ffffff")).toBeCloseTo(3.12, 1);
+it("matches the spec's computed reference values (DESIGN.md §6.3)", () => {
+  expect(ratio(light.foreground, light.background)).toBeCloseTo(17.2, 0);
+  expect(ratio(dark.foreground, dark.background)).toBeCloseTo(17.6, 0);
+  expect(ratio(light.primary, light.card)).toBeCloseTo(7.5, 0);
+  expect(ratio(dark.primary, dark.card)).toBeCloseTo(7.9, 0);
+  expect(ratio(light["on-cobalt"], light.cobalt)).toBeCloseTo(8.8, 0);
+  expect(ratio(light.input, light.card)).toBeCloseTo(4.0, 0);
 });

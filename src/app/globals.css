@@ -2,16 +2,22 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Design system "Collegiate modern": see DESIGN.md (tokens §4, type §5,
-   motion §6.6, mapping §11). Colors live here only; components use tokens. */
+/* Design system v2 "Proof": see DESIGN.md (tokens §6, type §7, surfaces §9,
+   motion §11, signature §5). Colours live here only; components use tokens.
+   Canonical values use the shadcn names (§6.4); the short v2 names (--bg,
+   --surface, --ink …) are aliases for code that follows the spec's wording.
+   tests/unit/contrast.test.ts reads the :root and .dark blocks below. */
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: var(--font-source-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-source-serif), Georgia, serif;
-  --font-serif: var(--font-source-serif), Georgia, serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-instrument-serif), "Iowan Old Style", Georgia, serif;
+  /* v1 names: kept so existing `font-heading` / `font-serif` keep compiling.
+     Both are the display serif now: use them at 28px and larger only. */
+  --font-heading: var(--font-instrument-serif), "Iowan Old Style", Georgia, serif;
+  --font-serif: var(--font-instrument-serif), "Iowan Old Style", Georgia, serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, Menlo, monospace;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -43,8 +49,32 @@
   --color-header: var(--header);
   --color-header-foreground: var(--header-foreground);
   --color-header-muted: var(--header-muted);
-  --color-gold: var(--gold);
   --color-editor: var(--editor-bg);
+  --color-gutter-ink: var(--gutter-ink);
+
+  /* v2 names (§6.1) as utilities: bg-surface, bg-raised, text-ink, bg-cobalt … */
+  --color-bg: var(--background);
+  --color-surface: var(--card);
+  --color-raised: var(--popover);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--foreground);
+  --color-ink-2: var(--foreground-secondary);
+  --color-faint: var(--faint-foreground);
+  --color-primary-soft: var(--secondary);
+  --color-on-primary-soft: var(--secondary-foreground);
+  --color-cobalt: var(--cobalt);
+  --color-on-cobalt: var(--on-cobalt);
+  --color-on-cobalt-2: var(--on-cobalt-2);
+  --color-cobalt-line: var(--cobalt-line);
+  --color-night: var(--night);
+  --color-on-night: var(--on-night);
+  --color-on-night-2: var(--on-night-2);
+  --color-night-line: var(--night-line);
+  --color-sky: var(--sky);
+  --color-highlight: var(--highlight);
+  --color-live: var(--live);
+  --color-live-bg: var(--live-bg);
 
   --color-success: var(--success);
   --color-success-bg: var(--success-bg);
@@ -95,7 +125,6 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* One-off pairs from DESIGN.md §8 (avatar, tooltip, destructive). */
   --color-avatar: var(--avatar-bg);
   --color-avatar-foreground: var(--avatar-fg);
   --color-tooltip: var(--tooltip-bg);
@@ -103,240 +132,320 @@
   --color-destructive-hover: var(--destructive-hover);
   --color-destructive-foreground: var(--destructive-foreground);
 
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Radii (§9): 6 tags/kbd, 10 inputs/buttons, 14 panes, 20 cards, 28 blocks. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+  --radius-3xl: 32px;
+  --radius-4xl: 40px;
 
+  /* Elevation (§9): e1 hairline, e2 lifted, e3 floating. */
   --shadow-xs: var(--elev-xs);
-  --shadow-sm: var(--elev-sm);
-  --shadow-md: var(--elev-md);
-  --shadow-lg: var(--elev-lg);
+  --shadow-sm: var(--e1);
+  --shadow-md: var(--e2);
+  --shadow-lg: var(--e3);
+  --shadow-e1: var(--e1);
+  --shadow-e2: var(--e2);
+  --shadow-e3: var(--e3);
 
-  /* Motion (DESIGN.md §6.6). `ease-out` / `ease-in` utilities use these. */
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --animate-enter-up: enter-up var(--duration-slow) var(--motion-ease-out) both;
-  --animate-enter-fade: enter-fade var(--duration-slow) var(--motion-ease-out) both;
-  --animate-icon-in: icon-in var(--duration-slow) var(--motion-ease-out) both;
+  --animate-enter-up: enter-up var(--d-3) var(--ease-out) both;
+  --animate-enter-fade: enter-fade var(--d-3) var(--ease-out) both;
+  --animate-icon-in: icon-in var(--d-3) var(--ease-out) both;
   --animate-shimmer: shimmer 1.6s linear infinite;
   --animate-spin-slow: spin 0.9s linear infinite;
 }
 
-/* Brand scale: static, not theme-dependent, so bg-blue-600 etc. work. */
+/* Theme-independent tokens. */
 @theme {
-  --color-blue-50: #f3f7fd;
-  --color-blue-100: #e4edfb;
-  --color-blue-200: #c8daf6;
-  --color-blue-300: #9dbcee;
-  --color-blue-400: #6c98e3;
-  --color-blue-500: #3f73d6;
-  --color-blue-600: #2457c5;
-  --color-blue-700: #1c46a3;
-  --color-blue-800: #1a3b82;
-  --color-blue-900: #192f63;
-  --color-blue-950: #0e1a38;
+  /* Motion easing (§11.1): `ease-out`, `ease-in-out`, `ease-snap` utilities. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Cobalt brand scale (§16.1). 300-500 are decorative only: text uses the
+     semantic tokens. */
+  --color-blue-50: #f2f5ff;
+  --color-blue-100: #e3e9ff;
+  --color-blue-200: #c7d3ff;
+  --color-blue-300: #9fb2ff;
+  --color-blue-400: #7f98ff;
+  --color-blue-500: #4a64f0;
+  --color-blue-600: #2340d8;
+  --color-blue-700: #1b32b4;
+  --color-blue-800: #152890;
+  --color-blue-900: #121f6b;
+  --color-blue-950: #081130;
 }
 
 :root {
-  --radius: 0.5rem;
-  --background: #ffffff;
-  --foreground: #14213d;
-  --foreground-secondary: #3a4a66;
-  --muted-foreground: #56657f;
-  --faint-foreground: #647189;
-  --surface-sunken: #f5f8fc;
+  --radius: 10px;
+  --background: #f4f6fb;
+  --foreground: #0a1433;
+  --foreground-secondary: #2e3b5c;
+  --muted-foreground: #525e7b;
+  --faint-foreground: #5f6b88;
+  --surface-sunken: #ebeff8;
   --card: #ffffff;
-  --card-foreground: #14213d;
+  --card-foreground: #0a1433;
   --popover: #ffffff;
-  --popover-foreground: #14213d;
-  --primary: #2457c5;
+  --popover-foreground: #0a1433;
+  --primary: #2340d8;
   --primary-foreground: #ffffff;
-  --primary-hover: #1c46a3;
-  --primary-active: #1a3b82;
-  --secondary: #e4edfb;
-  --secondary-foreground: #1a3b82;
-  --muted: #eef3f9;
-  --accent: #eaf1fc;
-  --accent-foreground: #1a3b82;
-  --destructive: #c42b3c;
-  --destructive-hover: #a82333;
+  --primary-hover: #1b32b4;
+  --primary-active: #152890;
+  --secondary: #e3e9ff;
+  --secondary-foreground: #16288f;
+  --muted: #ebeff8;
+  --accent: #ebeff8;
+  --accent-foreground: #0a1433;
+  --destructive: #c0283a;
+  --destructive-hover: #a11f30;
   --destructive-foreground: #ffffff;
-  --border: #d9e2ee;
-  --border-strong: #b7c5d9;
-  --input: #8293ae;
-  --ring: #2457c5;
-  --link: #1d4fb8;
+  --border: #d8dfee;
+  --border-strong: #aebad3;
+  --input: #717fa0;
+  --ring: #2340d8;
+  --link: #1f3bcb;
   --link-visited: #5b3fa8;
-  --header: #0e1a38;
-  --header-foreground: #ffffff;
-  --header-muted: #b9c9e6;
-  --gold: #c8922a;
-  --editor-bg: #fbfcfe;
-  --avatar-bg: #c8daf6;
-  --avatar-fg: #192f63;
-  --tooltip-bg: #14213d;
-  --tooltip-fg: #ffffff;
+  --header: #f4f6fb;
+  --header-foreground: #0a1433;
+  --header-muted: #2e3b5c;
+  --editor-bg: #fbfcff;
+  --gutter-ink: #5f6b88;
+  --avatar-bg: #e3e9ff;
+  --avatar-fg: #16288f;
+  --tooltip-bg: #0a1433;
+  --tooltip-fg: #f1f4ff;
 
-  --success: #16753a;
-  --success-bg: #e7f5ec;
-  --warning: #975a00;
-  --warning-bg: #fbf1df;
-  --danger: #c42b3c;
-  --danger-bg: #fcebec;
-  --info: #1c46a3;
-  --info-bg: #f3f7fd;
+  --cobalt: #1d36c4;
+  --on-cobalt: #ffffff;
+  --on-cobalt-2: #d3dcff;
+  --cobalt-line: #8fa6ff;
+  --night: #081130;
+  --on-night: #f1f4ff;
+  --on-night-2: #b9c5e6;
+  --night-line: #2b3a6b;
+  --sky: #7fa2ff;
+  --highlight: #dce5ff;
+  --live: #c0283a;
+  --live-bg: #fceaec;
 
-  --verdict-accepted: #16753a;
-  --verdict-accepted-bg: #e7f5ec;
-  --verdict-wrong: #c42b3c;
-  --verdict-wrong-bg: #fcebec;
-  --verdict-tle: #975a00;
-  --verdict-tle-bg: #fbf1df;
-  --verdict-mle: #a0267f;
-  --verdict-mle-bg: #f9e9f4;
-  --verdict-runtime: #b5410e;
-  --verdict-runtime-bg: #fceee6;
-  --verdict-compile: #9b1c4c;
-  --verdict-compile-bg: #fae8ee;
-  --verdict-internal: #4f5b70;
-  --verdict-internal-bg: #eef1f5;
-  --verdict-queued: #56657f;
-  --verdict-queued-bg: #eef3f9;
-  --verdict-running: #1c46a3;
-  --verdict-running-bg: #f3f7fd;
+  --success: #13733a;
+  --success-bg: #e5f4ea;
+  --warning: #935700;
+  --warning-bg: #fbf0dc;
+  --danger: #c0283a;
+  --danger-bg: #fceaec;
+  --info: #1b32b4;
+  --info-bg: #e9eeff;
 
-  --difficulty-easy: #0b7563;
-  --difficulty-easy-bg: #e3f4f0;
-  --difficulty-medium: #975a00;
-  --difficulty-medium-bg: #fbf1df;
-  --difficulty-hard: #be2550;
-  --difficulty-hard-bg: #fce9ee;
+  --verdict-accepted: #13733a;
+  --verdict-accepted-bg: #e5f4ea;
+  --verdict-wrong: #c0283a;
+  --verdict-wrong-bg: #fceaec;
+  --verdict-tle: #935700;
+  --verdict-tle-bg: #fbf0dc;
+  --verdict-mle: #9e2580;
+  --verdict-mle-bg: #f8e8f4;
+  --verdict-runtime: #b03f0d;
+  --verdict-runtime-bg: #fcede4;
+  --verdict-compile: #981b4b;
+  --verdict-compile-bg: #f9e7ee;
+  --verdict-internal: #4c586e;
+  --verdict-internal-bg: #eceff5;
+  --verdict-queued: #525e7b;
+  --verdict-queued-bg: #ebeff8;
+  --verdict-running: #1b32b4;
+  --verdict-running-bg: #e9eeff;
 
-  --chart-1: #2457c5;
-  --chart-2: #0b7563;
-  --chart-3: #975a00;
-  --chart-4: #be2550;
-  --chart-5: #56657f;
-  --sidebar: #f5f8fc;
-  --sidebar-foreground: #14213d;
-  --sidebar-primary: #2457c5;
+  --difficulty-easy: #08715f;
+  --difficulty-easy-bg: #e1f3ef;
+  --difficulty-medium: #935700;
+  --difficulty-medium-bg: #fbf0dc;
+  --difficulty-hard: #bb2350;
+  --difficulty-hard-bg: #fce8ee;
+
+  --chart-1: #2340d8;
+  --chart-2: #08715f;
+  --chart-3: #935700;
+  --chart-4: #bb2350;
+  --chart-5: #525e7b;
+  --sidebar: #ebeff8;
+  --sidebar-foreground: #0a1433;
+  --sidebar-primary: #2340d8;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eaf1fc;
-  --sidebar-accent-foreground: #1a3b82;
-  --sidebar-border: #d9e2ee;
-  --sidebar-ring: #2457c5;
+  --sidebar-accent: #e3e9ff;
+  --sidebar-accent-foreground: #16288f;
+  --sidebar-border: #d8dfee;
+  --sidebar-ring: #2340d8;
 
-  --elev-xs: 0 1px 2px rgb(14 26 56 / 0.06);
-  --elev-sm: 0 1px 3px rgb(14 26 56 / 0.08), 0 1px 2px rgb(14 26 56 / 0.04);
-  --elev-md: 0 4px 12px -2px rgb(14 26 56 / 0.1), 0 2px 4px -2px rgb(14 26 56 / 0.06);
-  --elev-lg: 0 16px 40px -12px rgb(14 26 56 / 0.22);
+  --elev-xs: 0 1px 2px rgb(10 20 51 / 0.05);
+  --e1: 0 1px 0 var(--border);
+  --e2: 0 1px 0 var(--border), 0 12px 24px -16px rgb(10 20 51 / 0.18);
+  --e3: 0 1px 0 var(--border), 0 32px 64px -32px rgb(10 20 51 / 0.3);
+  /* Coloured shadow under primary buttons. */
+  --primary-glow: 0 6px 16px -8px rgb(35 64 216 / 0.7);
+  /* Grid paper line colour behind heroes (primary at 8%). */
+  --grid-paper-line: rgb(35 64 216 / 0.08);
 
-  /* Motion tokens (DESIGN.md §6.6). Distance is 0 under reduced motion. */
-  --duration-fast: 120ms;
-  --duration-base: 180ms;
-  --duration-slow: 260ms;
-  --motion-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Short v2 names (§6.1). Aliases only: change the canonical value above. */
+  --bg: var(--background);
+  --surface: var(--card);
+  --sunken: var(--surface-sunken);
+  --raised: var(--popover);
+  --line: var(--border);
+  --line-strong: var(--border-strong);
+  --ink: var(--foreground);
+  --ink-2: var(--foreground-secondary);
+  --faint: var(--faint-foreground);
+  --on-primary: var(--primary-foreground);
+  --primary-soft: var(--secondary);
+  --on-primary-soft: var(--secondary-foreground);
+
+  /* Type scale (§7.2). */
+  --t-hero: clamp(3.5rem, 1.9rem + 5.6vw, 7rem);
+  --t-d1: clamp(2.75rem, 1.7rem + 4.2vw, 5.25rem);
+  --t-d2: clamp(2.25rem, 1.6rem + 2.6vw, 3.75rem);
+  --t-d3: clamp(1.875rem, 1.5rem + 1.4vw, 2.625rem);
+  --t-lead: clamp(1.125rem, 1rem + 0.4vw, 1.3125rem);
+
+  /* Layout (§8). */
+  --container: 1312px;
+  --pad: clamp(16px, 1rem + 2vw, 48px);
+  --gutter-w: 72px;
+  --section: clamp(72px, 3rem + 5vw, 128px);
+
+  /* Motion (§11.1). Durations; easing lives in @theme. --rise is 0 under
+     reduced motion. */
+  --d-1: 120ms;
+  --d-2: 200ms;
+  --d-3: 320ms;
+  --d-4: 560ms;
+  --d-5: 900ms;
+  --rise: 16px;
+  /* v1 names, kept for existing code. */
+  --duration-fast: var(--d-1);
+  --duration-base: var(--d-2);
+  --duration-slow: var(--d-3);
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --motion-distance: 8px;
 }
 
 .dark {
   color-scheme: dark;
-  --background: #0d1628;
-  --foreground: #e7edf7;
-  --foreground-secondary: #c3cee2;
-  --muted-foreground: #a0aec8;
-  --faint-foreground: #8c9ab6;
-  --surface-sunken: #0a1222;
-  --card: #131f36;
-  --card-foreground: #e7edf7;
-  --popover: #17243e;
-  --popover-foreground: #e7edf7;
-  --primary: #5b8def;
-  --primary-foreground: #0b1630;
-  --primary-hover: #7aa3f2;
-  --primary-active: #9bbbf5;
-  --secondary: #1c2d4e;
-  --secondary-foreground: #d5e2f9;
-  --muted: #1a2843;
-  --accent: #1c2d4e;
-  --accent-foreground: #e7edf7;
-  --destructive: #ee6d7b;
-  --destructive-hover: #f28a95;
-  --destructive-foreground: #2a0b10;
-  --border: #263755;
-  --border-strong: #3a4e73;
-  --input: #5a6e92;
-  --ring: #7aa3f2;
-  --link: #8db4f5;
-  --link-visited: #b9a5f0;
-  --header: #091124;
-  --header-foreground: #e7edf7;
-  --header-muted: #a0aec8;
-  --gold: #d9a94a;
-  --editor-bg: #0f1a2e;
-  --avatar-bg: #2b4677;
-  --avatar-fg: #e7edf7;
-  --tooltip-bg: #e7edf7;
-  --tooltip-fg: #0d1628;
+  --background: #060b1c;
+  --foreground: #ebf0ff;
+  --foreground-secondary: #c3cdea;
+  --muted-foreground: #9ca9cc;
+  --faint-foreground: #8c9abf;
+  --surface-sunken: #08102a;
+  --card: #0c1430;
+  --card-foreground: #ebf0ff;
+  --popover: #121d40;
+  --popover-foreground: #ebf0ff;
+  --primary: #8da8ff;
+  --primary-foreground: #07102f;
+  --primary-hover: #a9beff;
+  --primary-active: #c4d3ff;
+  --secondary: #18265a;
+  --secondary-foreground: #d4deff;
+  --muted: #08102a;
+  /* Hover/highlight tint. Light: sunken (spec). Dark: lifted a step above
+     card and popover so menus and rows show it on the night page. */
+  --accent: #172350;
+  --accent-foreground: #ebf0ff;
+  --destructive: #f27382;
+  --destructive-hover: #f595a1;
+  --destructive-foreground: #07102f;
+  --border: #1f2c55;
+  --border-strong: #34467a;
+  --input: #6676a3;
+  --ring: #a9beff;
+  --link: #a0b8ff;
+  --link-visited: #c6b5f5;
+  --header: #060b1c;
+  --header-foreground: #ebf0ff;
+  --header-muted: #c3cdea;
+  --editor-bg: #09112a;
+  --gutter-ink: #7f8db3;
+  --avatar-bg: #18265a;
+  --avatar-fg: #d4deff;
+  --tooltip-bg: #ebf0ff;
+  --tooltip-fg: #0a1433;
 
-  --success: #7be0a6;
-  --success-bg: #12301f;
-  --warning: #e9b04f;
-  --warning-bg: #33270f;
-  --danger: #ee6d7b;
-  --danger-bg: #3a1820;
-  --info: #8db4f5;
-  --info-bg: #162847;
+  --cobalt: #1b33bc;
+  --on-cobalt: #ffffff;
+  --on-cobalt-2: #d3dcff;
+  --cobalt-line: #7f98ff;
+  --night: #030714;
+  --on-night: #f1f4ff;
+  --on-night-2: #b3bfe2;
+  --night-line: #24325e;
+  --sky: #8da8ff;
+  --highlight: #1d2c66;
+  --live: #f27382;
+  --live-bg: #3a1524;
 
-  --verdict-accepted: #7be0a6;
-  --verdict-accepted-bg: #12301f;
-  --verdict-wrong: #ee6d7b;
-  --verdict-wrong-bg: #3a1820;
-  --verdict-tle: #e9b04f;
-  --verdict-tle-bg: #33270f;
-  --verdict-mle: #e68bd0;
-  --verdict-mle-bg: #351a33;
-  --verdict-runtime: #f49a6b;
-  --verdict-runtime-bg: #3a2016;
-  --verdict-compile: #f07fa6;
-  --verdict-compile-bg: #3a1626;
-  --verdict-internal: #a9b4c8;
-  --verdict-internal-bg: #1f2a3d;
-  --verdict-queued: #a0aec8;
-  --verdict-queued-bg: #1a2843;
-  --verdict-running: #8db4f5;
-  --verdict-running-bg: #162847;
+  --success: #74dca0;
+  --success-bg: #0f2d22;
+  --warning: #e8b04e;
+  --warning-bg: #30250f;
+  --danger: #f27382;
+  --danger-bg: #3a1524;
+  --info: #a0b8ff;
+  --info-bg: #152357;
 
-  --difficulty-easy: #4fcdb0;
-  --difficulty-easy-bg: #0f2e2b;
-  --difficulty-medium: #e9b04f;
-  --difficulty-medium-bg: #33270f;
-  --difficulty-hard: #f37a9a;
-  --difficulty-hard-bg: #3a1626;
+  --verdict-accepted: #74dca0;
+  --verdict-accepted-bg: #0f2d22;
+  --verdict-wrong: #f27382;
+  --verdict-wrong-bg: #3a1524;
+  --verdict-tle: #e8b04e;
+  --verdict-tle-bg: #30250f;
+  --verdict-mle: #e78dd2;
+  --verdict-mle-bg: #341a3a;
+  --verdict-runtime: #f49c6e;
+  --verdict-runtime-bg: #3a1f1c;
+  --verdict-compile: #f182a9;
+  --verdict-compile-bg: #3a1630;
+  --verdict-internal: #aab5cd;
+  --verdict-internal-bg: #1b2645;
+  --verdict-queued: #9ca9cc;
+  --verdict-queued-bg: #121d40;
+  --verdict-running: #a0b8ff;
+  --verdict-running-bg: #152357;
 
-  --chart-1: #5b8def;
-  --chart-2: #4fcdb0;
-  --chart-3: #e9b04f;
-  --chart-4: #f37a9a;
-  --chart-5: #a0aec8;
-  --sidebar: #0a1222;
-  --sidebar-foreground: #e7edf7;
-  --sidebar-primary: #5b8def;
-  --sidebar-primary-foreground: #0b1630;
-  --sidebar-accent: #1c2d4e;
-  --sidebar-accent-foreground: #e7edf7;
-  --sidebar-border: #263755;
-  --sidebar-ring: #7aa3f2;
+  --difficulty-easy: #52cfb3;
+  --difficulty-easy-bg: #0d2c31;
+  --difficulty-medium: #e8b04e;
+  --difficulty-medium-bg: #30250f;
+  --difficulty-hard: #f47d9e;
+  --difficulty-hard-bg: #3a1630;
+
+  --chart-1: #8da8ff;
+  --chart-2: #52cfb3;
+  --chart-3: #e8b04e;
+  --chart-4: #f47d9e;
+  --chart-5: #9ca9cc;
+  --sidebar: #08102a;
+  --sidebar-foreground: #ebf0ff;
+  --sidebar-primary: #8da8ff;
+  --sidebar-primary-foreground: #07102f;
+  --sidebar-accent: #18265a;
+  --sidebar-accent-foreground: #d4deff;
+  --sidebar-border: #1f2c55;
+  --sidebar-ring: #a9beff;
 
   --elev-xs: 0 1px 2px rgb(0 0 0 / 0.3);
-  --elev-sm: 0 1px 3px rgb(0 0 0 / 0.35);
-  --elev-md: 0 6px 16px -4px rgb(0 0 0 / 0.45);
-  --elev-lg: 0 18px 44px -12px rgb(0 0 0 / 0.6);
+  --e1: 0 0 0 1px var(--border);
+  --e2: 0 0 0 1px var(--border), 0 16px 32px -16px rgb(0 0 0 / 0.6);
+  --e3: 0 0 0 1px var(--border), 0 40px 80px -32px rgb(0 0 0 / 0.7);
+  --primary-glow: 0 8px 22px -10px rgb(141 168 255 / 0.55);
+  --grid-paper-line: rgb(141 168 255 / 0.07);
 }
 
 @layer base {
@@ -345,11 +454,18 @@
   }
   html {
     @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    /* Instrument Serif has one weight: never fake a bold (§7.1). The sans
+       and mono are variable fonts, so they never need synthesis either. */
+    font-synthesis-weight: none;
   }
   body {
     @apply bg-background text-foreground;
     font-size: 1rem;
-    line-height: 1.625;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   :focus-visible {
     outline: 2px solid var(--ring);
@@ -363,57 +479,413 @@
     font-variant-ligatures: none;
     font-feature-settings:
       "liga" 0,
-      "calt" 0;
+      "calt" 0,
+      "zero" 1;
   }
   ::selection {
-    background: var(--color-blue-200);
-    color: var(--color-blue-950);
+    background: var(--highlight);
+    color: var(--foreground);
   }
-  .dark ::selection {
-    background: #264272;
-    color: #e7edf7;
+  /* Display serif: one weight, never synthesised, balanced lines. */
+  .font-display,
+  .font-heading,
+  .font-serif {
+    font-weight: 400;
+    font-synthesis: none;
   }
 }
 
-/* Page container (DESIGN.md §6.4): 1200px, 16px gutter (24px from sm). */
+/* Page container (§8): 1312px, side padding 16px at 390 up to 48px. */
 @utility container-page {
   margin-inline: auto;
   width: 100%;
-  max-width: 1200px;
-  padding-inline: 1rem;
-  @media (width >= 40rem) {
-    padding-inline: 1.5rem;
-  }
+  max-width: var(--container);
+  padding-inline: var(--pad);
 }
 
-/* Static code samples (landing): same palette as the Monaco themes (§10). */
+/* ---------- Type (§7.2) ---------------------------------------------- */
 @layer components {
-  .code-keyword {
-    color: #1c46a3;
-    font-weight: 500;
+  .display-hero,
+  .display-1,
+  .display-2,
+  .display-3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-synthesis: none;
+    text-wrap: balance;
   }
-  .code-function {
-    color: #8a2378;
+  .display-hero {
+    font-size: var(--t-hero);
+    line-height: 0.92;
+    letter-spacing: -0.012em;
+    text-wrap: pretty;
   }
-  .dark .code-keyword {
-    color: #8db4f5;
+  .display-1 {
+    font-size: var(--t-d1);
+    line-height: 0.96;
+    letter-spacing: -0.01em;
   }
-  .dark .code-function {
-    color: #e3a2ea;
+  .display-2 {
+    font-size: var(--t-d2);
+    line-height: 1;
+    letter-spacing: -0.005em;
+  }
+  .display-3 {
+    font-size: var(--t-d3);
+    line-height: 1.05;
+  }
+  /* One italic word per headline, in primary (inherits on colour blocks). */
+  :is(.display-hero, .display-1, .display-2, .display-3) em {
+    font-style: italic;
+    color: var(--primary);
+  }
+  :is(.on-cobalt, .on-night) :is(.display-hero, .display-1, .display-2, .display-3) em {
+    color: inherit;
+  }
+  .lead {
+    font-size: var(--t-lead);
+    line-height: 1.55;
+    color: var(--foreground-secondary);
+    text-wrap: pretty;
+  }
+  /* Highlighter-marker emphasis behind ink. */
+  .hl {
+    background: linear-gradient(transparent 60%, var(--highlight) 60%);
+    padding: 0 0.06em;
+    box-decoration-break: clone;
+  }
+  /* Keyboard hint. */
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    font: 500 0.71875rem/1 var(--font-mono);
+    padding: 3px 6px;
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    color: var(--muted-foreground);
+    background: var(--card);
+  }
+  /* "Example" marker on illustrative data (§13.1: never fake statistics). */
+  .example-tag {
+    display: inline-flex;
+    align-items: center;
+    font: 500 0.6875rem/1 var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    border: 1px dashed var(--border-strong);
+    border-radius: 4px;
+    padding: 4px 6px;
   }
 }
 
-/* Uppercase eyebrow / section label. */
+/* Mono label: uppercase, tracked (table heads, figure labels, § numbers). */
+@utility label-mono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Quiet section label (v1 name, used across pages): mono, muted. */
 @utility eyebrow {
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   line-height: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
 
-/* ---------- Motion ------------------------------------------------------ */
+@layer components {
+  /* Hero eyebrow (§7): primary mono label after a 28px rule. */
+  .eyebrow-accent {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    font: 500 0.75rem/1 var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+  .eyebrow-accent::before {
+    content: "";
+    width: 28px;
+    height: 1px;
+    background: currentColor;
+  }
+  :is(.on-cobalt) .eyebrow-accent {
+    color: var(--on-cobalt-2);
+  }
+  :is(.on-night) .eyebrow-accent {
+    color: var(--on-night-2);
+  }
+}
+
+/* Static code samples (landing, auth): same palette as the Monaco themes. */
+@layer components {
+  .tok-k {
+    color: #2340d8;
+  }
+  .tok-f {
+    color: #16288f;
+    font-weight: 500;
+  }
+  .tok-s {
+    color: #13733a;
+  }
+  .tok-n {
+    color: #935700;
+  }
+  .tok-c {
+    color: #5f6b88;
+    font-style: italic;
+  }
+  .tok-p {
+    color: #525e7b;
+  }
+  .dark .tok-k {
+    color: #a9beff;
+  }
+  .dark .tok-f {
+    color: #d4deff;
+  }
+  .dark .tok-s {
+    color: #74dca0;
+  }
+  .dark .tok-n {
+    color: #e8b04e;
+  }
+  .dark .tok-c {
+    color: #8c9abf;
+  }
+  .dark .tok-p {
+    color: #9ca9cc;
+  }
+  /* v1 names. */
+  .code-keyword {
+    color: #2340d8;
+    font-weight: 500;
+  }
+  .code-function {
+    color: #16288f;
+  }
+  .dark .code-keyword {
+    color: #a9beff;
+  }
+  .dark .code-function {
+    color: #d4deff;
+  }
+}
+
+/* ---------- Surfaces (§9) --------------------------------------------- */
+@layer components {
+  /* Colour blocks: one loud section per page. Content inside uses the
+     on-cobalt / on-night tokens. */
+  .on-cobalt {
+    background-color: var(--cobalt);
+    color: var(--on-cobalt);
+    --ring: #ffffff;
+  }
+  .on-night {
+    background-color: var(--night);
+    color: var(--on-night);
+    --ring: var(--sky);
+  }
+  /* Dark: night blocks sit on an almost-night page, so give them an edge. */
+  .dark .on-night {
+    box-shadow: inset 0 0 0 1px var(--night-line);
+  }
+  /* 48px hairline grid. Behind heroes: set --grid-paper-line, mask it. */
+  .grid-paper {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(var(--gp, var(--grid-paper-line)) 1px, transparent 1px),
+      linear-gradient(90deg, var(--gp, var(--grid-paper-line)) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .on-cobalt .grid-paper,
+  .on-night .grid-paper {
+    --gp: rgb(143 166 255 / 0.16);
+  }
+  /* 7% static SVG noise on colour blocks only (never on reading surfaces).
+     The element needs `position: relative` (or absolute) and `isolate`. */
+  .grain {
+    position: relative;
+    isolation: isolate;
+  }
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/* ---------- Signature: proof marks (§5) -------------------------------- */
+@layer components {
+  /* ∎ tombstone after a display headline: 0.4em solid square. */
+  .qed {
+    display: inline-block;
+    width: 0.4em;
+    height: 0.4em;
+    margin-left: 0.1em;
+    vertical-align: 0.06em;
+    background: var(--primary);
+    flex: none;
+  }
+  .on-cobalt .qed,
+  .on-night .qed {
+    background: currentColor;
+  }
+  .qed[data-snap] {
+    animation: qed-in var(--d-4) var(--ease-snap) both;
+    animation-delay: var(--qed-delay, 0ms);
+  }
+  /* Dashed ∎: the "unfinished proof" (empty states, 404). */
+  .qed-open {
+    display: inline-block;
+    width: 0.4em;
+    height: 0.4em;
+    border: 1.5px dashed var(--primary);
+    background: transparent;
+  }
+
+  /* Loader: a square outline that fills bottom-up (replaces spinners). */
+  .qed-loader {
+    position: relative;
+    display: inline-block;
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid currentColor;
+    overflow: hidden;
+  }
+  .qed-loader::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    transform-origin: bottom;
+    animation: qed-fill 1.2s var(--ease-in-out) infinite;
+  }
+
+  /* Proof gutter: hairline column of mono line numbers. */
+  .proof-gutter {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    border-right: 1px solid var(--border);
+    font: 500 0.75rem/1 var(--font-mono);
+    color: var(--gutter-ink);
+    user-select: none;
+  }
+  .proof-gutter > span {
+    display: flex;
+    align-items: center;
+    height: 48px;
+  }
+  .proof-gutter > [data-current] {
+    color: var(--primary);
+  }
+  /* § NN section number in the 72px gutter column. */
+  .sec-no {
+    font: 500 0.8125rem/1.6 var(--font-mono);
+    color: var(--gutter-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .on-cobalt .sec-no {
+    color: var(--on-cobalt-2);
+  }
+  .on-night .sec-no {
+    color: var(--on-night-2);
+  }
+
+  /* Test squares: one 9px square per test (always aria-hidden). */
+  .test-squares {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+  .test-squares > i {
+    width: 9px;
+    height: 9px;
+    border: 1.5px solid var(--border-strong);
+  }
+  .test-squares > i[data-state="pass"] {
+    background: var(--verdict-accepted);
+    border-color: var(--verdict-accepted);
+  }
+  .test-squares > i[data-state="fail"] {
+    background: var(--verdict-wrong);
+    border-color: var(--verdict-wrong);
+    transform: rotate(45deg) scale(0.85);
+  }
+  .on-night .test-squares > i,
+  .on-cobalt .test-squares > i {
+    border-color: color-mix(in srgb, currentColor 45%, transparent);
+  }
+  .on-night .test-squares > i[data-state="pass"] {
+    background: #74dca0;
+    border-color: #74dca0;
+  }
+  .test-squares[data-animate] > i {
+    animation: tick-in var(--d-2) var(--ease-snap) both;
+    animation-delay: calc(var(--i, 0) * 70ms + var(--tick-delay, 0ms));
+  }
+  .test-squares[data-animate] > i[data-state="fail"] {
+    animation-name: tick-in-fail;
+  }
+
+  /* Difficulty shape glyphs (§6.2): ■ easy, ◆ medium, ▲ hard. `.diff-mark`
+     draws it before the word of an element with data-difficulty. */
+  .diff-mark::before,
+  .diff-glyph {
+    display: inline-block;
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+  .diff-mark::before {
+    content: "";
+  }
+  .diff-mark[data-difficulty="medium"]::before,
+  .diff-glyph[data-shape="medium"] {
+    transform: rotate(45deg) scale(0.9);
+  }
+  .diff-mark[data-difficulty="hard"]::before,
+  .diff-glyph[data-shape="hard"] {
+    border-radius: 0;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    width: 8px;
+    height: 8px;
+  }
+
+  /* Live indicator dot (rooms): pulses; static under reduced motion. */
+  .live-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: live-pulse 1.8s infinite;
+  }
+}
+
+/* ---------- Motion (§11) ---------------------------------------------- */
 
 @keyframes enter-up {
   from {
@@ -450,19 +922,117 @@
   }
 }
 
+@keyframes qed-in {
+  from {
+    transform: scale(0) rotate(-45deg);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes qed-fill {
+  0% {
+    transform: scaleY(0);
+  }
+  60%,
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+
+@keyframes tick-in {
+  from {
+    transform: scale(0);
+  }
+}
+
+@keyframes tick-in-fail {
+  from {
+    transform: rotate(45deg) scale(0);
+  }
+  to {
+    transform: rotate(45deg) scale(0.85);
+  }
+}
+
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 60%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+}
+
+@keyframes type-line {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
 @layer components {
-  /* <Reveal>: opacity + small rise, staggered by --reveal-index. */
+  /* <Reveal>: opacity + small rise on mount, staggered by --reveal-index. */
   .reveal {
     animation: var(--animate-enter-up);
-    animation-delay: calc(var(--reveal-index, 0) * 60ms + var(--reveal-delay, 0ms));
+    animation-delay: calc(var(--reveal-index, 0) * 70ms + var(--reveal-delay, 0ms));
+  }
+
+  /* <Reveal trigger="scroll">: hidden only when JS runs (html.js, set by an
+     inline script in the root layout), shown when 10% in view by
+     <RevealObserver>. Without JS or under reduced motion: always visible. */
+  .rv {
+    transition:
+      opacity var(--d-4) var(--ease-out),
+      transform var(--d-4) var(--ease-out);
+    transition-delay: calc(var(--reveal-index, 0) * 70ms);
+  }
+  .js .rv:not([data-revealed]) {
+    opacity: 0;
+    transform: translateY(var(--rise));
+  }
+
+  /* Page enter (client navigation, React <ViewTransition>): a short fade. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: var(--d-2);
+    animation-timing-function: var(--ease-out);
   }
 
   /* Progress indicator: full-width bar moved with transform only. */
   .progress-indicator {
     transform: translateX(calc(var(--progress-value, 0%) - 100%));
-    animation: progress-fill 300ms var(--motion-ease-out) both;
+    animation: progress-fill var(--d-5) var(--ease-out) both;
     animation-delay: var(--progress-delay, 150ms);
-    transition: transform var(--duration-slow) var(--motion-ease-out);
+    transition: transform var(--d-3) var(--ease-out);
+  }
+
+  /* Meter (profile, landing): fill grows with scaleX. */
+  .meter-fill {
+    transform-origin: left;
+    animation: grow-x var(--d-5) var(--ease-out) both;
+    animation-delay: var(--meter-delay, 200ms);
   }
 
   /* Skeleton shimmer: a light band slides across with transform. */
@@ -484,38 +1054,44 @@
     animation: var(--animate-shimmer);
   }
 
-  /* Graph-paper motif (hero, 404). */
+  /* v1 graph-paper motif, re-pointed at the v2 grid paper. */
   .graph-paper {
     position: absolute;
     inset: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(var(--border) 1px, transparent 1px),
-      linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 32px 32px;
-    opacity: 0.55;
-    mask-image: linear-gradient(180deg, transparent 35%, #000 85%);
-  }
-  @media (min-width: 900px) {
-    .graph-paper {
-      mask-image: linear-gradient(90deg, transparent 0%, transparent 45%, #000 75%);
-    }
-  }
-  .graph-paper.graph-paper-center {
+      linear-gradient(var(--grid-paper-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-paper-line) 1px, transparent 1px);
+    background-size: 48px 48px;
     mask-image: radial-gradient(ellipse at center, #000 0%, transparent 70%);
   }
+}
 
-  /* Masthead rule: gold 64px then primary; dark: gold only, 2px. */
-  .masthead-rule {
-    height: 3px;
-    background: linear-gradient(90deg, var(--gold) 0 64px, var(--color-blue-600) 64px);
+/* Theme switch: circular reveal from the toggle (theme-toggle.tsx). */
+.theme-vt::view-transition-old(root),
+.theme-vt::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+.theme-vt::view-transition-new(root) {
+  animation: vt-circle 520ms var(--ease-out);
+}
+@keyframes vt-circle {
+  from {
+    clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 0));
   }
-  .dark .masthead-rule {
-    height: 2px;
-    background: linear-gradient(90deg, var(--gold) 0 64px, transparent 64px);
+  to {
+    clip-path: circle(150vmax at var(--vt-x, 50%) var(--vt-y, 0));
   }
+}
 
-  /* Problem statement prose (DESIGN.md §5.3), applied to the markdown root. */
+/* Cross-document navigations (full loads): fade where supported. */
+@view-transition {
+  navigation: auto;
+}
+
+/* ---------- Problem statement prose (§13.4) --------------------------- */
+@layer components {
   .prose-problem {
     max-width: 72ch;
     font-size: 1rem;
@@ -528,6 +1104,7 @@
   .prose-problem h1,
   .prose-problem h2 {
     font: 600 1.25rem/1.75rem var(--font-sans);
+    letter-spacing: -0.01em;
     margin-top: 2rem;
   }
   .prose-problem h3,
@@ -565,41 +1142,38 @@
   .prose-problem :not(pre) > code {
     font-family: var(--font-mono);
     font-size: 0.875em;
-    background: var(--muted);
+    font-weight: 500;
+    background: var(--surface-sunken);
     border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 1px 5px;
+    border-radius: 6px;
+    padding: 0.1em 0.4em;
     font-variant-ligatures: none;
   }
+  /* IO blocks: sunken with a 2px primary rule. */
   .prose-problem pre {
     font: 400 0.875rem/1.375rem var(--font-mono);
     background: var(--surface-sunken);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--color-blue-300);
-    border-radius: 0 6px 6px 0;
+    border-left: 2px solid var(--primary);
+    border-radius: 0 10px 10px 0;
     padding: 0.75rem 1rem;
     overflow-x: auto;
     font-variant-ligatures: none;
-  }
-  .dark .prose-problem pre {
-    border-left-color: var(--color-blue-700);
   }
   .prose-problem pre code {
     background: none;
     border: 0;
     padding: 0;
     font-size: inherit;
+    font-weight: 400;
   }
   .prose-problem blockquote {
     display: block;
     background: var(--info-bg);
-    border: 1px solid var(--color-blue-200);
-    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--info) 30%, transparent);
+    border-radius: 10px;
     padding: 0.75rem 1rem;
     color: var(--foreground);
-  }
-  .dark .prose-problem blockquote {
-    border-color: var(--color-blue-800);
   }
   .prose-problem table {
     width: 100%;
@@ -608,7 +1182,10 @@
   }
   .prose-problem th {
     text-align: left;
-    font-weight: 600;
+    font: 500 0.75rem/1 var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
     background: var(--surface-sunken);
   }
   .prose-problem th,
@@ -624,17 +1201,37 @@
   .prose-problem sup {
     font-size: 0.75em;
   }
-  /* "Input:" / "Output:" labels in the sample blocks (sans, muted). */
+  /* "Input:" / "Output:" labels in the sample blocks (mono, muted). */
   .prose-problem .sample-label {
-    font: 600 0.8125rem/1.375rem var(--font-sans);
+    font: 500 0.75rem/1.375rem var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     color: var(--muted-foreground);
   }
 }
 
-/* Reduced motion: no movement anywhere; state changes stay, but instant. */
+/* ---------- Header (§12) ---------------------------------------------- */
+@layer components {
+  /* Translucent paper with blur; only the header uses backdrop-filter. */
+  .site-header {
+    view-transition-name: site-header;
+    background: var(--background);
+  }
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .site-header {
+      background: color-mix(in srgb, var(--background) 82%, transparent);
+      backdrop-filter: saturate(1.4) blur(14px);
+      -webkit-backdrop-filter: saturate(1.4) blur(14px);
+    }
+  }
+}
+
+/* Reduced motion (§11.3): no movement anywhere; every animation and
+   transition ends in its final state at once. */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-distance: 0px;
+    --rise: 0px;
   }
   *,
   *::before,
@@ -643,9 +1240,23 @@
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
-  .skeleton-shimmer::after {
+  .js .rv:not([data-revealed]) {
+    opacity: 1;
+    transform: none;
+  }
+  .skeleton-shimmer::after,
+  .qed-loader::after {
     display: none;
+  }
+  .live-dot {
+    animation: none !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
