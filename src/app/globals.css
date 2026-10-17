@@ -315,7 +315,8 @@
 
   /* Layout (§8). */
   --container: 1312px;
-  --pad: clamp(16px, 1rem + 2vw, 48px);
+  /* 16px up to 390px wide, 48px from 1440px (linear in between). */
+  --pad: clamp(16px, 4.1px + 3.05vw, 48px);
   --gutter-w: 72px;
   --section: clamp(72px, 3rem + 5vw, 128px);
 
@@ -1013,7 +1014,7 @@
     transform: translateY(var(--rise));
   }
 
-  /* Page enter (client navigation, React <ViewTransition>): a short fade. */
+  /* Page enter (cross-document view transitions, full loads): a short fade. */
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation-duration: var(--d-2);

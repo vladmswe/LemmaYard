@@ -22,7 +22,7 @@ export function ProblemDescription({ problem }: { problem: ProblemPageData }) {
 
   return (
     <article className="px-5 pt-5 pb-10 md:px-6">
-      <h1 className="font-heading text-[1.625rem]/[2.125rem] font-semibold tracking-[-0.01em] text-balance">
+      <h1 className="font-display text-[1.75rem]/[2.125rem] tracking-[-0.005em] text-balance">
         <span className="tabular-nums">{problem.number}.</span> {problem.title}
       </h1>
       <div className="mt-3 flex flex-wrap items-center gap-2">

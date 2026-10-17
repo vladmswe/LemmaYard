@@ -152,7 +152,7 @@ function Winners({ session }: { session: HistorySessionItem }) {
     return <span className="text-muted-foreground">—</span>;
   }
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex max-w-full min-w-0 items-center gap-1.5">
       <TrophyIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
       <span className="truncate">{session.winners.join(", ")}</span>
       {session.winners.length > 1 && <span className="sr-only"> (tie)</span>}

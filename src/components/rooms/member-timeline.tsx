@@ -112,7 +112,7 @@ function Stat({ label, index, children }: { label: string; index: number; childr
   return (
     <Reveal index={index} className="flex flex-col-reverse rounded-lg border bg-card p-4 shadow-xs sm:p-6">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="font-heading text-2xl/9 font-semibold tabular-nums sm:text-[1.875rem]/9">{children}</dd>
+      <dd className="font-display text-[1.75rem]/9 tabular-nums sm:text-[2.25rem]/10">{children}</dd>
     </Reveal>
   );
 }

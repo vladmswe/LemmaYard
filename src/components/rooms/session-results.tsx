@@ -69,7 +69,7 @@ export function FinalScoreboard({ results }: { results: FinishedResults }) {
         <TableBody>
           {results.participants.map((p) => (
             <TableRow key={p.userId} data-user={p.username} className={cn(p.isViewer && "bg-secondary!")}>
-              <TableCell className="font-heading text-lg text-muted-foreground tabular-nums">{p.rank ?? "—"}</TableCell>
+              <TableCell className="font-mono text-base text-muted-foreground tabular-nums">{p.rank ?? "—"}</TableCell>
               <th scope="row" className="h-12 px-4 text-left align-middle font-normal">
                 <ParticipantName ctx={ctx} participant={p} />
               </th>
@@ -100,7 +100,7 @@ export function FinalScoreboard({ results }: { results: FinishedResults }) {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="w-6 font-heading text-xl text-muted-foreground tabular-nums">
+                <span className="w-6 font-mono text-base text-muted-foreground tabular-nums">
                   <span className="sr-only">Rank </span>
                   {p.rank ?? "—"}
                 </span>
@@ -282,7 +282,7 @@ function ProblemSummaryRow({
   return (
     <li className="flex flex-col gap-1.5 py-3.5" data-position={p.position}>
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        <span className="font-heading text-lg/6 text-muted-foreground tabular-nums">{p.position}</span>
+        <span className="font-mono text-base/6 text-muted-foreground tabular-nums">{p.position}</span>
         {p.published ? (
           <Link href={`/problems/${p.slug}`} className={tableLinkClasses("min-w-0 break-words")}>
             {p.title}
