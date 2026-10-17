@@ -1,0 +1,17 @@
+{
+  "number": 19,
+  "slug": "edit-distance",
+  "title": "Edit Distance",
+  "difficulty": "hard",
+  "tags": ["string", "dynamic-programming"],
+  "signature": {
+    "name": "minDistance",
+    "params": [
+      { "name": "word1", "type": "string" },
+      { "name": "word2", "type": "string" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

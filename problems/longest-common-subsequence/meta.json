@@ -1,0 +1,17 @@
+{
+  "number": 17,
+  "slug": "longest-common-subsequence",
+  "title": "Longest Common Subsequence",
+  "difficulty": "medium",
+  "tags": ["string", "dynamic-programming"],
+  "signature": {
+    "name": "longestCommonSubsequence",
+    "params": [
+      { "name": "text1", "type": "string" },
+      { "name": "text2", "type": "string" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

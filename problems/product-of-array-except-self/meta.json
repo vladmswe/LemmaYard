@@ -1,0 +1,14 @@
+{
+  "number": 16,
+  "slug": "product-of-array-except-self",
+  "title": "Product of Array Except Self",
+  "difficulty": "medium",
+  "tags": ["array", "prefix-sum"],
+  "signature": {
+    "name": "productExceptSelf",
+    "params": [{ "name": "nums", "type": "int[]" }],
+    "returns": "int[]"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

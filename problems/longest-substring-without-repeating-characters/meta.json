@@ -1,0 +1,14 @@
+{
+  "number": 15,
+  "slug": "longest-substring-without-repeating-characters",
+  "title": "Longest Substring Without Repeating Characters",
+  "difficulty": "medium",
+  "tags": ["string", "sliding-window", "hash-table"],
+  "signature": {
+    "name": "lengthOfLongestSubstring",
+    "params": [{ "name": "s", "type": "string" }],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}
