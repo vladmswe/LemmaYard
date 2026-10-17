@@ -49,17 +49,34 @@ async function openTwoSum(page: Page) {
   await expect(page.locator('[data-testid="code-editor"] .monaco-editor .view-lines')).toBeVisible({ timeout: 60_000 });
 }
 
-/** Replaces the editor text (click + select all + insertText). */
+/**
+ * Replaces the editor text: click, select all, then paste. `keyboard.insertText`
+ * counts as typing, so Monaco auto-indents and auto-closes brackets and
+ * multi-line code arrives mangled; a paste keeps it verbatim.
+ */
 async function typeCode(page: Page, code: string) {
   await page.locator('[data-testid="code-editor"] .view-lines').click();
-  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.press(`${await modifier(page)}+A`);
   await page.keyboard.press("Delete");
-  await page.keyboard.insertText(code);
+  await page.evaluate((text) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", text);
+    document.activeElement?.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  }, code);
+}
+
+/**
+ * Monaco picks Cmd vs Ctrl from the user agent, and the Desktop Chrome device
+ * reports Windows even on a macOS host, so `ControlOrMeta` would be wrong there.
+ */
+async function modifier(page: Page): Promise<"Meta" | "Control"> {
+  return (await page.evaluate(() => /Mac/.test(navigator.userAgent))) ? "Meta" : "Control";
 }
 
 async function selectLanguage(page: Page, language: "python" | "javascript") {
   await page.getByTestId("language-select").click();
   await page.getByTestId(`language-option-${language}`).click();
+  await expect(page.getByTestId(`language-option-${language}`)).toBeHidden();
 }
 
 function editorText(page: Page) {
@@ -150,7 +167,10 @@ test.describe("workspace with the judge", () => {
     await openTwoSum(page);
     await selectLanguage(page, "javascript");
     await typeCode(page, TWO_SUM_JS);
-    await page.keyboard.press("ControlOrMeta+Enter");
+    await expect.poll(() => editorText(page)).toContain("new Map()");
+    // The shortcut is an editor command: focus must be in Monaco.
+    await page.locator('[data-testid="code-editor"] .view-lines').click();
+    await page.keyboard.press(`${await modifier(page)}+Enter`);
     await expect(page.getByTestId("result-summary")).toContainText("Passed 3/3 samples", { timeout: 60_000 });
   });
 });

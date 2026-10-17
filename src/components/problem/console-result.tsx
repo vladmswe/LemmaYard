@@ -61,7 +61,8 @@ function ResultBody({ view, onRetry }: ConsoleResultProps) {
             <p>{view.message}</p>
             {view.href && (
               <p>
-                <Link href={view.href} className="inline-flex items-center gap-1">
+                {/* No prefetch: the submission page may not exist yet for a fresh id. */}
+                <Link href={view.href} prefetch={false} className="inline-flex items-center gap-1">
                   Open submission
                   <ExternalLinkIcon aria-hidden className="size-3.5" />
                 </Link>
