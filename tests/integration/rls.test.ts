@@ -5,12 +5,26 @@ import { users } from "@/server/db/schema";
 
 import { closeTestDb, createUser, getTestDb, resetTestDb } from "../helpers/db";
 
-const APP_TABLES = ["problem_tags", "problems", "submissions", "tags", "test_cases", "users"];
+const APP_TABLES = [
+  "problem_tags",
+  "problems",
+  "room_events",
+  "room_members",
+  "room_session_participants",
+  "room_session_problems",
+  "room_session_results",
+  "room_sessions",
+  "rooms",
+  "submissions",
+  "tags",
+  "test_cases",
+  "users",
+];
 
 beforeEach(resetTestDb);
 afterAll(closeTestDb);
 
-describe("row level security (migration 0002)", () => {
+describe("row level security (migrations 0002, 0003)", () => {
   it("is enabled, without FORCE, on every table of the public schema", async () => {
     const { rows } = await getTestDb().execute<{ name: string; rls: boolean; force: boolean }>(sql`
       SELECT c.relname AS name, c.relrowsecurity AS rls, c.relforcerowsecurity AS force
