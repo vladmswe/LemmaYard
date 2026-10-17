@@ -9,7 +9,11 @@ import { numRuns } from "@/lib/guide/testing/fc";
 import { DEQUE_PRESETS, dequeRingModel } from "@/lib/guide/traces/deque";
 import { QUEUE_PRESETS, queueNaiveModel, queueRingModel, type RingState } from "@/lib/guide/traces/queue";
 
+import { NaiveRenderer } from "@/components/guide/viz/queue/NaiveRenderer";
+import { RingRenderer } from "@/components/guide/viz/queue/RingRenderer";
+
 import { promptCount, promptLeaks } from "../complexity-basics/prompt-check";
+import { screenLeaks } from "../stacks/screen-check";
 
 import { dequeBoundaryArb, dequeInputArb, queueBoundaryArb, queueInputArb } from "./arbitraries";
 
@@ -31,6 +35,35 @@ describe("queues-and-deques prompts give nothing away", () => {
       expect(prompts).toBeGreaterThan(0);
     });
   }
+
+  // A ring frame on screen shows its size and, when tagged, the tail slot.
+  const ringShown = (s: RingState, ptrs: Readonly<Record<string, string | null>> | undefined) => {
+    const out = [String(s.size), `${s.size}`];
+    if (ptrs?.tail) out.push(`Slot ${(s.head + s.size) % s.buffer.capacity}`);
+    if (s.size === s.buffer.capacity) out.push("Yes", "Yes: head == tail means full");
+    return out;
+  };
+
+  it("the answer is not the size, the tagged tail slot or a header line of the frame on screen", () => {
+    for (const input of [queueRingModel.defaultInput, ...QUEUE_PRESETS.map((p) => p.value)]) {
+      expect(screenLeaks(queueRingModel.generate(input), RingRenderer, ringShown)).toEqual([]);
+      expect(screenLeaks(queueNaiveModel.generate(input), NaiveRenderer, () => [])).toEqual([]);
+    }
+    expect(screenLeaks(queueNaiveModel.generate(queueNaiveModel.defaultInput), NaiveRenderer, () => [])).toEqual([]);
+    for (const input of [dequeRingModel.defaultInput, ...DEQUE_PRESETS.map((p) => p.value)]) {
+      expect(screenLeaks(dequeRingModel.generate(input), RingRenderer, ringShown)).toEqual([]);
+    }
+    for (const arb of [queueInputArb, queueBoundaryArb]) {
+      fc.assert(fc.property(arb, (input) => void expect(screenLeaks(queueRingModel.generate(input), null, ringShown)).toEqual([])), {
+        numRuns: numRuns(200),
+      });
+    }
+    for (const arb of [dequeInputArb, dequeBoundaryArb]) {
+      fc.assert(fc.property(arb, (input) => void expect(screenLeaks(dequeRingModel.generate(input), null, ringShown)).toEqual([])), {
+        numRuns: numRuns(200),
+      });
+    }
+  });
 
   it("ring prompts stay quiet on random and threshold scripts too, and slot questions hide the tail tag", () => {
     const check = (model: VizModel<RingState, unknown>) => (input: unknown) => {

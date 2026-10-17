@@ -50,7 +50,8 @@ export function NaiveRenderer({ frame, width, hovered, onHover, mode }: Renderer
       {!thumb && (
         <>
           <text className="viz-label" x={PAD} y={PAD + 12}>
-            {`Size ${s.items.length} · front = index 0`}
+            {/* While the gap is open the next frame asks for the count: show no size. */}
+            {s.gap ? "Gap at index 0 · front = index 0" : `Size ${s.items.length} · front = index 0`}
           </text>
           <text className="viz-label" x={PAD} y={PAD + 30}>
             {s.op ? `${s.op}${out}` : s.completed ? "All ops done" : "No op yet"}

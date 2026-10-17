@@ -7,7 +7,7 @@ Thirty people in an office share one printer. Each print job has to wait its tur
 in the order they were sent: whoever pressed Print first gets the first pages.
 
 A <Term id="queue">queue</Term> is the structure for that. It hands items back in the order they arrived,
-and adding or removing one costs O(1). That rule is <Term id="fifo">FIFO</Term>: first in, first out, the
+and it does so cheaply: enqueue is O(1) amortized (the ring grows now and then) and dequeue is O(1). That rule is <Term id="fifo">FIFO</Term>: first in, first out, the
 mirror image of the stack's LIFO.
 
 Queues sit between any producer and any consumer that run at different speeds: requests waiting for a
@@ -96,8 +96,8 @@ index inside the array. Python's `%` already returns 7, and the same formula wor
 
 <Viz def={dequeRing} id="deque-ring" code="queues-and-deques/ring_deque" hint="Try: press Next, or pick 'Push at the front only'." />
 
-The first pushFront happens at head 0, and the player asks which slot it writes. Later the ring is full with
-head and tail on the same slot, and the player asks whether it is full or empty.
+The first pushFront happens at head 0, and the player asks which slot it writes. Later head and tail meet on
+the same slot, and the player asks whether those two indices alone can tell a full ring from an empty one.
 
 Deques show up where both ends matter: a browser history that drops its oldest page, a sliding window that
 adds on one side and removes on the other, or work queues where idle workers take tasks from the far end.

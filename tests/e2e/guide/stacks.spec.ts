@@ -17,7 +17,7 @@ import {
 const URL = "/learn/stacks";
 /** playerId -> 1-based step whose Next opens the first prompt; invalid input for the bar. */
 const PLAYERS = [
-  { id: "stack-ops", promptBeforeStep: 4, invalidInput: "push 1, jump" },
+  { id: "stack-ops", promptBeforeStep: 5, invalidInput: "push 1, jump" },
   { id: "brackets", promptBeforeStep: 9, invalidInput: "(é)" },
   { id: "next-greater", promptBeforeStep: 7, invalidInput: "1, 2, x" },
 ] as const;

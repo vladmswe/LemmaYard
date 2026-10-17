@@ -17,7 +17,8 @@ import {
 
 /** Quoted text for narration; spaces stay visible inside the quotes. */
 function q(s: string): string {
-  return `"${s}"`;
+  // "<A>" would read as markup in plain-text narration: keep "<" from touching a letter.
+  return `"${s.replace(/<(?=[A-Za-z/])/g, "< ")}"`;
 }
 
 function plural(n: number, word: string): string {

@@ -153,16 +153,14 @@ describe("stack.ops thresholds (golden, both sides)", () => {
 });
 
 describe("stack.ops (S3: default trace)", () => {
-  it("asks which value pop returns (2) and what is on top after push 1, push 2, pop, push 3 (3)", () => {
+  it("after push 1, push 2, pop it asks what will be on top once push 3 runs (3)", () => {
     const t = model.generate(model.defaultInput);
     const prompts = t.frames.filter((f) => f.prompt).map((f) => [f.prompt!.id, f.prompt!.question, f.prompt!.answerId]);
-    expect(prompts).toEqual([
-      ["stack-pop-which", "pop() runs now. Which value comes out?", "v2"],
-      ["stack-peek-top", "After push 1, push 2, pop, push 3, what is on top?", "v3"],
-    ]);
-    const peek = t.frames.find((f) => f.prompt?.id === "stack-peek-top")!;
-    expect(peek.line).toBe("stack.peek.read");
-    expect(peek.state.out).toBe(3);
+    expect(prompts).toEqual([["stack-push-top", "push 3 runs next. What will be on top?", "v3"]]);
+    const f = t.frames.find((x) => x.prompt)!;
+    expect(f.prompt!.choices.map((c) => c.label)).toEqual(["1", "2", "3"]);
+    expect(f.line).toBe("stack.push.write");
+    expect(f.state.slots.slice(0, f.state.size).map((it) => it!.value)).toEqual([1, 3]);
     expect(t.result).toEqual({ values: [], capacity: 4, outputs: [2, 3, 3, 1, null] });
     expect(t.frames.at(-1)!.counters).toEqual({ writes: 3, reads: 4, copies: 0 });
   });

@@ -218,13 +218,14 @@ export function generateRing(ops: readonly RingOp[], config: RingConfig): Trace<
         if (kind === "full") {
           prompt = {
             id: "ring-full",
-            question: `head and tail both point at slot ${head}. Is the ring full?`,
+            question: "head and tail point at the same slot. Can head and tail alone tell you whether the ring is full or empty?",
             choices: [
-              { id: "yes", label: "Yes" },
-              { id: "no", label: "No" },
+              { id: "full", label: "Yes: head == tail means full" },
+              { id: "empty", label: "Yes: head == tail means empty" },
+              { id: "size", label: "No: size tells them apart" },
             ],
-            answerId: "yes",
-            explain: `size is ${size}, equal to the capacity, so yes. head == tail also holds when the ring is empty; only size tells the two apart.`,
+            answerId: "size",
+            explain: `head == tail happens both when the ring is empty and when it is full. Only size tells them apart: here size = ${size} = capacity, so the ring is full and must grow.`,
           };
         }
         push({

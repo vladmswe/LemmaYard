@@ -47,8 +47,8 @@ it moves right on every push and left on every pop, and the values below it neve
 
 <Viz def={stackOps} id="stack-ops" code="stacks/array_stack" hint="Try: press Next, or pick the 'Push past capacity 4' preset." />
 
-Before the first pop and before the peek, the player asks you to predict the value. Think of the order the
-values went in, not of where they sit in the array.
+Right after the pop, before push 3 runs, the player asks what will be on top. Think about which values are
+still on the stack and where a push always lands.
 
 The last operation pops an empty stack. There is no value to return, so our code raises an error instead
 of handing back whatever an old slot still holds. In Python that is an `IndexError`; in JavaScript we throw

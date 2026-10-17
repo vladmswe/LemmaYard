@@ -31,66 +31,46 @@ const numberChoices = (values: readonly number[]): PredictChoice[] =>
   [...new Set(values)].map((v) => ({ id: `v${v < 0 ? `m${-v}` : v}`, label: String(v) }));
 
 /**
- * Predict prompts, chosen by a dry run: the first pop with two or more values
- * on the stack ("which value comes out?") and the first peek after a pop
- * ("what is on top?"). Only when the choices are distinct numbers.
+ * The predict prompt, chosen by a dry run: the first push that comes right
+ * after a successful pop, onto a non-empty stack, without a grow ("push x runs
+ * next. What will be on top?"). It is asked while the pop's frame is on
+ * screen, so the answer is not in the figure yet. Only with distinct choices.
  */
 function planPrompts(ops: readonly StackOp[]): PlannedPrompt[] {
   const sim: number[] = [];
-  const out: PlannedPrompt[] = [];
-  let askedPop = false;
-  let askedPeek = false;
+  let cap = STACK_START_CAPACITY;
   let lastPopped: number | null = null;
-  ops.forEach((op, k) => {
+  let prevWasPop = false;
+  for (const [k, op] of ops.entries()) {
     if (op.kind === "push") {
-      sim.push(op.value);
-      return;
-    }
-    const top = sim.at(-1);
-    if (op.kind === "pop") {
-      if (!askedPop && sim.length >= 2 && k > 0) {
-        const below = sim[sim.length - 2] as number;
-        if (below !== top) {
-          askedPop = true;
-          const choices = numberChoices([sim[0] as number, below, top as number].sort((a, b) => a - b));
-          out.push({
-            op: k,
-            prompt: {
-              id: "stack-pop-which",
-              question: "pop() runs now. Which value comes out?",
-              choices,
-              answerId: choices.find((c) => c.label === String(top))!.id,
-              explain: `A stack returns the most recent push first. ${top} went in last, so it sits at the top and comes out now.`,
+      const top = sim.at(-1);
+      if (prevWasPop && top !== undefined && lastPopped !== null && sim.length < cap) {
+        const vals = [top, lastPopped, op.value];
+        if (new Set(vals).size === vals.length) {
+          const choices = numberChoices([...vals].sort((a, b) => a - b));
+          return [
+            {
+              op: k,
+              prompt: {
+                id: "stack-push-top",
+                question: `${stackOpLabel(op)} runs next. What will be on top?`,
+                choices,
+                answerId: choices.find((c) => c.label === String(op.value))!.id,
+                explain: `A push always lands on top. pop already took ${lastPopped} away, so ${op.value} goes on top of ${top}; peek would read it next.`,
+              },
             },
-          });
+          ];
         }
       }
-      if (sim.length > 0) lastPopped = sim.pop() as number;
-      return;
+      if (sim.length === cap) cap *= 2;
+      sim.push(op.value);
+      prevWasPop = false;
+      continue;
     }
-    // peek
-    if (!askedPeek && lastPopped !== null && sim.length >= 2 && k > 0) {
-      const others = [sim[0] as number, lastPopped].filter((v) => v !== top);
-      if (others.length > 0 && !others.includes(top as number)) {
-        askedPeek = true;
-        const done = ops.slice(0, k).map(stackOpLabel);
-        const question =
-          done.length <= 6 ? `After ${done.join(", ")}, what is on top?` : "After these ops, what does peek() return?";
-        const choices = numberChoices([...others, top as number].sort((a, b) => a - b));
-        out.push({
-          op: k,
-          prompt: {
-            id: "stack-peek-top",
-            question,
-            choices,
-            answerId: choices.find((c) => c.label === String(top))!.id,
-            explain: `pop took ${lastPopped} away, and every later push lands on top. The newest value still on the stack is ${top}; peek reads it without removing it.`,
-          },
-        });
-      }
-    }
-  });
-  return out;
+    prevWasPop = op.kind === "pop" && sim.length > 0;
+    if (prevWasPop) lastPopped = sim.pop() as number;
+  }
+  return [];
 }
 
 export function generateStackOps(input: StackInput): Trace<StackState, StackResult> {
@@ -124,7 +104,13 @@ export function generateStackOps(input: StackInput): Trace<StackState, StackResu
     completed,
   });
   const counters = (): Counters => ({ writes, reads, copies });
-  const push = (f: Omit<Frame<StackState>, "state" | "counters">) => frames.push({ ...f, state: snap(), counters: counters() });
+  /** Narration without numbers, used instead when it would name the next frame's prompt answer. */
+  const quietText: (string | undefined)[] = [];
+  const push = (f: Omit<Frame<StackState>, "state" | "counters"> & { quiet?: string }) => {
+    const { quiet, ...rest } = f;
+    quietText[frames.length] = quiet;
+    frames.push({ ...rest, state: snap(), counters: counters() });
+  };
   const takeKey = (): { key?: true } => (keyLeft-- > 0 ? { key: true } : {});
   const topPointer = () => ({ top: size > 0 ? (slots[size - 1] as StackItem).id : null });
 
@@ -142,8 +128,6 @@ export function generateStackOps(input: StackInput): Trace<StackState, StackResu
     op = stackOpLabel(o);
     const prompt = promptAt.get(k);
     const ask = prompt ? { prompt } : {};
-    // The frame shown while the next op's prompt is open must not name values.
-    const quiet = promptAt.has(k + 1);
 
     if (o.kind === "push") {
       let asked = false;
@@ -177,9 +161,8 @@ export function generateStackOps(input: StackInput): Trace<StackState, StackResu
         pointers: topPointer(),
         line: "stack.push.write",
         phase: "Push",
-        narration: quiet
-          ? "Write the new value in the first free slot, just above the old top, and move top up by one."
-          : `Push ${o.value}: write it at index ${size - 1} and move top up to ${size - 1}. Size ${size} of ${capacity}.`,
+        narration: `Push ${o.value}: write it at index ${size - 1} and move top up to ${size - 1}. Size ${size} of ${capacity}.`,
+        quiet: "Write the new value in the first free slot, just above the old top, and move top up by one.",
         ...(asked ? {} : ask),
       });
       return;
@@ -213,9 +196,8 @@ export function generateStackOps(input: StackInput): Trace<StackState, StackResu
         pointers: topPointer(),
         line: "stack.peek.read",
         phase: "Peek",
-        narration: quiet
-          ? "Peek reads the value at index top and leaves the stack as it is."
-          : `Peek reads ${item.value} at index ${size - 1}, the top, and leaves it there.`,
+        narration: `Peek reads ${item.value} at index ${size - 1}, the top, and leaves it there.`,
+        quiet: "Peek reads the value at index top and leaves the stack as it is.",
         ...ask,
       });
       return;
@@ -228,13 +210,20 @@ export function generateStackOps(input: StackInput): Trace<StackState, StackResu
       pointers: topPointer(),
       line: "stack.pop.read",
       phase: "Pop",
-      narration: quiet
-        ? "Pop removes the value at index top and returns it; top moves down by one."
-        : `Pop returns ${item.value} from index ${size}, the top. top moves down to ${size - 1}.`,
+      narration: `Pop returns ${item.value} from index ${size}, the top. top moves down to ${size - 1}.`,
+      quiet: "Pop removes the value at index top and returns it; top moves down by one.",
       ...ask,
     });
   });
 
+  frames.forEach((f, i) => {
+    const p = f.prompt;
+    const prev = frames[i - 1];
+    const quiet = quietText[i - 1];
+    if (!p || !prev || quiet === undefined) return;
+    const answer = p.choices.find((c) => c.id === p.answerId)?.label ?? "";
+    if (new RegExp(`(?<![\\d.])${answer}(?![\\d.])`).test(prev.narration)) frames[i - 1] = { ...prev, narration: quiet };
+  });
   popped = null;
   op = null;
   const values = slots.slice(0, size).map((s) => (s as StackItem).value);

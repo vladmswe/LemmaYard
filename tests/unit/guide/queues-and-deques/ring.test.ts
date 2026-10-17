@@ -221,8 +221,8 @@ describe("queue.ring (S3: default trace)", () => {
     const t = model.generate(QUEUE_PRESETS.find((p) => p.id === "grow-wrapped")!.value);
     expect(t.frames.filter((x) => x.prompt).map((x) => x.prompt!.id)).toEqual(["ring-wrap-slot", "ring-full"]);
     const f = t.frames.find((x) => x.prompt?.id === "ring-full")!;
-    expect(f.prompt!.question).toBe("head and tail both point at slot 3. Is the ring full?");
-    expect(f.prompt!.answerId).toBe("yes");
+    expect(f.prompt!.question).toBe("head and tail point at the same slot. Can head and tail alone tell you whether the ring is full or empty?");
+    expect(f.prompt!.answerId).toBe("size");
     expect(f.line).toBe("queue.enqueue.full");
   });
 });

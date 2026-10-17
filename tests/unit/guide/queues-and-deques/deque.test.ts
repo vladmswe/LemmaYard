@@ -137,7 +137,7 @@ describe("deque.ring (S3: default trace)", () => {
     const prompts = t.frames.filter((f) => f.prompt);
     expect(prompts.map((f) => [f.prompt!.id, f.prompt!.answerId])).toEqual([
       ["ring-front-wrap", "slot7"],
-      ["ring-full", "yes"],
+      ["ring-full", "size"],
     ]);
     expect(prompts[0]!.prompt!.choices.map((c) => c.label)).toEqual(["Slot -1", "Slot 1", "Slot 7"]);
     expect(prompts[1]!.state).toMatchObject({ head: 3, size: 8 });
