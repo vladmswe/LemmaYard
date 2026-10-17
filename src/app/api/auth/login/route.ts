@@ -3,9 +3,10 @@ import { NextResponse } from "next/server";
 import { loginSchema } from "@/lib/auth/schemas";
 import { setSessionCookie } from "@/server/auth/cookie";
 import { verifyDummyPassword, verifyPassword } from "@/server/auth/password";
+import { authLimitKeys, checkLoginLimit, recordLoginFailure } from "@/server/auth/rate-limit";
 import { signSessionToken } from "@/server/auth/token";
 import { findUserByEmail } from "@/server/auth/users";
-import { assertSameOrigin, jsonError, readJsonBody } from "@/server/http/request";
+import { assertSameOrigin, internalServerError, jsonError, readJsonBody } from "@/server/http/request";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +21,23 @@ export async function POST(request: Request) {
   if ("response" in body) return body.response;
   const { email, password } = body.data;
 
-  const user = await findUserByEmail(email);
+  // Before the lookup and argon2: a blocked client costs no hashing, and the
+  // 429 is the same whether or not the email exists.
+  const limitKeys = authLimitKeys(request, email);
+  const limited = checkLoginLimit(limitKeys);
+  if (limited) return limited;
+
+  // A DB failure is logged without its SQL params (the email).
+  const user = await findUserByEmail(email).catch((error: unknown) => ({ failed: error }) as const);
+  if (user && "failed" in user) return internalServerError("auth.login_failed", user.failed);
   if (!user) {
     // Same argon2 cost as a wrong password, so timing does not reveal emails.
     await verifyDummyPassword(password);
+    recordLoginFailure(limitKeys);
     return jsonError(401, INVALID_CREDENTIALS);
   }
   if (!(await verifyPassword(user.passwordHash, password))) {
+    recordLoginFailure(limitKeys);
     return jsonError(401, INVALID_CREDENTIALS);
   }
 

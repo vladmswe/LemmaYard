@@ -71,7 +71,7 @@ the `AUTH_URL` note):
 | Name | Required | Example shape | Notes |
 | --- | --- | --- | --- |
 | `DATABASE_URL` | yes | `postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:6543/postgres` | Transaction pooler, port 6543. |
-| `AUTH_SECRET` | yes | 44 random base64 characters | At least 32 characters, or every request that reads the session fails. |
+| `AUTH_SECRET` | yes | 44 random base64 characters | At least 32 characters, or every request that reads the session fails. The `.env.example` placeholder, values containing "change-me" and values with fewer than 12 distinct characters are rejected in production. |
 | `AUTH_URL` | yes | `https://lemma-yard.vercel.app` | Must equal the origin the browser shows (scheme + host, no path). A trailing slash is fine. If it differs (e.g. you open the site on a custom domain or a preview URL), every POST (register, login, logout) answers **403**. |
 | `DATABASE_SSL` | no | `no-verify` | `disable`, `require` or `no-verify`; see section 4. |
 | `DATABASE_SSL_CA` | no | `-----BEGIN CERTIFICATE-----\n...` | PEM CA for verified TLS; see section 4. |
@@ -79,7 +79,8 @@ the `AUTH_URL` note):
 | `JUDGE_ENABLED` | no | `1` | Code execution (Run, Submit, room session start). Unset: **off on Vercel**, on everywhere else. Leave it unset on Vercel while no worker is deployed (section 7); set `1` only once a judge serves this database, `0` to switch it off anywhere. Only `0` and `1` are accepted. |
 
 Do **not** set `DATABASE_URL_DIRECT` on Vercel; the web app never uses it.
-Do not set `NODE_ENV` or `PORT` either; Vercel manages them.
+Do not set `NODE_ENV` or `PORT` either; Vercel manages them. Do not set
+`AUTH_RATE_LIMITS` (login/register limits; `0` is rejected on Vercel).
 
 Changing an environment variable does not affect running deployments:
 **redeploy** afterwards (Deployments → ⋯ on the latest → Redeploy). The build
@@ -193,6 +194,16 @@ notices for these tables are expected and intended (deny by default). The
    removed from these lines. Other pages that fail show "Something went wrong"
    with an **Error ID**; search the logs for that ID to find the stack trace.
 4. Register an account and log in to check `AUTH_URL` and `AUTH_SECRET`.
+5. Security headers: `curl -sI https://<production domain>/ | grep -iE
+   'content-security|x-frame|x-content-type|referrer|permissions|cross-origin'`
+   shows the CSP and the other headers of README "Security". The CSP allows
+   only same-origin scripts, styles, fonts, images, connections and workers,
+   and `frame-ancestors 'none'` forbids embedding the site in an iframe. Adding
+   an external service (analytics, error tracking, a CDN for images) needs its
+   origin in `src/server/http/security-headers.ts`, or the browser blocks it.
+   Login/register limits are counted per function instance (README
+   "Security"); for stronger protection, add a Vercel Firewall rate-limit rule
+   for `/api/auth/*`.
 
 ## 7. What does not work yet in production
 
@@ -212,6 +223,8 @@ Functions), or alternatively a small VPS running only the worker.
 | --- | --- | --- |
 | 500 on `/` (before this release) or `/api/health` = `down` | `DATABASE_URL` missing (not set for Production, or added without a redeploy), invalid (unencoded password characters), wrong host (direct `db.<ref>.supabase.co` is IPv6-only: `ENOTFOUND`/`ENETUNREACH`), wrong password, or TLS (below) | Read the `landing.db_unavailable` / `health.db_down` log line; fix the variable; redeploy. |
 | Logs: `Invalid environment variables: ...` | A required variable is missing or malformed (`DATABASE_URL`, `AUTH_SECRET` < 32 chars, `DATABASE_SSL` not one of the three values) | Fix it in Vercel; redeploy. |
+| Logs: `AUTH_SECRET: is the .env.example placeholder` (or `contains "change-me"`, `has fewer than 12 distinct characters`) | The production `AUTH_SECRET` is a placeholder or too weak | Generate one with `openssl rand -base64 32`; set it in Vercel; redeploy. |
+| 429 "Too many sign-in attempts" | 10 failed logins per address + email (or 30 per address) in 15 min | Wait for the time in the message (`Retry-After`). |
 | 403 on register / login / logout | `AUTH_URL` is not the origin the browser uses (http vs https, `www`, custom domain, preview URL) | Set `AUTH_URL=https://<exact domain>`; redeploy. |
 | `self-signed certificate in certificate chain` | Certificate verification on (`DATABASE_SSL=require` or `sslmode=verify-full`) without Supabase's CA | Add `DATABASE_SSL_CA`, or use `DATABASE_SSL=no-verify` / leave it unset. |
 | `The server does not support SSL connections` | TLS on against a server without TLS (local Postgres with `sslmode=require` in the URL) | `DATABASE_SSL=disable` or remove `sslmode` from the URL. |

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { z } from "zod";
 
 import { getEnv } from "@/server/env";
+import { logError } from "@/server/log";
 
 export function jsonError(
   status: number,
@@ -12,6 +13,16 @@ export function jsonError(
     status,
     headers: { "Cache-Control": "no-store" },
   });
+}
+
+/**
+ * 500 for an unexpected failure (e.g. the database). Logged with logError,
+ * which keeps only the driver's message: an unhandled Drizzle error would be
+ * printed by Next.js with its SQL params, i.e. user code or an email.
+ */
+export function internalServerError(event: string, error: unknown): NextResponse {
+  logError(event, error);
+  return jsonError(500, "Something went wrong. Try again.");
 }
 
 /**

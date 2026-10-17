@@ -303,3 +303,98 @@ light/dark/system toggle. Browser checks of the landing, auth and 404 pages
 All variables are listed in `.env.example` and validated with Zod in
 `src/server/env.ts` (`getEnv()`); invalid or missing values fail with a list of
 the offending variables.
+
+## Security
+
+**Response headers** (`src/server/http/security-headers.ts`, applied to every
+route by `headers()` in `next.config.ts`; tests
+`tests/unit/security-headers.test.ts` and `tests/e2e/security/csp.spec.ts`):
+
+| Header | Value |
+| --- | --- |
+| `Content-Security-Policy` (enforced) | `default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; worker-src 'self' blob:` (`next dev` adds `'unsafe-eval'` to `script-src`) |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin`; `no-referrer` on `/rooms/join` (invite token) |
+| `Permissions-Policy` | camera, microphone, geolocation, payment, USB, serial, HID, MIDI, sensors, display capture, WebAuthn get and Topics disabled. Notifications (rooms), clipboard and autoplay stay allowed. |
+| `Cross-Origin-Opener-Policy` | `same-origin` |
+
+`script-src 'unsafe-inline'` is needed because the App Router streams inline
+bootstrap scripts into every page and the app has no nonces yet. Everything
+else is same-origin: fonts are self-hosted by `next/font`, Monaco and its
+editor worker are bundled. Zod runs `jitless` in the browser
+(`src/instrumentation-client.ts`), otherwise its `Function("")` probe is
+reported as a CSP violation. `tests/e2e/security/csp.spec.ts` walks landing,
+login/register, 404, catalog, the problem page (typing in Monaco, editor
+worker), submissions, profile, guide index and a lesson with a player, rooms
+list/room/lobby/live/results, and fails on any `securitypolicyviolation`
+event or CSP console error. HSTS is added by Vercel on its domains.
+
+**Login and registration limits** (`src/server/auth/rate-limit.ts`), checked
+after body validation and before the DB lookup and argon2:
+
+| Route | Limit | Counts |
+| --- | --- | --- |
+| `POST /api/auth/login` | 10 per 15 min per client address + email; 30 per 15 min per address | failed logins only (unknown email and wrong password alike) |
+| `POST /api/auth/register` | 3 per hour per address + email; 5 per hour per address | every valid attempt, a 409 included |
+
+Over the limit: `429` with `Retry-After` (seconds) and a generic message, the
+same for existing and unknown emails. The address is the first
+`X-Forwarded-For` hop (on Vercel set by the platform), else `X-Real-IP`, else
+one shared bucket. **Limitation:** the counters are in memory per server
+instance (like the rooms join/rotate limits), so several Vercel instances
+multiply the limits and a cold start resets them; outside Vercel a client can
+spoof `X-Forwarded-For`. At most 2 argon2 computations run at once per
+process (a semaphore in `src/server/auth/password.ts`), so a flood queues
+instead of exhausting CPU, memory and libuv's thread pool.
+`AUTH_RATE_LIMITS=0` turns the limits off for local Playwright runs (many
+registrations from one address); it is rejected on Vercel.
+
+**Accounts and sessions.** argon2id with 19 MiB memory, 2 iterations, 1 lane
+(OWASP); passwords 8–128 characters; a login for an unknown email verifies a
+dummy hash so timing does not reveal registered emails. Session: HS256 JWT in
+the `lemmayard_session` cookie, `HttpOnly`, `SameSite=Lax`, `Secure` in
+production, 7 days, user re-read on every request. Mutating routes check
+`Content-Type: application/json` and `Origin` against `AUTH_URL`.
+`AUTH_SECRET` must be at least 32 characters; in production (on Vercel, or
+`NODE_ENV=production` with a non-localhost `AUTH_URL`) the `.env.example`
+placeholder, anything containing "change-me" and values with fewer than 12
+distinct characters are rejected (the error names the variable, never the
+value).
+
+**Database.** Row level security is enabled without policies on every table
+(migrations `0002_enable_rls`, `0003_rooms`), so Supabase's REST roles see
+nothing; the app connects as the table owner. SQL only through Drizzle.
+
+**Logs.** User code, program output and passwords are never logged
+(AC-M7-4): `tests/integration/no-secrets-in-logs.test.ts` runs the auth and
+run/submit handlers and the worker with a marker in the password and code and
+checks every console/stdout/stderr line; `tests/unit/no-sensitive-logging.test.ts`
+checks the arguments of every logging call. Database failures in those
+handlers are logged with the driver's message only (Drizzle's own message
+contains the SQL parameters) and answered with 500.
+
+**Accepted properties.** Sandbox: see "Rooms" above (user code can read the
+inputs of hidden tests; the frame nonce only stops naive forging). Register
+answers 409 "already registered", which reveals that an email has an account
+(rate-limited, see above).
+
+**Dependency audit** (2026-10-18, `pnpm audit --prod` and `pnpm audit`):
+`shadcn` moved to `devDependencies` (only the build reads its CSS), which
+removes the high `braces` finding from the production tree. Remaining
+findings, accepted:
+
+| Package | Severity | Path | Why accepted |
+| --- | --- | --- | --- |
+| `dompurify` 3.4.15 (2 advisories, fixed in 3.4.16) | low | `monaco-editor` | prod tree. Monaco ships its own copy inside its ESM build (`esm/vs/base/browser/dompurify/`), so a `pnpm.overrides` entry would change only the unused npm package, not the bundled code; Monaco sanitizes only its own hover/markdown content (no user HTML) and does not use `IN_PLACE`. Re-check on the next Monaco release. |
+| `braces` ≤ 3.0.3 (no patched release) | high | `shadcn` CLI, `eslint-config-next` (dev only) | build/lint tools, never in the deployed functions and never fed untrusted patterns; no fixed version exists to override to. |
+| `esbuild` < 0.25 | moderate | `drizzle-kit` (dev only) | concerns esbuild's dev server, which is never started; `drizzle-kit` runs only from the developer machine. |
+
+**Reporting a vulnerability.** Contact: _to be added before publishing_
+(until then, contact the repository owner privately; do not open a public
+issue).
+
+**Not covered yet:** DB-backed (cross-instance) rate limits (need a
+migration), a nonce-based CSP without `'unsafe-inline'`, MFA, email
+verification and password reset, account lockout notifications, CSP violation
+reporting (`report-to`).
