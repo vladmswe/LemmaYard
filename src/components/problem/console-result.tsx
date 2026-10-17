@@ -130,7 +130,7 @@ function ResultHeader({ status, summary }: { status: Parameters<typeof VerdictLa
   );
 }
 
-function Value({ label, value, wrong = false, testId }: { label: string; value?: ValueView; wrong?: boolean; testId?: string }) {
+export function Value({ label, value, wrong = false, testId }: { label: string; value?: ValueView; wrong?: boolean; testId?: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <span className="text-xs font-semibold text-muted-foreground">{label}</span>
@@ -149,7 +149,7 @@ function TruncatedHint() {
   return <span className="text-xs text-muted-foreground">… (truncated)</span>;
 }
 
-function InputBlock({ input }: { input: InputView }) {
+export function InputBlock({ input }: { input: InputView }) {
   if (input.kind === "raw") {
     return (
       <div className="flex flex-col gap-1">
@@ -173,7 +173,7 @@ function InputBlock({ input }: { input: InputView }) {
   );
 }
 
-function TextBlock({ label, text, tone }: { label: string; text: string; tone?: "runtime" | "compile" }) {
+export function TextBlock({ label, text, tone }: { label: string; text: string; tone?: "runtime" | "compile" }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-xs font-semibold text-muted-foreground">{label}</span>
