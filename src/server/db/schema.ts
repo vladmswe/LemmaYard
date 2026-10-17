@@ -353,13 +353,14 @@ export const roomSessions = pgTable(
       sql`${t.endReason} IS NULL OR ${t.endReason} IN ('time', 'host', 'cancelled', 'stale')`,
     ),
     // Status, timestamps and end reason must agree (stricter than the spec
-    // sketch: ends_at and end_reason are pinned per state too).
+    // sketch: ends_at and end_reason are pinned per state too). The explicit
+    // IS NOT NULL keeps a NULL end_reason from making the CHECK unknown (= pass).
     check(
       "room_sessions_state",
       sql`(${t.status} = 'lobby' AND ${t.startedAt} IS NULL AND ${t.endsAt} IS NULL AND ${t.endedAt} IS NULL AND ${t.endReason} IS NULL)
         OR (${t.status} = 'live' AND ${t.startedAt} IS NOT NULL AND ${t.endsAt} IS NOT NULL AND ${t.endedAt} IS NULL AND ${t.endReason} IS NULL)
-        OR (${t.status} = 'finished' AND ${t.startedAt} IS NOT NULL AND ${t.endsAt} IS NOT NULL AND ${t.endedAt} IS NOT NULL AND ${t.endReason} IN ('time', 'host'))
-        OR (${t.status} = 'cancelled' AND ${t.startedAt} IS NULL AND ${t.endsAt} IS NULL AND ${t.endedAt} IS NOT NULL AND ${t.endReason} IN ('cancelled', 'stale'))`,
+        OR (${t.status} = 'finished' AND ${t.startedAt} IS NOT NULL AND ${t.endsAt} IS NOT NULL AND ${t.endedAt} IS NOT NULL AND ${t.endReason} IS NOT NULL AND ${t.endReason} IN ('time', 'host'))
+        OR (${t.status} = 'cancelled' AND ${t.startedAt} IS NULL AND ${t.endsAt} IS NULL AND ${t.endedAt} IS NOT NULL AND ${t.endReason} IS NOT NULL AND ${t.endReason} IN ('cancelled', 'stale'))`,
     ),
     check(
       "room_sessions_ends",
@@ -504,7 +505,7 @@ export const roomEvents = pgTable(
     // Without a numeric position the one-solve index could not deduplicate.
     check(
       "room_events_solve_position",
-      sql`${t.type} <> 'problem_solved' OR jsonb_typeof(${t.payload} -> 'position') = 'number'`,
+      sql`${t.type} <> 'problem_solved' OR coalesce(jsonb_typeof(${t.payload} -> 'position'), '') = 'number'`,
     ),
   ],
 ).enableRLS();

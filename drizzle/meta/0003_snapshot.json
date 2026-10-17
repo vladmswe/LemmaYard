@@ -1,5 +1,5 @@
 {
-  "id": "dc99a49b-8591-4d1c-9410-8ea9a5e43a4f",
+  "id": "528438cb-5c18-4381-9bf2-7f556747675b",
   "prevId": "819d4ec8-5484-4273-921e-f9e0212b4282",
   "version": "7",
   "dialect": "postgresql",
@@ -379,7 +379,7 @@
         },
         "room_events_solve_position": {
           "name": "room_events_solve_position",
-          "value": "\"room_events\".\"type\" <> 'problem_solved' OR jsonb_typeof(\"room_events\".\"payload\" -> 'position') = 'number'"
+          "value": "\"room_events\".\"type\" <> 'problem_solved' OR coalesce(jsonb_typeof(\"room_events\".\"payload\" -> 'position'), '') = 'number'"
         }
       },
       "isRLSEnabled": true
@@ -1098,7 +1098,7 @@
         },
         "room_sessions_state": {
           "name": "room_sessions_state",
-          "value": "(\"room_sessions\".\"status\" = 'lobby' AND \"room_sessions\".\"started_at\" IS NULL AND \"room_sessions\".\"ends_at\" IS NULL AND \"room_sessions\".\"ended_at\" IS NULL AND \"room_sessions\".\"end_reason\" IS NULL)\n        OR (\"room_sessions\".\"status\" = 'live' AND \"room_sessions\".\"started_at\" IS NOT NULL AND \"room_sessions\".\"ends_at\" IS NOT NULL AND \"room_sessions\".\"ended_at\" IS NULL AND \"room_sessions\".\"end_reason\" IS NULL)\n        OR (\"room_sessions\".\"status\" = 'finished' AND \"room_sessions\".\"started_at\" IS NOT NULL AND \"room_sessions\".\"ends_at\" IS NOT NULL AND \"room_sessions\".\"ended_at\" IS NOT NULL AND \"room_sessions\".\"end_reason\" IN ('time', 'host'))\n        OR (\"room_sessions\".\"status\" = 'cancelled' AND \"room_sessions\".\"started_at\" IS NULL AND \"room_sessions\".\"ends_at\" IS NULL AND \"room_sessions\".\"ended_at\" IS NOT NULL AND \"room_sessions\".\"end_reason\" IN ('cancelled', 'stale'))"
+          "value": "(\"room_sessions\".\"status\" = 'lobby' AND \"room_sessions\".\"started_at\" IS NULL AND \"room_sessions\".\"ends_at\" IS NULL AND \"room_sessions\".\"ended_at\" IS NULL AND \"room_sessions\".\"end_reason\" IS NULL)\n        OR (\"room_sessions\".\"status\" = 'live' AND \"room_sessions\".\"started_at\" IS NOT NULL AND \"room_sessions\".\"ends_at\" IS NOT NULL AND \"room_sessions\".\"ended_at\" IS NULL AND \"room_sessions\".\"end_reason\" IS NULL)\n        OR (\"room_sessions\".\"status\" = 'finished' AND \"room_sessions\".\"started_at\" IS NOT NULL AND \"room_sessions\".\"ends_at\" IS NOT NULL AND \"room_sessions\".\"ended_at\" IS NOT NULL AND \"room_sessions\".\"end_reason\" IS NOT NULL AND \"room_sessions\".\"end_reason\" IN ('time', 'host'))\n        OR (\"room_sessions\".\"status\" = 'cancelled' AND \"room_sessions\".\"started_at\" IS NULL AND \"room_sessions\".\"ends_at\" IS NULL AND \"room_sessions\".\"ended_at\" IS NOT NULL AND \"room_sessions\".\"end_reason\" IS NOT NULL AND \"room_sessions\".\"end_reason\" IN ('cancelled', 'stale'))"
         },
         "room_sessions_ends": {
           "name": "room_sessions_ends",

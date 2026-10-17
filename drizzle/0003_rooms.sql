@@ -9,7 +9,7 @@ CREATE TABLE "room_events" (
 	"payload" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
 	CONSTRAINT "room_events_payload_size" CHECK (octet_length("room_events"."payload"::text) <= 2048),
-	CONSTRAINT "room_events_solve_position" CHECK ("room_events"."type" <> 'problem_solved' OR jsonb_typeof("room_events"."payload" -> 'position') = 'number')
+	CONSTRAINT "room_events_solve_position" CHECK ("room_events"."type" <> 'problem_solved' OR coalesce(jsonb_typeof("room_events"."payload" -> 'position'), '') = 'number')
 );
 --> statement-breakpoint
 ALTER TABLE "room_events" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -88,8 +88,8 @@ CREATE TABLE "room_sessions" (
 	CONSTRAINT "room_sessions_end_reason" CHECK ("room_sessions"."end_reason" IS NULL OR "room_sessions"."end_reason" IN ('time', 'host', 'cancelled', 'stale')),
 	CONSTRAINT "room_sessions_state" CHECK (("room_sessions"."status" = 'lobby' AND "room_sessions"."started_at" IS NULL AND "room_sessions"."ends_at" IS NULL AND "room_sessions"."ended_at" IS NULL AND "room_sessions"."end_reason" IS NULL)
         OR ("room_sessions"."status" = 'live' AND "room_sessions"."started_at" IS NOT NULL AND "room_sessions"."ends_at" IS NOT NULL AND "room_sessions"."ended_at" IS NULL AND "room_sessions"."end_reason" IS NULL)
-        OR ("room_sessions"."status" = 'finished' AND "room_sessions"."started_at" IS NOT NULL AND "room_sessions"."ends_at" IS NOT NULL AND "room_sessions"."ended_at" IS NOT NULL AND "room_sessions"."end_reason" IN ('time', 'host'))
-        OR ("room_sessions"."status" = 'cancelled' AND "room_sessions"."started_at" IS NULL AND "room_sessions"."ends_at" IS NULL AND "room_sessions"."ended_at" IS NOT NULL AND "room_sessions"."end_reason" IN ('cancelled', 'stale'))),
+        OR ("room_sessions"."status" = 'finished' AND "room_sessions"."started_at" IS NOT NULL AND "room_sessions"."ends_at" IS NOT NULL AND "room_sessions"."ended_at" IS NOT NULL AND "room_sessions"."end_reason" IS NOT NULL AND "room_sessions"."end_reason" IN ('time', 'host'))
+        OR ("room_sessions"."status" = 'cancelled' AND "room_sessions"."started_at" IS NULL AND "room_sessions"."ends_at" IS NULL AND "room_sessions"."ended_at" IS NOT NULL AND "room_sessions"."end_reason" IS NOT NULL AND "room_sessions"."end_reason" IN ('cancelled', 'stale'))),
 	CONSTRAINT "room_sessions_ends" CHECK ("room_sessions"."ends_at" IS NULL OR "room_sessions"."ends_at" = "room_sessions"."started_at" + make_interval(mins => "room_sessions"."duration_min"::int))
 );
 --> statement-breakpoint
