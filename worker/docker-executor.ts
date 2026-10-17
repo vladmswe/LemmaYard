@@ -140,9 +140,14 @@ function docker(bin: string, args: string[], timeoutMs = DOCKER_CMD_TIMEOUT_MS):
 
 /**
  * Worker start-up: removes orphaned sandbox containers (label
- * `leetcopy.sandbox=1`) and checks that both images exist.
+ * `leetcopy.sandbox=1`) and checks that both images exist. Other users of the
+ * executor (`problems:verify`) pass `removeOrphans: false` so that they never
+ * remove the containers of a running worker.
  */
-export async function prepareSandbox(config: DockerExecutorConfig): Promise<{ removed: number }> {
+export async function prepareSandbox(
+  config: DockerExecutorConfig,
+  options: { removeOrphans?: boolean } = {},
+): Promise<{ removed: number }> {
   const bin = config.dockerBin ?? "docker";
   let ids: string[];
   try {
@@ -153,6 +158,7 @@ export async function prepareSandbox(config: DockerExecutorConfig): Promise<{ re
       `Docker is not available (${error instanceof Error ? error.message : String(error)}). Start Docker and retry.`,
     );
   }
+  if (options.removeOrphans === false) ids = [];
   if (ids.length > 0) await docker(bin, ["rm", "-f", ...ids]);
   for (const image of [config.imagePython, config.imageNode]) {
     try {

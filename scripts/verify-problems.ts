@@ -125,7 +125,8 @@ async function main(): Promise<number> {
   }
 
   const config = dockerConfigFromEnv(getEnv());
-  await prepareSandbox(config);
+  // Images only: never remove containers of a worker that may be running.
+  await prepareSandbox(config, { removeOrphans: false });
   const executor = createDockerExecutor(config);
 
   console.log(`Verifying ${problems.length} problem(s) × 2 languages from ${values.dir} (concurrency ${concurrency})\n`);

@@ -2,6 +2,8 @@
 // submission at a time; a sweep runs at start and every `sweepIntervalMs`.
 // A failure while processing one job finalizes it as `internal_error` and the
 // loop keeps going (PLAN.md section 9).
+import { DrizzleQueryError } from "drizzle-orm/errors";
+
 import type { Db } from "@/server/db";
 
 import {
@@ -32,10 +34,10 @@ export const jsonLogger: Logger = (entry) => {
  */
 export function safeErrorMessage(error: unknown): string {
   if (!(error instanceof Error)) return String(error).slice(0, 300);
-  const message =
-    error.message.startsWith("Failed query") && error.cause instanceof Error
-      ? error.cause.message
-      : error.message;
+  let message = error.message;
+  if (error instanceof DrizzleQueryError || message.startsWith("Failed query")) {
+    message = error.cause instanceof Error ? `database: ${error.cause.message}` : "database query failed";
+  }
   return message.split("\n")[0].slice(0, 300);
 }
 
