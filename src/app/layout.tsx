@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 
-import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,7 +22,7 @@ export const viewport: Viewport = {
 };
 
 // Page chrome lives in the route-group layouts: `(site)` = header + footer,
-// `(workspace)` = header only, full height (problem page).
+// `(workspace)` = compact header only, full height (problem page, M3).
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -39,8 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           disableTransitionOnChange
         >
           <TooltipProvider delay={400}>
-            <SiteHeader />
-            <main className="flex flex-1 flex-col">{children}</main>
+            {children}
             <Toaster />
           </TooltipProvider>
         </ThemeProvider>
