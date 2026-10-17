@@ -49,8 +49,12 @@ Each problem is a directory `problems/<slug>/` with `meta.json`,
 section 5; Zod schemas in `src/lib/problems/schema.ts`). `pnpm problems:import`
 validates every problem first and writes nothing if any of them is invalid; then
 it upserts by slug in one transaction (tags created, test cases replaced,
-`published=true`). `--prune` unpublishes problems whose directory is gone.
-`--dir` imports another directory, e.g. `tests/fixtures/problems`.
+`published=true`). `--prune` unpublishes published problems that are not in
+the imported directory; pruned problems keep their row and their `number`, so
+that number stays taken. `--dir` imports another directory; never combine
+`--dir <other>` with `--prune` against the dev database (`DATABASE_URL`): it
+would unpublish the whole `problems/` catalog. Fixtures belong in the test
+database (integration tests import them there).
 
 ### Integration tests
 

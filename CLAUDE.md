@@ -14,8 +14,12 @@ pnpm db:seed                  # migrate + import problems/
 pnpm dev                      # PORT from .env (default 3000)
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
 pnpm test:integration         # needs Postgres; own DB leetcopy_test_<worktree>
-pnpm problems:import --dir tests/fixtures/problems [--prune]
+pnpm problems:import [--prune]  # problems/ only; see note below
 ```
+
+`--prune` unpublishes every published problem not in `--dir` (pruned problems
+keep their `number`). Never run it with `--dir` pointing anywhere but
+`problems/` against the dev DB: it would unpublish the catalog.
 
 Scripts for later milestones are stubs that exit non-zero with
 `not implemented yet (Mx)`; replace the stub when you implement it.
