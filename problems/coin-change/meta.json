@@ -1,0 +1,30 @@
+{
+  "number": 14,
+  "slug": "coin-change",
+  "title": "Coin Change",
+  "difficulty": "medium",
+  "tags": [
+    "dynamic-programming"
+  ],
+  "signature": {
+    "name": "coinChange",
+    "params": [
+      {
+        "name": "coins",
+        "type": "int[]"
+      },
+      {
+        "name": "amount",
+        "type": "int"
+      }
+    ],
+    "returns": "int"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}
