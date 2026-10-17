@@ -7,7 +7,7 @@ import { AuthForm } from "@/components/auth-form";
 import { DEFAULT_REDIRECT, safeRedirectPath } from "@/lib/safe-redirect";
 import { getCurrentUser } from "@/server/auth/session";
 
-export const metadata: Metadata = { title: "Log in · leetcopy" };
+export const metadata: Metadata = { title: "Log in · LemmaYard" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next: rawNext } = await searchParams;

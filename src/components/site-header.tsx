@@ -33,7 +33,7 @@ export async function SiteHeader({ compact = false }: { compact?: boolean }) {
       >
         <Link
           href="/"
-          aria-label="leetcopy home"
+          aria-label="LemmaYard home"
           className="flex shrink-0 items-center rounded-md text-header-foreground"
         >
           <Logo />

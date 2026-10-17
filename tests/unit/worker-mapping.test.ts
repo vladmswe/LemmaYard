@@ -126,9 +126,9 @@ describe("sandbox stdin payload", () => {
 
 describe("worker container labels", () => {
   it("adds extra labels after the sandbox label, before the image", () => {
-    const args = buildCreateArgs("img:tag", 256, sandboxCommand("python", 256), ["leetcopy.worker=w1"]);
+    const args = buildCreateArgs("img:tag", 256, sandboxCommand("python", 256), ["lemmayard.worker=w1"]);
     const joined = args.join(" ");
-    expect(joined).toContain("--label leetcopy.sandbox=1 --label leetcopy.worker=w1");
-    expect(args.indexOf("img:tag")).toBeGreaterThan(args.indexOf("leetcopy.worker=w1"));
+    expect(joined).toContain("--label lemmayard.sandbox=1 --label lemmayard.worker=w1");
+    expect(args.indexOf("img:tag")).toBeGreaterThan(args.indexOf("lemmayard.worker=w1"));
   });
 });

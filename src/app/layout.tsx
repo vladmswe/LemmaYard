@@ -8,8 +8,9 @@ import { fontMono, fontSans, fontSerif } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "leetcopy",
-  description: "Practice coding problems with an in-browser editor and judge.",
+  title: "LemmaYard",
+  description:
+    "LemmaYard is a practice platform for algorithms and data structures: problems, an in-browser editor, a sandboxed judge in Python and JavaScript, and guided learning.",
 };
 
 export const viewport: Viewport = {

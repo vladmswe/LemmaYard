@@ -1,4 +1,4 @@
-# leetcopy design system: "Collegiate modern"
+# LemmaYard design system: "Collegiate modern"
 
 The UI source of truth. Owner brief: university / Coursera feel, calm and trustworthy, blue core palette, light theme primary, blue-based dark theme, English UI. Every page and component follows this file; if code and this file disagree, fix one of them in the same change.
 
@@ -460,7 +460,7 @@ Do not wrap elements that update often (console output, polling results) in `Rev
 - lucide-react only. Sizes: 16px inline with text (`size-4`), 20px for status in tables and the header (`size-5`), 14px inside badges (`size-3.5`), 22px for the verdict heading. Stroke 2 (default); 1.75 at 20px+ is allowed. Icons inherit `currentColor`.
 - Icon-only buttons need `aria-label` and a Tooltip. Decorative icons get `aria-hidden`.
 - No emoji anywhere in the UI. No icon-in-colored-circle feature grids.
-- Brand mark: a 28×28 rounded square (`rx 6`) in `#2457C5`, white `< >` chevrons, a 1.8px old-gold dot in the center, and the wordmark "leetcopy" in Source Serif 4 600. Inline SVG: `src/components/brand/logo.tsx` (`Logo`, `LogoMark`).
+- Brand mark: a 28×28 rounded square (`rx 6`) in `#2457C5`, white `< >` chevrons, a 1.8px old-gold dot in the center, and the wordmark "LemmaYard" in Source Serif 4 600. Inline SVG: `src/components/brand/logo.tsx` (`Logo`, `LogoMark`).
 - Landing imagery uses CSS/SVG only. (1) A "graph paper" grid (32px, `--border` lines) masked to fade in from the right side of the hero. (2) Stacked paper "sheets", real mini components (problem card, code card, verdict card) layered with `--shadow-lg`. (3) Serif numerals (`01 02 03`) and numbered step dots joined by a 2px rule. No stock photos, no blobs, no gradients other than the masthead rule.
 
 ---
@@ -562,7 +562,7 @@ Row `flex justify-between items-center`: left "Showing 21–40 of 45" (`text-sm 
 Trigger as above. Content (align end, `w-56`): header block `px-2 py-2` with username `font-semibold` and "View profile" muted; separator; items `User` Profile → `/u/[username]`, `History` Submissions → `/submissions`; separator; `LogOut` Log out (shows `LoaderCircle` while pending). Keyboard: Base UI defaults.
 
 ### 8.20 Footer (`components/site-footer.tsx`, add)
-`bg-surface-sunken border-t py-14`. Grid `md:grid-cols-[2fr_1fr_1fr]` (mobile: 2 cols): brand + one-line description; Practice (Problems, Submissions for users); Account (Log in, Sign up or Profile). A Project column (About, Source) is added once the project has a public URL; no placeholder links. Bottom row `mt-10 pt-5 border-t text-sm text-muted-foreground`: "© 2026 leetcopy. Problem statements are original." Show it on all pages **except** the problem page (full-height workspace).
+`bg-surface-sunken border-t py-14`. Grid `md:grid-cols-[2fr_1fr_1fr]` (mobile: 2 cols): brand + one-line description; Practice (Problems, Submissions for users); Account (Log in, Sign up or Profile). A Project column (About, Source) is added once the project has a public URL; no placeholder links. Bottom row `mt-10 pt-5 border-t text-sm text-muted-foreground`: "© 2026 LemmaYard. Problem statements are original." Show it on all pages **except** the problem page (full-height workspace).
 
 ### 8.21 Split pane / resizer (`components/problem/workspace.tsx`)
 - Use `react-resizable-panels` (shadcn `resizable`; check that the base-nova registry ships it, otherwise install the package directly and style it as below).
@@ -589,7 +589,7 @@ Tabs: `FlaskConical` Testcase | `Terminal` Result. Body `p-4 md:px-5 overflow-au
 
 ## 9. Pages
 
-General: every page has `<title>` in the form "Problems · leetcopy" and one `h1`. The page head band (`bg-surface-sunken border-b py-8`) holds breadcrumb + h1 + subtitle on catalog, submissions and profile.
+General: every page has `<title>` in the form "Problems · LemmaYard" and one `h1`. The page head band (`bg-surface-sunken border-b py-8`) holds breadcrumb + h1 + subtitle on catalog, submissions and profile.
 
 ### 9.1 Landing `/`
 ```
@@ -661,7 +661,7 @@ Desktop (≥768px), full height under the compact header:
 │┌ Description | Submissions ───────────┐┊┌ [Python 3 ▾] [↺ Reset]  ···  [▷ Run] [⇪ Submit] ┐│
 ││ 1. Two Sum   (serif 26)               │┊│  1 │ from typing import List                       ││
 ││ (Easy) (✓ Solved) │ Array  Hash table │┊│  2 │                                               ││
-││ prose 72ch …                          │┊│  … │ Monaco (leetcopy-light/dark)                  ││
+││ prose 72ch …                          │┊│  … │ Monaco (lemmayard-light/dark)                  ││
 ││ ### Example 1  ┃ Input: … Output: …   │┊├ Saved locally ───────────────────── Ln 9, Col 47 ┤│
 ││ ### Constraints • `2 <= n <= 10^4`    │┊└─────────────────────── ═══ ─────────────────────┘│
 ││ ┌ note: Follow-up … ┐                 │┊┌ Testcase | Result ───────────────────────────────┐│
@@ -716,10 +716,10 @@ Desktop grid `lg:grid-cols-[1.2fr_1fr] gap-6`, stat cards `grid-cols-3` (mobile:
 
 ## 10. Monaco themes
 
-Register once, before the first editor mounts (in the `beforeMount` of `@monaco-editor/react`), and switch with `monaco.editor.setTheme(resolvedTheme === "dark" ? "leetcopy-dark" : "leetcopy-light")` from `useTheme().resolvedTheme`. Monarch tokenizers for Python and JS emit `keyword`, `identifier`, `type.identifier`, `string`, `string.escape`, `number`, `comment`, `delimiter`, `operator`, `regexp` and `constant`. There's no semantic "function" token, so `function`-colored calls won't appear in Monaco (the previews show it; accept the difference).
+Register once, before the first editor mounts (in the `beforeMount` of `@monaco-editor/react`), and switch with `monaco.editor.setTheme(resolvedTheme === "dark" ? "lemmayard-dark" : "lemmayard-light")` from `useTheme().resolvedTheme`. Monarch tokenizers for Python and JS emit `keyword`, `identifier`, `type.identifier`, `string`, `string.escape`, `number`, `comment`, `delimiter`, `operator`, `regexp` and `constant`. There's no semantic "function" token, so `function`-colored calls won't appear in Monaco (the previews show it; accept the difference).
 
 ```js
-monaco.editor.defineTheme("leetcopy-light", {
+monaco.editor.defineTheme("lemmayard-light", {
   base: "vs", inherit: true,
   rules: [
     { token: "", foreground: "14213D" },
@@ -775,7 +775,7 @@ monaco.editor.defineTheme("leetcopy-light", {
   }
 });
 
-monaco.editor.defineTheme("leetcopy-dark", {
+monaco.editor.defineTheme("lemmayard-dark", {
   base: "vs-dark", inherit: true,
   rules: [
     { token: "", foreground: "E7EDF7" },

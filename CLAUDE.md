@@ -1,4 +1,4 @@
-# leetcopy — conventions for agents
+# LemmaYard — conventions for agents
 
 Read `PLAN.md` in full before starting any milestone. It is the source of truth;
 do only what the current milestone's acceptance criteria require.

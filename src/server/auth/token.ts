@@ -5,7 +5,7 @@ import { getEnv } from "@/server/env";
 
 export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const ALG = "HS256";
-const ISSUER = "leetcopy";
+const ISSUER = "lemmayard";
 
 function secretKey(): Uint8Array {
   return new TextEncoder().encode(getEnv().AUTH_SECRET);

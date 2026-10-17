@@ -103,7 +103,7 @@ export default async function Home() {
       <section className="py-14 md:py-22">
         <div className="container-page grid items-start gap-8 md:grid-cols-[1fr_1.25fr] md:gap-16">
           <Reveal>
-            <p className="eyebrow mb-3">Why leetcopy</p>
+            <p className="eyebrow mb-3">Why LemmaYard</p>
             <h2 className="font-heading text-3xl/[2.375rem] font-semibold tracking-[-0.015em] sm:text-4xl/11">
               A calmer way to practice
             </h2>

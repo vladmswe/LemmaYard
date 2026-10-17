@@ -58,7 +58,7 @@ export async function SiteFooter() {
           ))}
         </div>
         <div className="mt-10 flex flex-wrap justify-between gap-4 border-t pt-5 text-sm text-muted-foreground">
-          <span>© 2026 leetcopy. Problem statements are original.</span>
+          <span>© 2026 LemmaYard. Problem statements are original.</span>
           <span>A personal practice project.</span>
         </div>
       </div>

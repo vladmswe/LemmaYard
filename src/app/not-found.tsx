@@ -4,7 +4,7 @@ import { NotFoundContent } from "@/components/not-found-content";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 
-export const metadata: Metadata = { title: "Page not found · leetcopy" };
+export const metadata: Metadata = { title: "Page not found · LemmaYard" };
 
 // Unmatched URLs render here, inside the root layout only, so this page brings
 // its own header and footer. notFound() inside (site) uses (site)/not-found.

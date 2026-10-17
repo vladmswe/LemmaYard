@@ -241,7 +241,7 @@ describe("session tokens", () => {
     return new SignJWT({})
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(sub)
-      .setIssuer("leetcopy")
+      .setIssuer("lemmayard")
       .setIssuedAt()
       .setExpirationTime(opts.exp ?? "1h")
       .sign(opts.key ?? secret());
@@ -257,7 +257,7 @@ describe("session tokens", () => {
     const user = await createUser({ username: "bob" });
     const valid = await token(user.id);
     const [h, , s] = valid.split(".");
-    const otherPayload = Buffer.from(JSON.stringify({ sub: user.id, iss: "leetcopy", exp: 9999999999 })).toString("base64url");
+    const otherPayload = Buffer.from(JSON.stringify({ sub: user.id, iss: "lemmayard", exp: 9999999999 })).toString("base64url");
     const unsigned = `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${otherPayload}.`;
 
     for (const bad of [
