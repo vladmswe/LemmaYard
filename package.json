@@ -19,7 +19,8 @@
     "problems:import": "tsx scripts/import-problems.ts",
     "problems:verify": "tsx scripts/verify-problems.ts",
     "sandbox:build": "tsx scripts/sandbox-build.ts",
-    "setup": "pnpm install && docker compose up -d --wait && pnpm sandbox:build && pnpm db:seed"
+    "setup": "pnpm install && docker compose up -d --wait && pnpm sandbox:build && pnpm db:seed",
+    "test:e2e:guide": "playwright test tests/e2e/guide"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -39,6 +40,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^22.20.5",
     "@types/pg": "^8.23.1",
@@ -48,6 +51,7 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "fast-check": "^4.10.2",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
