@@ -25,6 +25,8 @@ export type DockerExecutorConfig = {
   timeMultJs: number;
   wallCapMs: number;
   dockerBin?: string;
+  /** Extra `key=value` labels on every container (the worker tags its own). */
+  labels?: string[];
 };
 
 export function dockerConfigFromEnv(env: Env): DockerExecutorConfig {
@@ -76,12 +78,18 @@ export function sandboxCommand(language: Language, memoryMb: number): string[] {
 }
 
 /** `docker create` arguments. Deliberately no `-e`, `-v` or `--mount`. */
-export function buildCreateArgs(image: string, memoryMb: number, command: string[]): string[] {
+export function buildCreateArgs(
+  image: string,
+  memoryMb: number,
+  command: string[],
+  extraLabels: string[] = [],
+): string[] {
   return [
     "create",
     "-i",
     "--label",
     SANDBOX_LABEL,
+    ...extraLabels.flatMap((label) => ["--label", label]),
     "--pull",
     "never",
     "--network",
@@ -156,6 +164,18 @@ export async function prepareSandbox(config: DockerExecutorConfig): Promise<{ re
     }
   }
   return { removed: ids.length };
+}
+
+/** Force-removes every container carrying `label` (`key=value`); returns how many. */
+export async function removeContainers(
+  config: Pick<DockerExecutorConfig, "dockerBin">,
+  label: string,
+): Promise<number> {
+  const bin = config.dockerBin ?? "docker";
+  const { stdout } = await docker(bin, ["ps", "-a", "--filter", `label=${label}`, "-q"]);
+  const ids = stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+  if (ids.length > 0) await docker(bin, ["rm", "-f", ...ids]);
+  return ids.length;
 }
 
 type Attached = Omit<RunObservation, "exitCode" | "oomKilled">;
@@ -265,6 +285,7 @@ export function createDockerExecutor(config: DockerExecutorConfig): Executor {
         imageFor(job.language, config),
         job.limits.memoryMb,
         sandboxCommand(job.language, job.limits.memoryMb),
+        config.labels,
       );
       id = (await docker(bin, args)).stdout.trim();
       const attached = await attach(bin, id, job, payload, wallMs);
