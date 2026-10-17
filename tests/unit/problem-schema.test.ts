@@ -78,6 +78,21 @@ describe("identifierProblem", () => {
     "rejects reserved %s",
     (name) => expect(identifierProblem(name)).toMatch(/reserved word/),
   );
+  it.each(["__init__", "__proto__", "__x", "__"])("rejects dunder-prefixed %s", (name) =>
+    expect(identifierProblem(name)).toMatch(/starts with "__"/),
+  );
+  it.each([
+    "JSON", "console", "Math", "Object", "Array", "Map", "Set", "Promise", "globalThis",
+    "require", "module", "exports", "process", "Function", "Date", "BigInt",
+    "input", "list", "dict", "set", "sum", "max", "min", "len", "id", "str", "int",
+    "float", "range", "sorted", "print", "type", "object", "abs", "any", "all",
+  ])("rejects global/builtin %s", (name) =>
+    expect(identifierProblem(name)).toMatch(/would shadow a JavaScript global or Python builtin/),
+  );
+  it.each([
+    "twoSum", "nums", "target", "s", "t", "n", "x", "prices", "height", "word1", "text1",
+    "coins", "amount", "intervals", "_private", "a__b", "maxProfit", "values", "matrix",
+  ])("keeps seed-style name %s valid", (name) => expect(identifierProblem(name)).toBeNull());
 });
 
 describe("testsSchema", () => {
