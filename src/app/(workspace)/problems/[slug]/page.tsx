@@ -19,7 +19,7 @@ const loadProblem = cache(async (slug: string) => {
 
 export async function generateMetadata({ params }: PageProps<"/problems/[slug]">): Promise<Metadata> {
   const problem = await loadProblem((await params).slug);
-  return { title: problem ? `${problem.number}. ${problem.title} · leetcopy` : "Page not found · leetcopy" };
+  return { title: problem ? `${problem.number}. ${problem.title} · LemmaYard` : "Page not found · LemmaYard" };
 }
 
 export default async function ProblemPage({ params }: PageProps<"/problems/[slug]">) {
