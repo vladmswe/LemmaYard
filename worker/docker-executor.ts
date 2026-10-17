@@ -25,6 +25,8 @@ export type DockerExecutorConfig = {
   timeMultJs: number;
   wallCapMs: number;
   dockerBin?: string;
+  /** Extra `key=value` labels on every container (the worker tags its own). */
+  labels?: string[];
 };
 
 export function dockerConfigFromEnv(env: Env): DockerExecutorConfig {
@@ -76,12 +78,18 @@ export function sandboxCommand(language: Language, memoryMb: number): string[] {
 }
 
 /** `docker create` arguments. Deliberately no `-e`, `-v` or `--mount`. */
-export function buildCreateArgs(image: string, memoryMb: number, command: string[]): string[] {
+export function buildCreateArgs(
+  image: string,
+  memoryMb: number,
+  command: string[],
+  extraLabels: string[] = [],
+): string[] {
   return [
     "create",
     "-i",
     "--label",
     SANDBOX_LABEL,
+    ...extraLabels.flatMap((label) => ["--label", label]),
     "--pull",
     "never",
     "--network",
@@ -132,9 +140,14 @@ function docker(bin: string, args: string[], timeoutMs = DOCKER_CMD_TIMEOUT_MS):
 
 /**
  * Worker start-up: removes orphaned sandbox containers (label
- * `leetcopy.sandbox=1`) and checks that both images exist.
+ * `leetcopy.sandbox=1`) and checks that both images exist. Other users of the
+ * executor (`problems:verify`) pass `removeOrphans: false` so that they never
+ * remove the containers of a running worker.
  */
-export async function prepareSandbox(config: DockerExecutorConfig): Promise<{ removed: number }> {
+export async function prepareSandbox(
+  config: DockerExecutorConfig,
+  options: { removeOrphans?: boolean } = {},
+): Promise<{ removed: number }> {
   const bin = config.dockerBin ?? "docker";
   let ids: string[];
   try {
@@ -145,6 +158,7 @@ export async function prepareSandbox(config: DockerExecutorConfig): Promise<{ re
       `Docker is not available (${error instanceof Error ? error.message : String(error)}). Start Docker and retry.`,
     );
   }
+  if (options.removeOrphans === false) ids = [];
   if (ids.length > 0) await docker(bin, ["rm", "-f", ...ids]);
   for (const image of [config.imagePython, config.imageNode]) {
     try {
@@ -156,6 +170,18 @@ export async function prepareSandbox(config: DockerExecutorConfig): Promise<{ re
     }
   }
   return { removed: ids.length };
+}
+
+/** Force-removes every container carrying `label` (`key=value`); returns how many. */
+export async function removeContainers(
+  config: Pick<DockerExecutorConfig, "dockerBin">,
+  label: string,
+): Promise<number> {
+  const bin = config.dockerBin ?? "docker";
+  const { stdout } = await docker(bin, ["ps", "-a", "--filter", `label=${label}`, "-q"]);
+  const ids = stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+  if (ids.length > 0) await docker(bin, ["rm", "-f", ...ids]);
+  return ids.length;
 }
 
 type Attached = Omit<RunObservation, "exitCode" | "oomKilled">;
@@ -244,27 +270,32 @@ async function inspectState(bin: string, id: string): Promise<{ exitCode: number
   return { exitCode: Number(state.ExitCode), oomKilled: state.OOMKilled === true };
 }
 
+/** The single stdin line sent to the container. Inputs only: never `expected`. */
+export function buildSandboxPayload(job: ExecJob, timeLimitMs: number, nonce: string): SandboxPayload {
+  return {
+    language: job.language,
+    code: job.code,
+    signature: job.signature,
+    tests: job.tests.map((t) => ({ input: t.input })),
+    timeLimitMs,
+    stopOnError: job.stopOnFirstFailure,
+    nonce,
+  };
+}
+
 export function createDockerExecutor(config: DockerExecutorConfig): Executor {
   const bin = config.dockerBin ?? "docker";
   return async function dockerExecutor(job: ExecJob): Promise<ExecResult> {
     const effective = effectiveTimeLimitMs(job.language, job.limits.timeMs, config);
     const wallMs = wallBudgetMs(job.tests.length, effective, config.wallCapMs);
-    const payload: SandboxPayload = {
-      language: job.language,
-      code: job.code,
-      signature: job.signature,
-      // Inputs only: expected values never enter the container.
-      tests: job.tests.map((t) => ({ input: t.input })),
-      timeLimitMs: effective,
-      stopOnError: job.stopOnFirstFailure,
-      nonce: randomBytes(16).toString("hex"),
-    };
+    const payload = buildSandboxPayload(job, effective, randomBytes(16).toString("hex"));
     let id: string | null = null;
     try {
       const args = buildCreateArgs(
         imageFor(job.language, config),
         job.limits.memoryMb,
         sandboxCommand(job.language, job.limits.memoryMb),
+        config.labels,
       );
       id = (await docker(bin, args)).stdout.trim();
       const attached = await attach(bin, id, job, payload, wallMs);

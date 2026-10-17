@@ -235,4 +235,23 @@ describe("decideVerdict", () => {
     expect(Buffer.byteLength(r.stdout)).toBeLessThanOrEqual(65536);
     expect(r.stdout.endsWith("[truncated]")).toBe(true);
   });
+
+  it("replaces U+0000 and lone surrogates in user-controlled text (Postgres cannot store them)", () => {
+    const sig = { name: "probe", params: [{ name: "x", type: "int" }], returns: "string" };
+    const run = job({ signature: sig, compare: exact, tests: [{ input: { x: 1 } }, { input: { x: 2 } }], stopOnFirstFailure: false });
+    const r = decideVerdict(
+      run,
+      obs([ok(0, "a\u0000b\uD800", { stdout: "x\u0000y\n" }), err(1, "ValueError: bad\u0000msg"), done]),
+    );
+    expect(r.status).toBe("runtime_error");
+    expect(r.caseResults[0].actual).toBe("a�b�");
+    expect(r.caseResults[1].error).toBe("ValueError: bad�msg");
+    expect(r.stdout).toBe("x�y\n");
+    expect(r.error).toBe("ValueError: bad�msg");
+
+    const submit = job({ signature: sig, compare: exact, tests: [{ input: { x: 1 }, expected: "ab" }] });
+    const wa = decideVerdict(submit, obs([ok(0, "a\u0000b")]));
+    expect(wa.status).toBe("wrong_answer");
+    expect(wa.failedCase?.actual).toBe("a�b");
+  });
 });

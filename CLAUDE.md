@@ -8,10 +8,14 @@ do only what the current milestone's acceptance criteria require.
 ## Commands
 
 ```bash
+pnpm run setup                # install + compose up + sandbox:build + db:seed
+                              # (`pnpm setup` without `run` is pnpm's built-in!)
 pnpm install
 docker compose up -d --wait   # Postgres 16 on localhost:5433
 pnpm db:seed                  # migrate + import problems/
 pnpm dev                      # PORT from .env (default 3000)
+pnpm worker                   # judge worker on the host; `pnpm dev:all` = web + worker
+pnpm problems:verify          # all solutions × both languages must be accepted
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
 pnpm test:integration         # needs Postgres; own DB leetcopy_test_<worktree>
 pnpm problems:import [--prune]  # problems/ only; see note below
@@ -24,6 +28,7 @@ keep their `number`). Never run it with `--dir` pointing anywhere but
 
 Scripts for later milestones are stubs that exit non-zero with
 `not implemented yet (Mx)`; replace the stub when you implement it.
+Run `pnpm problems:verify` after changing anything in `problems/`.
 
 ## Structure
 
@@ -44,7 +49,10 @@ Scripts for later milestones are stubs that exit non-zero with
   Redirect targets from `?next=` go through `safeRedirectPath()`.
 - Judge: executor contract `worker/types.ts`, comparator + verdicts
   `worker/judge.ts`, Docker runner `worker/docker-executor.ts`, harnesses
-  `sandbox/harness.{py,js}`.
+  `sandbox/harness.{py,js}`. Queue SQL and job/result mapping
+  `worker/queue.ts`, slots + sweep `worker/loop.ts`, process `worker/index.ts`.
+  Finalize only `WHERE status='running'`; never requeue; worker logs never
+  contain user code or stdout.
 - Import alias `@/` → `src/`.
 
 ## Rules

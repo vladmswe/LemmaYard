@@ -4,7 +4,12 @@
 // it compares with `expected` in TypeScript (worker/judge.ts), so its result is
 // the final verdict to store.
 import type { CompareSpec, Signature } from "@/lib/problems/schema";
-import type { languageEnum, submissionStatusEnum } from "@/server/db/schema";
+import type {
+  CaseResult,
+  FailedCase,
+  languageEnum,
+  submissionStatusEnum,
+} from "@/server/db/schema";
 
 export type Language = (typeof languageEnum.enumValues)[number];
 
@@ -33,26 +38,9 @@ export type ExecJob = {
   stopOnFirstFailure: boolean;
 };
 
-export type CaseStatus =
-  | "passed"
-  | "failed"
-  | "runtime_error"
-  | "time_limit"
-  | "memory_limit"
-  | "not_run";
-
-/** One entry per job test, in order (frozen contract, PLAN.md section 4). */
-export type CaseResult = {
-  index: number;
-  status: CaseStatus;
-  input: Record<string, unknown>;
-  expected?: unknown;
-  actual?: unknown;
-  timeMs?: number;
-  error?: string;
-};
-
-export type FailedCase = { input: unknown; expected: unknown; actual: unknown };
+// The per-case result and the failed case are the frozen DB contract (PLAN.md
+// section 4), defined once in the schema module.
+export type { CaseResult, FailedCase };
 
 export type ExecResult = {
   status: ExecStatus;

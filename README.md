@@ -4,25 +4,36 @@ A LeetCode-style practice site: problem catalog, in-browser editor, and a judge
 that runs Python and JavaScript solutions in a Docker sandbox. Local-only pet
 project. See [PLAN.md](PLAN.md) for the full plan and milestones.
 
-> Status: **M2 (authentication)** on top of M1 (database, types, problem
-> pipeline). The catalog, editor, worker and sandbox scripts still print
-> `not implemented yet (Mx)` or show placeholder pages until their milestone
-> lands.
+> Status: **M2 (authentication)** and **M4 (judge: sandbox, executor, queue,
+> worker)** on top of M1 (database, types, problem pipeline). The catalog and
+> editor still show placeholder pages, and `test:e2e` prints
+> `not implemented yet (M7)`, until their milestone lands.
 
 ## Requirements
 
 - Node.js 22+
 - pnpm (version pinned in `package.json` → `packageManager`; `corepack enable` picks it up)
-- Docker (Docker Desktop or compatible) for Postgres and, later, the sandbox
+- Docker (Docker Desktop or compatible) for Postgres and the judge sandbox
 
 ## Run from scratch
 
 ```bash
-pnpm install
 cp .env.example .env          # then set AUTH_SECRET: openssl rand -base64 32
+pnpm run setup                # install + Postgres + sandbox images + migrate/seed
+pnpm dev:all                  # web (http://localhost:3000 or PORT) + judge worker
+```
+
+`pnpm run setup` is `pnpm install && docker compose up -d --wait && pnpm
+sandbox:build && pnpm db:seed`. Type `run`: a bare `pnpm setup` is pnpm's own
+built-in command (it sets up pnpm's home directory), not this script. The same
+steps by hand:
+
+```bash
+pnpm install
 docker compose up -d --wait   # Postgres 16 on localhost:5433
+pnpm sandbox:build            # Python and Node sandbox images
 pnpm db:seed                  # apply migrations + import problems/
-pnpm dev                      # http://localhost:3000 (or PORT from .env)
+pnpm dev                      # web only; `pnpm worker` in a second terminal
 ```
 
 Stop the database with `docker compose down` (add `-v` to delete its data).
@@ -41,7 +52,9 @@ Variables already set in the shell win over `.env`.
 | `problems:import [--dir <path>] [--prune]` | working |
 | `test:integration` (Vitest, `tests/integration`, needs Postgres) | working |
 | `sandbox:build` (builds both sandbox images; rerun after changing `sandbox/`) | working |
-| `worker`, `dev:all`, `problems:verify`, `setup` | M4 |
+| `worker` (judge worker on the host), `dev:all` (web + worker via `concurrently`) | working |
+| `problems:verify [--dir <path>] [--only <slug>]... [--concurrency <n>]` | working |
+| `setup` (run it as `pnpm run setup`, see above) | working |
 | `test:e2e` | M7 |
 
 ### Problems
@@ -87,6 +100,38 @@ with the runner baked in at `/sandbox/`, no bind mounts, no environment passed i
 wall-clock limits. The runner gets inputs only; `worker/judge.ts` compares results
 with the expected values on the host. The executor contract (`Executor`, `ExecJob`,
 `ExecResult`) is in `worker/types.ts`.
+
+User-controlled text in a result (printed output, error messages, returned
+values) is stored with U+0000 and unpaired surrogates replaced by U+FFFD
+(Postgres `text`/`jsonb` cannot hold them), after the comparison; returned
+values nested deeper than 64 levels are stored as `"[nested too deep]"`.
+
+`pnpm problems:verify` is the quality gate for problem data: it runs every
+problem's `solution.py` and `solution.js` through the real executor on all of its
+tests (no stop at the first failure, the problem's own limits), prints a table
+problem × language × verdict × time and exits non-zero with the failing cases
+unless every run is `accepted`. It needs Docker and the images, not the database,
+and never removes containers (safe while a worker is running).
+
+### Worker
+
+`pnpm worker` runs on the host (it needs the Docker CLI; it is not part of
+docker compose). At start it removes orphaned sandbox containers (label
+`leetcopy.sandbox=1`) and checks both images, exiting non-zero with a clear
+message if Docker or an image is missing. It then runs `WORKER_CONCURRENCY`
+slots that poll every `WORKER_POLL_MS` and claim the oldest `queued`
+submission atomically (`UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED
+LIMIT 1)`), judge it in Docker and write the result only while the row is still
+`running`. A sweep at start and every 30 s marks `running` rows older than
+`STALE_RUNNING_MIN` minutes as `internal_error` ("worker crashed or timed out";
+never requeued) and deletes `kind=run` rows older than 24 h. A failure while
+processing one submission makes it `internal_error`; the worker keeps going.
+Logs are JSON lines (submission id, kind, language, verdict, duration), never
+user code or output. SIGINT/SIGTERM: stop claiming, wait up to 10 s for running
+jobs, then mark the rest `internal_error` and remove this worker's containers
+(label `leetcopy.worker=<id>`); a second signal skips the wait. Code:
+`worker/index.ts` (process), `worker/loop.ts` (slots, sweep timer),
+`worker/queue.ts` (SQL and job/result mapping).
 
 Docker integration tests (`tests/integration/sandbox-*.test.ts`) need Docker and
 `pnpm sandbox:build`; they run with `pnpm test:integration` (whose global setup
