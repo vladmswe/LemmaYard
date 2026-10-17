@@ -100,23 +100,81 @@ describe("dynarray.ops (S1: generator contract)", () => {
   });
 });
 
+/**
+ * Boundary scripts: a run of appends to a size that reaches capacity 16 or 32,
+ * then a run of pops that walks through every size below it (so each shrink
+ * threshold is crossed), then a few alternating ops at the new boundary.
+ * Longer than the input cap on purpose: the generator itself has no cap.
+ */
+const boundaryArb: fc.Arbitrary<DynInput> = fc
+  .record({
+    initialCapacity: fc.constantFrom(1 as const, 2 as const, 4 as const),
+    growth: fc.constantFrom(2 as const, 1.5 as const),
+    shrink: fc.constantFrom("quarter" as const, "half" as const),
+    peak: fc.integer({ min: 1, max: 33 }),
+    down: fc.integer({ min: 0, max: 34 }),
+    tail: fc.array(fc.boolean(), { maxLength: 6 }),
+  })
+  .map(({ peak, down, tail, ...policy }) => ({
+    ...policy,
+    ops: [
+      ...appends(range(1, peak)),
+      ...Array.from({ length: down }, (): DynOp => ({ kind: "pop" })),
+      ...tail.map((up): DynOp => (up ? { kind: "append", value: 7 } : { kind: "pop" })),
+    ],
+  }));
+
+/** Result, capacities, popped values, counters and every frame agree with the reference run. */
+function agreesWithReference(input: DynInput) {
+  const t = model.generate(input);
+  const ref = runDynRef(input);
+  const last = ref.at(-1)!;
+  expect((t.result as DynResult).values).toEqual(last.list);
+  expect((t.result as DynResult).capacity).toBe(last.capacity);
+  expect((t.result as DynResult).popped).toEqual(ref.filter((_, k) => input.ops[k]!.kind === "pop").map((r) => (r.ok ? r.value : null)));
+  const end = t.frames.at(-1)!.counters;
+  expect(end.copies).toBe(ref.reduce((x, r) => x + r.copies, 0));
+  expect(end.resizes).toBe(ref.filter((r) => r.resized).length);
+  checkFrames(input, t.frames);
+}
+
 describe("dynarray.ops (S2: reference agreement and per-frame invariants)", () => {
   it("lists, capacities, popped values and counters equal the reference run", () => {
-    fc.assert(
-      fc.property(inputArb, (input) => {
-        const t = model.generate(input);
-        const ref = runDynRef(input);
-        const last = ref.at(-1)!;
-        expect((t.result as DynResult).values).toEqual(last.list);
-        expect((t.result as DynResult).capacity).toBe(last.capacity);
-        expect((t.result as DynResult).popped).toEqual(ref.filter((_, k) => input.ops[k]!.kind === "pop").map((r) => (r.ok ? r.value : null)));
-        const end = t.frames.at(-1)!.counters;
-        expect(end.copies).toBe(ref.reduce((x, r) => x + r.copies, 0));
-        expect(end.resizes).toBe(ref.filter((r) => r.resized).length);
-        checkFrames(input, t.frames);
-      }),
-      { numRuns: numRuns(200) },
-    );
+    fc.assert(fc.property(inputArb, agreesWithReference), { numRuns: numRuns(200) });
+  });
+
+  it("the same holds for boundary scripts that grow to capacity 16 or 32 and pop through every size", () => {
+    fc.assert(fc.property(boundaryArb, agreesWithReference), { numRuns: numRuns(200) });
+  });
+});
+
+describe("dynarray.ops shrink thresholds (golden)", () => {
+  /** Capacity after `peak` appends from capacity 1 (x2) and then `pops` pops. */
+  const capAfter = (shrink: "quarter" | "half", peak: number, pops: number) =>
+    (
+      model.generate({
+        initialCapacity: 1,
+        growth: 2,
+        shrink,
+        ops: [...appends(range(1, peak)), ...Array.from({ length: pops }, (): DynOp => ({ kind: "pop" }))],
+      }).result as DynResult
+    ).capacity;
+
+  it("quarter: capacity 16 keeps its size at 5 and shrinks to 8 at size 4", () => {
+    expect(capAfter("quarter", 9, 0)).toBe(16);
+    expect(capAfter("quarter", 9, 4)).toBe(16); // size 5
+    expect(capAfter("quarter", 9, 5)).toBe(8); // size 4 = 16 / 4
+  });
+
+  it("half: capacity 16 keeps its size at 9 and shrinks to 8 at size 8", () => {
+    expect(capAfter("half", 10, 0)).toBe(16);
+    expect(capAfter("half", 10, 1)).toBe(16); // size 9
+    expect(capAfter("half", 10, 2)).toBe(8); // size 8 = 16 / 2
+  });
+
+  it("quarter at capacity 32: keeps 32 at size 9, shrinks to 16 at size 8", () => {
+    expect(capAfter("quarter", 17, 8)).toBe(32); // size 9
+    expect(capAfter("quarter", 17, 9)).toBe(16); // size 8 = 32 / 4
   });
 });
 

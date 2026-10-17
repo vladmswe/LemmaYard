@@ -33,6 +33,29 @@ const inputArb: fc.Arbitrary<ArrayInput> = fc.record({
   ops: fc.array(opArb, { minLength: 1, maxLength: ARRAY_MAX_OPS }),
 });
 
+/**
+ * Boundary scripts: a nearly full or full array, and ops whose index sits on
+ * an edge of the valid range for the size at that moment (-1, 0, size - 1,
+ * size, size + 1), so full-array inserts and off-by-one indices come up often.
+ */
+const EDGES = ["minus", "zero", "last", "size", "past"] as const;
+const boundaryArb: fc.Arbitrary<ArrayInput> = fc
+  .record({
+    values: fc.integer({ min: ARRAY_CAPACITY - 2, max: ARRAY_CAPACITY }).chain((n) => fc.array(fc.integer({ min: -99, max: 999 }), { minLength: n, maxLength: n })),
+    tokens: fc.array(fc.record({ insert: fc.boolean(), edge: fc.constantFrom(...EDGES) }), { minLength: 1, maxLength: ARRAY_MAX_OPS }),
+  })
+  .map(({ values, tokens }) => {
+    let size = values.length;
+    const ops = tokens.map(({ insert, edge }): ArrayOp => {
+      const index = { minus: -1, zero: 0, last: size - 1, size, past: size + 1 }[edge];
+      const op: ArrayOp = insert ? { kind: "insert", index, value: 42 } : { kind: "remove", index };
+      const ok = insert ? size < ARRAY_CAPACITY && index >= 0 && index <= size : index >= 0 && index < size;
+      if (ok) size += insert ? 1 : -1;
+      return op;
+    });
+    return { values, ops };
+  });
+
 describe("array.shift (S1: generator contract)", () => {
   it("default input and every preset", () => {
     for (const input of [model.defaultInput, ...ARRAY_PRESETS.map((p) => p.value)]) {
@@ -65,33 +88,37 @@ describe("array.shift (S1: generator contract)", () => {
 });
 
 describe("array.shift (S2: reference agreement and per-frame invariants)", () => {
+  it("the same holds for full or nearly full arrays with indices on the edges of the valid range", () => {
+    fc.assert(fc.property(boundaryArb, agreesWithReference), { numRuns: numRuns(200) });
+  });
+
   it("after each finished op the logical sequence and the moves equal splice; size <= capacity on every frame", () => {
-    fc.assert(
-      fc.property(inputArb, (input) => {
-        const t = model.generate(input);
-        const ref = runArrayRef(input);
-        expect(t.result).toEqual(ref.map((r) => ({ ok: r.ok, moves: r.moves })));
-        let done = 0;
-        for (const f of t.frames) {
-          const s = f.state;
-          expect(s.size).toBeLessThanOrEqual(s.capacity);
-          expect(s.slots).toHaveLength(s.capacity);
-          if (s.completed > done) {
-            done = s.completed;
-            expect(logical(s)).toEqual(ref[done - 1]!.after);
-            expect(s.slots.slice(s.size).every((x) => x === null)).toBe(true);
-          }
-          // An error role is used only for the array itself, on a failed op.
-          for (const [id, role] of Object.entries(f.roles)) if (role === "error") expect(id).toBe(ARRAY_ID);
-        }
-        expect(done).toBe(input.ops.length);
-        const totalMoves = ref.reduce((x, r) => x + r.moves, 0);
-        expect(t.frames.at(-1)?.counters.moves).toBe(totalMoves);
-      }),
-      { numRuns: numRuns(200) },
-    );
+    fc.assert(fc.property(inputArb, agreesWithReference), { numRuns: numRuns(200) });
   });
 });
+
+/** After each finished op the logical sequence and the moves equal splice; size <= capacity on every frame. */
+function agreesWithReference(input: ArrayInput) {
+  const t = model.generate(input);
+  const ref = runArrayRef(input);
+  expect(t.result).toEqual(ref.map((r) => ({ ok: r.ok, moves: r.moves })));
+  let done = 0;
+  for (const f of t.frames) {
+    const s = f.state;
+    expect(s.size).toBeLessThanOrEqual(s.capacity);
+    expect(s.slots).toHaveLength(s.capacity);
+    if (s.completed > done) {
+      done = s.completed;
+      expect(logical(s)).toEqual(ref[done - 1]!.after);
+      expect(s.slots.slice(s.size).every((x) => x === null)).toBe(true);
+    }
+    // An error role is used only for the array itself, on a failed op.
+    for (const [id, role] of Object.entries(f.roles)) if (role === "error") expect(id).toBe(ARRAY_ID);
+  }
+  expect(done).toBe(input.ops.length);
+  const totalMoves = ref.reduce((x, r) => x + r.moves, 0);
+  expect(t.frames.at(-1)?.counters.moves).toBe(totalMoves);
+}
 
 describe("array.shift (S3: golden examples)", () => {
   it("insert at index 1 of a 6-element array moves 5 elements; remove at 0 of 7 moves 6", () => {

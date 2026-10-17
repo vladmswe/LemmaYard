@@ -61,17 +61,41 @@ describe("twopointers.merge (S1: generator contract)", () => {
   });
 });
 
+/** Small values, so equal fronts in A and B (ties) and early run-outs come up often. */
+const tieArb: fc.Arbitrary<MergeInput> = fc
+  .record({
+    a: fc.array(fc.integer({ min: 0, max: 5 }), { maxLength: MERGE_MAX_EACH }).map((x) => x.sort((p, q) => p - q)),
+    b: fc.array(fc.integer({ min: 0, max: 5 }), { maxLength: MERGE_MAX_EACH }).map((x) => x.sort((p, q) => p - q)),
+  })
+  .filter((v) => v.a.length + v.b.length > 0);
+
+function agreesWithReference(input: MergeInput) {
+  const t = model.generate(input);
+  expect(t.result).toEqual(mergeRef(input.a, input.b));
+  expect(t.frames.at(-1)?.counters.writes).toBe(input.a.length + input.b.length);
+  checkFrames(input, t.frames);
+  // Each compare is followed by taking the smaller front, from A on a tie (stable merge),
+  // and the pointer of that list, and only that one, moves by one.
+  t.frames.forEach((f, k) => {
+    if (f.line !== "merge.compare") return;
+    const next = t.frames[k + 1]!;
+    const x = input.a[f.state.i]!;
+    const y = input.b[f.state.j]!;
+    expect(next.line).toBe(x <= y ? "merge.takeA" : "merge.takeB");
+    expect([next.state.i - f.state.i, next.state.j - f.state.j]).toEqual(x <= y ? [1, 0] : [0, 1]);
+  });
+  // The list that ran out is the one whose pointer reached its end first.
+  const out = t.frames.find((f) => f.state.ranOut !== null)?.state;
+  if (out) expect(out.ranOut === "A" ? out.i : out.j).toBe(out.ranOut === "A" ? input.a.length : input.b.length);
+}
+
 describe("twopointers.merge (S2: reference agreement and per-frame invariants)", () => {
   it("C equals sort(A + B); every frame's output is sorted and a merge of the used prefixes", () => {
-    fc.assert(
-      fc.property(inputArb, (input) => {
-        const t = model.generate(input);
-        expect(t.result).toEqual(mergeRef(input.a, input.b));
-        expect(t.frames.at(-1)?.counters.writes).toBe(input.a.length + input.b.length);
-        checkFrames(input, t.frames);
-      }),
-      { numRuns: numRuns(200) },
-    );
+    fc.assert(fc.property(inputArb, agreesWithReference), { numRuns: numRuns(200) });
+  });
+
+  it("the same holds with many equal values (ties) and short lists", () => {
+    fc.assert(fc.property(tieArb, agreesWithReference), { numRuns: numRuns(200) });
   });
 });
 

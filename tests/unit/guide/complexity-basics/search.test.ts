@@ -100,6 +100,14 @@ describe("search models (S2: reference agreement and per-frame invariants)", () 
         expect(t.frames.at(-1)?.state.result).toBe(ref.index);
         expect(t.frames.at(-1)?.counters.comparisons).toBe(ref.comparisons);
         checkFrames(input, t.frames);
+        // The counter is the number of cells compared so far, on every frame, and the scan
+        // really reaches the cell where the reference stops (no comparison is skipped).
+        for (const f of t.frames) expect(f.counters.comparisons).toBe(f.state.scanned);
+        const compares = t.frames.filter((f) => f.line === "search.linear.compare");
+        expect(compares.at(-1)?.state.at ?? -1).toBe(ref.comparisons - 1);
+        const ats = compares.map((f) => f.state.at!);
+        expect(ats).toEqual([...ats].sort((a, b) => a - b));
+        expect(new Set(ats).size).toBe(ats.length);
       }),
       { numRuns: numRuns(200) },
     );
