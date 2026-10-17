@@ -31,6 +31,11 @@ Scripts for later milestones are stubs that exit non-zero with
   `src/server/db/index.ts`. Value types/validator: `src/lib/types`; problem
   file schemas: `src/lib/problems`; starter templates: `src/lib/templates`.
 - Integration tests use `tests/helpers/db.ts` (factories, `resetTestDb()`).
+- Auth: `src/server/auth/`. `getCurrentUser()` / `requireUser(nextPath)` from
+  `session.ts` are the only way to read the session (no middleware/proxy).
+  Every mutating route handler starts with `assertSameOrigin(request)` and
+  reads its body with `readJsonBody()` (`src/server/http/request.ts`).
+  Redirect targets from `?next=` go through `safeRedirectPath()`.
 - Import alias `@/` → `src/`.
 
 ## Rules
