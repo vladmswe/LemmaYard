@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import { buildCreateArgs, sandboxCommand } from "../../worker/docker-executor";
 import { safeErrorMessage } from "../../worker/loop";
-import { stripNul, toFinalFields } from "../../worker/queue";
+import { sanitizeValue, TOO_DEEP } from "../../worker/judge";
+import { toFinalFields } from "../../worker/queue";
 import type { ExecResult } from "../../worker/types";
 
 const base: ExecResult = {
@@ -59,11 +60,26 @@ describe("toFinalFields", () => {
   });
 });
 
-describe("stripNul", () => {
-  it("replaces U+0000 in nested strings and keys", () => {
-    expect(stripNul({ "a\u0000": ["x\u0000", 1, null, { y: "\u0000" }] })).toEqual({
-      "a�": ["x�", 1, null, { y: "�" }],
+describe("sanitizeValue", () => {
+  it("replaces U+0000 and lone surrogates in nested strings and keys", () => {
+    const value = { "a\u0000": ["x\u0000", 1, null, { y: "\uD800z\uDC00" }], ok: "😀" };
+    expect(sanitizeValue(value)).toEqual({
+      "a�": ["x�", 1, null, { y: "�z�" }],
+      ok: "😀",
     });
+  });
+
+  it("replaces subtrees nested deeper than 64 levels", () => {
+    let deep: unknown = 1;
+    for (let i = 0; i < 100_000; i++) deep = [deep];
+    let out = sanitizeValue(deep);
+    let depth = 0;
+    while (Array.isArray(out)) {
+      out = out[0];
+      depth++;
+    }
+    expect(depth).toBe(64);
+    expect(out).toBe(TOO_DEEP);
   });
 });
 

@@ -8,6 +8,7 @@ import { validateInput } from "@/lib/types";
 import type { Db } from "@/server/db";
 import { problems, submissions, testCases } from "@/server/db/schema";
 
+import { sanitizeText, sanitizeValue } from "./judge";
 import type { ExecJob, ExecResult, ExecStatus } from "./types";
 
 export type Submission = typeof submissions.$inferSelect;
@@ -168,22 +169,11 @@ export async function buildJob(db: Db, submission: Submission): Promise<ExecJob>
   };
 }
 
-/** Postgres text/jsonb cannot hold U+0000; user output may contain it. */
-export function stripNul<T>(value: T): T {
-  if (typeof value === "string") return value.replaceAll("\u0000", "�") as T;
-  if (Array.isArray(value)) return value.map(stripNul) as T;
-  if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [stripNul(k), stripNul(v)]),
-    ) as T;
-  }
-  return value;
-}
-
 const metric = (n: number | null) => (n === null || !Number.isFinite(n) ? null : Math.max(0, Math.round(n)));
 
 /**
- * Maps an executor result onto the submission columns. `failed_case` only for
+ * Maps an executor result onto the submission columns (sanitized again for
+ * Postgres, see `sanitizeValue`; the DockerExecutor already does it). `failed_case` only for
  * Submit + wrong_answer, `case_results` only for Run; counters per PLAN.md
  * section 4 (`total_count` = cases of the job).
  */
@@ -201,10 +191,10 @@ export function toFinalFields(kind: Submission["kind"], result: ExecResult): Fin
       index !== null && Number.isInteger(index) && index >= 0 && index < totalCount ? index : null,
     failedCase:
       kind === "submit" && result.status === "wrong_answer" && result.failedCase
-        ? stripNul(result.failedCase)
+        ? sanitizeValue(result.failedCase)
         : null,
-    caseResults: kind === "run" ? stripNul(result.caseResults) : null,
-    stdout: stripNul(result.stdout),
-    error: result.error === null ? null : stripNul(result.error),
+    caseResults: kind === "run" ? sanitizeValue(result.caseResults) : null,
+    stdout: sanitizeText(result.stdout),
+    error: result.error === null ? null : sanitizeText(result.error),
   };
 }

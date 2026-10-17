@@ -145,6 +145,37 @@ export type RunObservation = {
   stderr: string;
 };
 
+/**
+ * Makes user-controlled text storable in Postgres (`text` and `jsonb` reject
+ * U+0000; `jsonb` also rejects unpaired surrogates): U+0000 and every lone
+ * surrogate become U+FFFD. Applied recursively (strings and object keys) to
+ * everything user code controls: stdout, error texts, `actual` values. It runs
+ * after comparison, so verdicts see the raw values.
+ */
+export function sanitizeText(text: string): string {
+  return text.toWellFormed().replaceAll("\u0000", "\uFFFD");
+}
+
+/** Deeper values cannot match any signature type (at most `T[][]`). */
+export const MAX_STORED_DEPTH = 64;
+export const TOO_DEEP = "[nested too deep]";
+
+/**
+ * `sanitizeText` on every string and key. A subtree nested deeper than
+ * `MAX_STORED_DEPTH` is replaced by the string `TOO_DEEP` (display only: no
+ * signature type is that deep, and the verdict is decided before this runs);
+ * this keeps the value serializable by the database driver.
+ */
+export function sanitizeValue<T>(value: T, depth = 0): T {
+  if (typeof value === "string") return sanitizeText(value) as T;
+  if (typeof value !== "object" || value === null) return value;
+  if (depth >= MAX_STORED_DEPTH) return TOO_DEEP as T;
+  if (Array.isArray(value)) return value.map((v) => sanitizeValue(v, depth + 1)) as T;
+  return Object.fromEntries(
+    Object.entries(value).map(([k, v]) => [sanitizeText(k), sanitizeValue(v, depth + 1)]),
+  ) as T;
+}
+
 export function truncateBytes(text: string, limit: number): string {
   if (Buffer.byteLength(text) <= limit) return text;
   const data = Buffer.from(text, "utf8");
@@ -173,7 +204,7 @@ export function internalErrorResult(job: ExecJob, message: string): ExecResult {
     failedCase: null,
     caseResults: baseCases(job),
     stdout: "",
-    error: truncateBytes(message, ERROR_LIMIT_BYTES),
+    error: truncateBytes(sanitizeText(message), ERROR_LIMIT_BYTES),
   };
 }
 
@@ -232,13 +263,13 @@ export function decideVerdict(job: ExecJob, obs: RunObservation): ExecResult {
       const c = cases[frame.index];
       c.timeMs = Math.round(frame.timeMs);
       if (frame.status === "ok") {
-        c.actual = frame.actual;
         c.status = frameFails(job, frame) ? "failed" : "passed";
+        c.actual = sanitizeValue(frame.actual);
       } else if (frame.status === "timeout") {
         c.status = "time_limit";
       } else {
         c.status = frame.memory ? "memory_limit" : "runtime_error";
-        if (frame.error !== undefined) c.error = frame.error;
+        if (frame.error !== undefined) c.error = sanitizeText(frame.error);
       }
       stopped = job.stopOnFirstFailure && c.status !== "passed";
     }
@@ -264,8 +295,8 @@ export function decideVerdict(job: ExecJob, obs: RunObservation): ExecResult {
           ? { input: failed.input, expected: failed.expected, actual: failed.actual }
           : null,
       caseResults: cases,
-      stdout: truncateBytes(stdout, STDOUT_LIMIT_BYTES),
-      error: error === null ? null : truncateBytes(error, ERROR_LIMIT_BYTES),
+      stdout: truncateBytes(sanitizeText(stdout), STDOUT_LIMIT_BYTES),
+      error: error === null ? null : truncateBytes(sanitizeText(error), ERROR_LIMIT_BYTES),
     };
   };
   const firstWith = (status: CaseResult["status"]) => cases.find((c) => c.status === status);
