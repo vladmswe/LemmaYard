@@ -38,6 +38,8 @@ import { closeTestDb, createUser, getTestDb, resetTestDb } from "../helpers/db";
 
 const ORIGIN = new URL(getEnv().AUTH_URL).origin;
 
+const submissionsProps = () => ({ params: Promise.resolve({}), searchParams: Promise.resolve({}) });
+
 function post(path: string, body: unknown, headers: Record<string, string> = {}) {
   return new Request(`${ORIGIN}${path}`, {
     method: "POST",
@@ -283,16 +285,16 @@ describe("session tokens", () => {
 
 describe("protected route /submissions", () => {
   it("redirects a guest to /login?next=/submissions", async () => {
-    expect(await redirectTarget(SubmissionsPage())).toBe("/login?next=%2Fsubmissions");
+    expect(await redirectTarget(SubmissionsPage(submissionsProps()))).toBe("/login?next=%2Fsubmissions");
     expect(await redirectTarget(requireUser("/a b"))).toBe("/login?next=%2Fa%20b");
   });
 
   it("redirects a forged token to login and renders for a signed-in user", async () => {
     sendToken("forged.token.value");
-    expect(await redirectTarget(SubmissionsPage())).toBe("/login?next=%2Fsubmissions");
+    expect(await redirectTarget(SubmissionsPage(submissionsProps()))).toBe("/login?next=%2Fsubmissions");
 
     sendToken(await registerAlice());
-    await expect(SubmissionsPage()).resolves.toBeTruthy();
+    await expect(SubmissionsPage(submissionsProps())).resolves.toBeTruthy();
     expect((await requireUser("/submissions")).username).toBe("alice");
   });
 });

@@ -1,11 +1,11 @@
-import { HistoryIcon } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { cache } from "react";
+import { cache, Suspense } from "react";
 
-import { EmptyState } from "@/components/empty-state";
 import { ProblemDescription } from "@/components/problem/problem-description";
 import { SolveWorkspace } from "@/components/problem/solve-workspace";
+import { ProblemSubmissions } from "@/components/submissions/problem-submissions";
+import { SubmissionsSkeleton } from "@/components/submissions/submissions-skeleton";
 import { getCurrentUser } from "@/server/auth/session";
 import { getProblemPageData } from "@/server/problem-page";
 import { getPollingConfig } from "@/server/submissions/config";
@@ -25,6 +25,8 @@ export async function generateMetadata({ params }: PageProps<"/problems/[slug]">
 export default async function ProblemPage({ params }: PageProps<"/problems/[slug]">) {
   const problem = await loadProblem((await params).slug);
   if (!problem) notFound();
+  // Cached per request: the same session read as in loadProblem.
+  const user = await getCurrentUser();
 
   return (
     <SolveWorkspace
@@ -34,16 +36,18 @@ export default async function ProblemPage({ params }: PageProps<"/problems/[slug
       signedIn={problem.signedIn}
       pollingConfig={getPollingConfig()}
       description={<ProblemDescription problem={problem} />}
-      submissions={<SubmissionsPlaceholder />}
+      submissions={
+        // Own boundary: the tab's query (AC-M6-3) streams without holding up the editor.
+        <Suspense
+          fallback={
+            <div className="p-4">
+              <SubmissionsSkeleton rows={4} />
+            </div>
+          }
+        >
+          <ProblemSubmissions slug={problem.slug} userId={user?.id ?? null} />
+        </Suspense>
+      }
     />
-  );
-}
-
-/** Left "Submissions" tab until M6 lists the user's submissions here. */
-function SubmissionsPlaceholder() {
-  return (
-    <EmptyState icon={HistoryIcon} title="Your submissions will appear here">
-      Each solution you submit for this problem will be listed with its verdict.
-    </EmptyState>
   );
 }

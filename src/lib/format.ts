@@ -27,3 +27,32 @@ export function formatTagLabel(name: string): string {
 export function formatMonthYear(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 }
+
+/** "Oct 17, 2026" (UTC). */
+export function formatShortDate(date: Date): string {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
+/** "Oct 17, 2026, 14:02 UTC": absolute time for titles and the submission page. */
+export function formatDateTime(date: Date): string {
+  const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+  return `${formatShortDate(date)}, ${time} UTC`;
+}
+
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+/**
+ * "just now", "3 min ago", "5 h ago", "yesterday", "4 days ago". From 30 days
+ * on (and for times more than a minute in the future) the short date instead.
+ */
+export function formatRelativeTime(date: Date, now: Date = new Date()): string {
+  const diff = now.getTime() - date.getTime();
+  if (diff < -MINUTE || diff >= 30 * DAY) return formatShortDate(date);
+  if (diff < MINUTE) return "just now";
+  if (diff < HOUR) return `${Math.floor(diff / MINUTE)} min ago`;
+  if (diff < DAY) return `${Math.floor(diff / HOUR)} h ago`;
+  const days = Math.floor(diff / DAY);
+  return days === 1 ? "yesterday" : `${days} days ago`;
+}
