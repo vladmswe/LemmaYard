@@ -143,6 +143,22 @@ Re-run both commands after pulling new migrations in `drizzle/` or changing
 `problems/`. Do not run `problems:import --prune` against production unless
 you mean to unpublish problems.
 
+### Alternative: create the tables in the Supabase SQL Editor
+
+If you do not want to run migrations from your machine, open
+[`docs/supabase/schema.sql`](supabase/schema.sql) (generated from `drizzle/*.sql`
+by `pnpm db:export-sql`), copy the whole file, then in Supabase go to
+**SQL Editor → New query**, paste it and press **Run**. Use it on an EMPTY
+project only: it refuses to run if the tables already exist. It creates all 13
+tables, indexes and CHECKs, enables RLS on each table (no policies) and records
+the 4 migrations in `drizzle.__drizzle_migrations`, so a later
+`pnpm db:migrate` applies only migrations added after the file was generated.
+The result shows each table with `rls = true`. The file creates no data: load the
+20 problems afterwards with
+`DATABASE_URL_DIRECT='<session pooler>' pnpm problems:import`. A unit test
+(`tests/unit/supabase-sql.test.ts`) fails when the file is stale; regenerate it
+with `pnpm db:export-sql` whenever a migration is added.
+
 ### Row level security
 
 Migration `0002_enable_rls` enables row level security on every app table
