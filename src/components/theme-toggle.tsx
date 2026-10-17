@@ -2,6 +2,7 @@
 
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,13 +20,25 @@ const THEMES = [
   { value: "dark", label: "Dark", icon: MoonIcon },
 ] as const;
 
+const noSubscribe = () => () => {};
+
+/** "Theme: System" etc.; plain "Theme" until hydrated (the server can't know). */
+export function themeButtonLabel(theme: string | undefined, hydrated: boolean): string {
+  const current = THEMES.find((t) => t.value === (theme ?? "system"));
+  return hydrated && current ? `Theme: ${current.label}` : "Theme";
+}
+
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
+  // false during SSR and hydration, true afterwards: no markup mismatch.
+  const hydrated = useSyncExternalStore(noSubscribe, () => true, () => false);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="header" size="icon" aria-label="Theme" />}
+        render={
+          <Button variant="header" size="icon" aria-label={themeButtonLabel(theme, hydrated)} />
+        }
       >
         {/* Icons switch via CSS so server and client markup match. The
             visible one rotates in (CSS animation restarts on display change;

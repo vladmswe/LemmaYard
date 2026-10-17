@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { isActivePath } from "@/components/nav-links";
+import { themeButtonLabel } from "@/components/theme-toggle";
 import { formatMonthYear, formatPercent, formatTagLabel } from "@/lib/format";
 import { initials } from "@/lib/initials";
 import {
@@ -112,6 +113,19 @@ describe("Monaco themes", () => {
     }
     expect(lemmayardLight.colors["editor.background"]).toBe("#FBFCFE");
     expect(lemmayardDark.colors["editor.background"]).toBe("#0F1A2E");
+  });
+});
+
+describe("themeButtonLabel", () => {
+  it("names the current theme once hydrated", () => {
+    expect(themeButtonLabel("dark", true)).toBe("Theme: Dark");
+    expect(themeButtonLabel("light", true)).toBe("Theme: Light");
+    expect(themeButtonLabel(undefined, true)).toBe("Theme: System");
+  });
+
+  it("is plain 'Theme' before hydration and for unknown values", () => {
+    expect(themeButtonLabel("dark", false)).toBe("Theme");
+    expect(themeButtonLabel("sepia", true)).toBe("Theme");
   });
 });
 
