@@ -11,6 +11,11 @@ import { getDb, type Db } from "@/server/db";
 import { problems, submissions } from "@/server/db/schema";
 import { getEnv } from "@/server/env";
 import { assertSameOrigin, jsonError, readJsonBody } from "@/server/http/request";
+import {
+  checkSubmitSession,
+  recheckSubmitSession,
+  type SessionSubmitRejection,
+} from "@/server/rooms/submit-context";
 
 import {
   checkCustomInput,
@@ -38,11 +43,14 @@ export type NewSubmission = {
   language: Language;
   code: string;
   customInput: Record<string, unknown> | null;
+  /** Rooms: only for `submit` (DB CHECK); validated by the caller and re-checked in the transaction. */
+  roomSessionId?: string | null;
 };
 
 export type InsertOutcome =
   | { ok: true; id: string }
-  | { ok: false; reason: "active" | "rate"; retryAfterSec: number };
+  | { ok: false; reason: "active" | "rate"; retryAfterSec: number }
+  | { ok: false; reason: "session"; rejection: SessionSubmitRejection };
 
 /**
  * Step 6 + 7 in one transaction, serialized per user by
@@ -56,6 +64,17 @@ export async function insertWithLimits(
 ): Promise<InsertOutcome> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${values.userId}::text))`);
+
+    // Rooms: the session window again, under the session lock (user lock →
+    // session lock; nothing that holds a session lock takes a user lock).
+    if (values.roomSessionId) {
+      const rejection = await recheckSubmitSession(tx, {
+        sessionId: values.roomSessionId,
+        userId: values.userId,
+        problemId: values.problemId,
+      });
+      if (rejection) return { ok: false, reason: "session", rejection } as const;
+    }
 
     const [active] = await tx
       .select({ count: sql<number>`count(*)::int` })
@@ -101,6 +120,10 @@ function reject(r: Rejection): NextResponse {
   return jsonError(r.status, r.error, r.fieldErrors);
 }
 
+function rejectSession(r: SessionSubmitRejection): NextResponse {
+  return NextResponse.json({ error: r.error, code: r.code }, { status: r.status, headers: { "Cache-Control": "no-store" } });
+}
+
 /** The whole handler of POST /api/problems/:slug/{run,submit}. */
 export async function createSubmission(
   request: Request,
@@ -143,6 +166,13 @@ export async function createSubmission(
     if (bad) return reject(bad);
   }
 
+  // (5b) Rooms session context (Submit only; Runs ignore it and never count).
+  const roomSessionId = kind === "submit" ? (data.roomSessionId ?? null) : null;
+  if (roomSessionId) {
+    const rejected = await checkSubmitSession(db, { sessionId: roomSessionId, userId: user.id, problemId: problem.id });
+    if (rejected) return rejectSession(rejected);
+  }
+
   // (6) + (7) Limits and insert, one transaction under the per-user lock.
   const outcome = await insertWithLimits(
     db,
@@ -153,12 +183,14 @@ export async function createSubmission(
       language: data.language,
       code: data.code,
       customInput: customInput as Record<string, unknown> | null,
+      roomSessionId,
     },
     {
       maxActive: env.MAX_ACTIVE_PER_USER,
       ratePerMin: kind === "run" ? env.RUN_RATE_PER_MIN : env.SUBMIT_RATE_PER_MIN,
     },
   );
+  if (!outcome.ok && outcome.reason === "session") return rejectSession(outcome.rejection);
   if (!outcome.ok) {
     const message =
       outcome.reason === "active"
