@@ -1,6 +1,7 @@
 "use client"
 
 import { useTheme } from "next-themes"
+import { useSyncExternalStore } from "react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import {
   CircleAlertIcon,
@@ -10,15 +11,30 @@ import {
   TriangleAlertIcon,
 } from "lucide-react"
 
-// Toasts (DESIGN.md §8.10): rate limits, network errors, "Code reset".
-// Never used for verdicts; those live in the console.
+const MOBILE = "(max-width: 767px)"
+
+function subscribeMobile(onChange: () => void) {
+  const mql = window.matchMedia(MOBILE)
+  mql.addEventListener("change", onChange)
+  return () => mql.removeEventListener("change", onChange)
+}
+
+// Toasts (DESIGN.md §8.10): rate limits, network errors, "Code reset", and
+// other people's room events on the problem page (§9.9). Never used for
+// verdicts; those live in the console. Bottom-right on desktop, top-center
+// on mobile, where the problem page's Run/Submit bar is at the bottom.
 const Toaster = ({ ...props }: ToasterProps) => {
   const { resolvedTheme } = useTheme()
+  const mobile = useSyncExternalStore(
+    subscribeMobile,
+    () => window.matchMedia(MOBILE).matches,
+    () => false
+  )
 
   return (
     <Sonner
       theme={resolvedTheme === "dark" ? "dark" : "light"}
-      position="bottom-right"
+      position={mobile ? "top-center" : "bottom-right"}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4 text-success" />,
