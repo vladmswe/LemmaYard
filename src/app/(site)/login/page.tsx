@@ -19,13 +19,13 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
   return (
     <AuthCard
-      title="Log in"
-      description="Welcome back. Log in to submit solutions."
+      title="Welcome back"
+      description="Log in to keep practicing."
       footer={
         <p>
-          No account?{" "}
-          <Link href={registerHref} className="text-foreground underline underline-offset-4">
-            Register
+          New here?{" "}
+          <Link href={registerHref} className="font-semibold text-link underline-offset-4 hover:underline">
+            Sign up
           </Link>
         </p>
       }

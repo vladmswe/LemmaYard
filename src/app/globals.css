@@ -386,6 +386,23 @@
   }
 }
 
+/* Static code samples (landing): same palette as the Monaco themes (§10). */
+@layer components {
+  .code-keyword {
+    color: #1c46a3;
+    font-weight: 500;
+  }
+  .code-function {
+    color: #8a2378;
+  }
+  .dark .code-keyword {
+    color: #8db4f5;
+  }
+  .dark .code-function {
+    color: #e3a2ea;
+  }
+}
+
 /* Uppercase eyebrow / section label. */
 @utility eyebrow {
   font-size: 0.75rem;

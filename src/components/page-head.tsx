@@ -44,8 +44,10 @@ export function PageHead({
               return (
                 <Fragment key={`${crumb.label}-${i}`}>
                   <BreadcrumbItem>
-                    {last || !crumb.href ? (
+                    {last ? (
                       <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                    ) : !crumb.href ? (
+                      <span>{crumb.label}</span>
                     ) : (
                       <BreadcrumbLink render={<Link href={crumb.href} />}>
                         {crumb.label}

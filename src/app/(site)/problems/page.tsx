@@ -1,13 +1,43 @@
+import { LibraryIcon } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
+
+import { EmptyState } from "@/components/empty-state";
+import { PageHead } from "@/components/page-head";
+import { buttonVariants } from "@/components/ui/button";
+import { getCatalogStats } from "@/server/landing";
 
 export const metadata: Metadata = { title: "Problems · leetcopy" };
 
-// Placeholder until the catalog lands in M3.
-export default function ProblemsPage() {
+// Placeholder until the catalog lands in M3: page head is final, the body
+// (filters, table, pagination) replaces the empty state.
+export default async function ProblemsPage() {
+  const stats = await getCatalogStats();
+
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Problems</h1>
-      <p className="mt-2 text-muted-foreground">The problem catalog is coming soon.</p>
-    </section>
+    <>
+      <PageHead
+        crumbs={[{ label: "Home", href: "/" }, { label: "Problems" }]}
+        title="Problems"
+        subtitle={
+          <span className="tabular-nums">
+            {stats.total} {stats.total === 1 ? "problem" : "problems"} · Python 3 and JavaScript
+          </span>
+        }
+      />
+      <div className="container-page py-8">
+        <EmptyState
+          icon={LibraryIcon}
+          title="The problem catalog is coming soon"
+          action={
+            <Link href="/" className={buttonVariants({ variant: "secondary" })}>
+              Go home
+            </Link>
+          }
+        >
+          Search, filters and the full list of problems will appear here.
+        </EmptyState>
+      </div>
+    </>
   );
 }

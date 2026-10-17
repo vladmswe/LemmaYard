@@ -5,8 +5,8 @@ import { LoaderCircleIcon } from "lucide-react"
 
 // DESIGN.md §8.1. Focus = 2px ring outline; hover/press change colors
 // (120 ms) and press scales by 2% (transform only, off under reduced motion).
-const buttonVariants = cva(
-  "group/button relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap transition-[color,background-color,border-color,box-shadow,transform] duration-120 ease-out outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-safe:active:not-aria-[haspopup]:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:border-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+const buttonVariantsRaw = cva(
+  "group/button relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent bg-clip-padding font-semibold whitespace-nowrap transition-[color,background-color,border-color,box-shadow,transform] duration-120 ease-out select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-safe:active:not-aria-[haspopup]:not-disabled:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:border-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -44,8 +44,20 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * Class string for a button look (also for links: `className={buttonVariants()}`).
+ * Merged with `cn` so variant classes override the base (e.g. border color);
+ * raw cva output would leave both and CSS order would decide.
+ */
+function buttonVariants(
+  props?: VariantProps<typeof buttonVariantsRaw> & { className?: string }
+) {
+  const { className, ...variants } = props ?? {}
+  return cn(buttonVariantsRaw(variants), className)
+}
+
 type ButtonProps = ButtonPrimitive.Props &
-  VariantProps<typeof buttonVariants> & {
+  VariantProps<typeof buttonVariantsRaw> & {
     /** Shows a spinner in place of the leading icon and disables the button. */
     loading?: boolean
   }
@@ -65,10 +77,13 @@ function Button({
       data-loading={loading || undefined}
       aria-busy={loading || undefined}
       disabled={disabled || loading}
-      className={cn(
-        buttonVariants({ variant, size, className }),
-        loading && "[&_svg:not([data-spinner])]:hidden"
-      )}
+      className={(state) =>
+        cn(
+          buttonVariantsRaw({ variant, size }),
+          loading && "[&_svg:not([data-spinner])]:hidden",
+          typeof className === "function" ? className(state) : className
+        )
+      }
       {...props}
     >
       {loading && (
