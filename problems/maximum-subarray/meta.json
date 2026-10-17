@@ -1,0 +1,27 @@
+{
+  "number": 11,
+  "slug": "maximum-subarray",
+  "title": "Maximum Subarray",
+  "difficulty": "easy",
+  "tags": [
+    "array",
+    "dynamic-programming"
+  ],
+  "signature": {
+    "name": "maxSubArray",
+    "params": [
+      {
+        "name": "nums",
+        "type": "int[]"
+      }
+    ],
+    "returns": "int"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}
