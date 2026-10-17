@@ -10,8 +10,11 @@ do only what the current milestone's acceptance criteria require.
 ```bash
 pnpm install
 docker compose up -d --wait   # Postgres 16 on localhost:5433
+pnpm db:seed                  # migrate + import problems/
 pnpm dev                      # PORT from .env (default 3000)
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
+pnpm test:integration         # needs Postgres; own DB leetcopy_test_<worktree>
+pnpm problems:import --dir tests/fixtures/problems [--prune]
 ```
 
 Scripts for later milestones are stubs that exit non-zero with
@@ -24,6 +27,10 @@ Scripts for later milestones are stubs that exit non-zero with
 - `drizzle/` migrations, `problems/<slug>/` problem files, `sandbox/` images
   and harnesses, `worker/` judge worker, `scripts/` CLI scripts,
   `tests/{unit,integration,e2e,helpers}`.
+- DB: Drizzle + `pg`, schema `src/server/db/schema.ts`, client `getDb()` in
+  `src/server/db/index.ts`. Value types/validator: `src/lib/types`; problem
+  file schemas: `src/lib/problems`; starter templates: `src/lib/templates`.
+- Integration tests use `tests/helpers/db.ts` (factories, `resetTestDb()`).
 - Import alias `@/` → `src/`.
 
 ## Rules
