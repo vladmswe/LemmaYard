@@ -1,14 +1,190 @@
-This lesson is being written.
+import { stackBrackets, stackMonotonic, stackOps } from "@/components/guide/viz/stack/defs";
 
-{/* Required h2 headings, in this order (PLAN-GUIDE 1.3):
 ## Why it exists
+
+You are building the undo button of a text editor. The user types a word, deletes a line, pastes a block.
+Pressing undo must reverse the paste first, then the delete, then the typing: the newest change goes first.
+
+A <Term id="stack">stack</Term> is the structure made for exactly that. It keeps items in arrival order,
+but you only ever touch the newest one. Its reason to exist fits in one line: the most recent item,
+handed back in O(1).
+
+This rule has a name, <Term id="lifo">LIFO</Term>: last in, first out. You will meet it everywhere.
+Undo and redo, the back button of a browser, matching brackets in code, evaluating expressions, and
+backtracking searches all use a stack. So does every program you run, through the call stack below.
+
 ## Mental model
-<operation sections>
+
+Picture a pile of plates in a cafeteria. You put a clean plate on the pile, and the next person takes the
+plate on top. Nobody pulls a plate from the middle.
+
+A stack offers three operations on that pile:
+
+1. <Term id="push">Push</Term> adds a value on top.
+2. Pop removes the value on top and returns it.
+3. Peek returns the value on top and leaves it there.
+
+The <Term id="top">top</Term> is the only position you can see. Everything below it is older, and it stays
+untouched until the items above it are gone.
+
+The simplest way to store a stack is the dynamic array from an earlier lesson. Slot 0 holds the bottom,
+and the stack grows to the right. If size is the number of values, the top sits at index size − 1, so an
+empty stack has top = −1. Push writes at index size; pop reads index size − 1. Nothing ever shifts,
+because both operations work at the end of the array.
+
+A singly linked list works too: push puts a new node in front of the head, and pop takes the head away.
+Both versions keep one invariant: the newest value is always one step away.
+
+Your programs use a stack all the time without asking. When a function calls another function, the
+runtime pushes a frame with its local variables and the place to return to. When the inner function
+returns, its frame is popped, and the caller resumes where it stopped. That is the
+<Term id="call-stack">call stack</Term>, and it is why deep recursion can run out of room.
+
+## Push, pop and peek
+
+The player runs eight operations on an array-backed stack that starts with four slots. Watch the top tag:
+it moves right on every push and left on every pop, and the values below it never move.
+
+<Viz def={stackOps} id="stack-ops" code="stacks/array_stack" hint="Try: press Next, or pick the 'Push past capacity 4' preset." />
+
+Before the first pop and before the peek, the player asks you to predict the value. Think of the order the
+values went in, not of where they sit in the array.
+
+The last operation pops an empty stack. There is no value to return, so our code raises an error instead
+of handing back whatever an old slot still holds. In Python that is an `IndexError`; in JavaScript we throw
+an `Error`.
+
+Try the "Push past capacity 4" preset too. The fifth push finds the array full, copies the four values into
+a new array of eight slots, and only then writes. That one push costs O(n), but as you saw with dynamic
+arrays, doubling keeps pushes O(1) amortized.
+
+## Matching brackets
+
+Here is a classic job for a stack. A compiler reads `if (x * (y + z[1]) < 137) { x = 1; }` and must decide
+whether its brackets are balanced: every opener has a closer of the same kind, and pairs nest instead of
+crossing. `((())())()` passes. `)()(` and `())` fail.
+
+Counting is not enough. The text `([)]` has one of each bracket, yet the pairs cross. What you need is
+memory of which opener came last, and that is a stack. Scan the text from left to right:
+
+- An opener, `(` or `[` or `{`, is pushed. It waits for its partner.
+- A closer must match the opener on top. If the stack is empty, or the top is a different kind, the text
+  is unbalanced and you stop. Otherwise pop: that pair is done.
+- Any other character, such as a letter, a digit, a space or `<`, is not a bracket. Skip it.
+- At the end, the stack must be empty. Openers left on it never found a partner.
+
+<Viz def={stackBrackets} id="brackets" code="stacks/brackets" hint="Try: press Next, or pick a failing preset such as ([)]." />
+
+When the scan reaches `]`, the player asks what happens next. Look at the top of the stack in the frame
+before you answer.
+
+The failing presets show the three ways to fail. In `)()(` the first closer meets an empty stack. In `([)]`
+the `)` meets a `[` on top. In `((` the scan ends with two openers still waiting.
+
+Each character is read once, and each push or pop is O(1), so the check is O(n) for a text of n characters.
+In the worst case, a text made only of openers, the stack holds all n of them.
+
+## Next greater element
+
+A different question: for each value in a list, what is the first value to its right that is larger?
+For daily temperatures, that answers "when does it next get warmer?". The direct way compares each value
+with everything after it. That is O(n²) comparisons in the worst case.
+
+A stack does it in one pass. Keep a stack of indices that are still waiting for a larger value. Their values
+never increase from the bottom to the top, which is why this is called a
+<Term id="monotonic-stack">monotonic stack</Term>. When a new value x arrives:
+
+1. While the value on top is smaller than x, pop that index. Its answer is x.
+2. Push the index of x. It now waits too.
+
+Indices still on the stack at the end never met a larger value, so their answer is −1.
+
+<Viz def={stackMonotonic} id="next-greater" code="stacks/next_greater" hint="Try: press Next, or pick 'Increasing'." />
+
+When 7 arrives, the player asks which indices get their answer. Only the smaller values on top pop; the
+pop stops at the first value that is not smaller.
+
+One arrival can pop many indices, so a single step may look expensive. Count the whole run instead, as in
+the aggregate argument for dynamic arrays. Every index is pushed exactly once and popped at most once.
+So n values cause n pushes and at most n pops, and the loop does O(n) work in total. The header of the
+figure counts both. Equal values do not pop each other, because the rule asks for a larger value.
+
 ## Cost
+
+<ComplexityTable id="stack-ops" />
+
+The copies counter in the first player is the O(n) worst case of push; it stays at zero until the array is full.
+The pushes and pops in the last player are why the next-greater scan is linear.
+
 ## Pitfalls
+
+<Callout kind="pitfall" title="Popping or peeking at an empty stack">
+  Always decide what pop and peek do when there is nothing to return. Our code raises an error. Python's
+  `list.pop()` raises `IndexError` too, but JavaScript's `pop()` quietly returns `undefined`, so check
+  `length` first.
+</Callout>
+
+- **Leftover openers.** A bracket scan that never fails can still end with openers on the stack. Check that
+  the stack is empty at the end, or `((` passes as balanced.
+- **Treating every other character as a closer.** A checker that only asks "is it an opener?" and handles
+  everything else as a closer breaks on the first letter or space. Only `)`, `]` and `}` are closers; skip
+  the rest.
+- **Recursion that goes too deep.** Each call adds a frame to the call stack. CPython stops at a recursion
+  limit of about 1,000 frames by default, and JavaScript engines throw a "Maximum call stack size exceeded"
+  error. For very deep work, keep your own stack in a list and loop.
+- **Using the wrong end of a list.** `pop(0)` or `shift()` take from the front and shift every value. A stack
+  only needs the end, where both operations are cheap.
+
 ## In your language
+
+Neither language needs a special class. The built-in list already pushes and pops at the end:
+
+```python
+stack = []
+stack.append(3)     # push: O(1) amortized
+stack.append(5)
+stack[-1]           # peek: 5
+stack.pop()         # pop: returns 5; IndexError if empty
+not stack           # True when empty
+```
+
+```javascript
+const stack = [];
+stack.push(3);      // O(1) amortized
+stack.push(5);
+stack.at(-1);       // peek: 5
+stack.pop();        // returns 5; undefined if empty
+stack.length === 0; // empty?
+```
+
+Python's `collections.deque` works as a stack as well, with `append` and `pop`. Here is the from-scratch
+`ArrayStack` the first player highlights. It doubles its array when full and raises an error on an empty
+pop or peek.
+
+<CodeTabs code="stacks/array_stack" />
+
 ## When to use it
+
+Use a stack whenever the next item you need is the one you saw most recently. That covers undo, nested
+structures such as brackets, HTML tags or JSON, expression evaluation, backtracking, and depth-first
+search on graphs, which a later lesson builds with an explicit stack.
+
+The monotonic stack is the tool for "next larger" and "next smaller" questions, and for problems about
+the walls around a gap, such as trapped rain water.
+
+A stack is the wrong choice when you need the oldest item first. That is a queue, the next lesson. It also
+gives no access to the middle: finding a value means popping everything above it.
+
 ## Check yourself
+
+<Quiz id="stacks-check" />
+
 ## Practice
+
+<PracticeLinks />
+
 ## Recap
-*/}
+
+- A stack adds and removes at one end, the top: push, pop and peek are O(1), amortized for an array that grows and worst case for a linked list; pop on an empty stack must raise an error.
+- Bracket matching pushes openers, pops when a closer matches the top, skips every other character, and needs an empty stack at the end: O(n) for n characters.
+- A monotonic stack finds every next greater element in one pass, because each index is pushed once and popped at most once: O(n) in total.

@@ -1,14 +1,188 @@
-This lesson is being written.
+import { dequeRing } from "@/components/guide/viz/deque/defs";
+import { queueNaive, queueRing } from "@/components/guide/viz/queue/defs";
 
-{/* Required h2 headings, in this order (PLAN-GUIDE 1.3):
 ## Why it exists
+
+Thirty people in an office share one printer. Each print job has to wait its turn, and jobs must come out
+in the order they were sent: whoever pressed Print first gets the first pages.
+
+A <Term id="queue">queue</Term> is the structure for that. It hands items back in the order they arrived,
+and adding or removing one costs O(1). That rule is <Term id="fifo">FIFO</Term>: first in, first out, the
+mirror image of the stack's LIFO.
+
+Queues sit between any producer and any consumer that run at different speeds: requests waiting for a
+web server, keystrokes waiting to be drawn while the screen lags, processes waiting for the CPU. In a later
+lesson, breadth-first search on graphs uses a queue to visit vertices layer by layer. It takes the next
+vertex from the front, with `popleft()` in Python, never `pop()`, which would take the newest one.
+
 ## Mental model
-<operation sections>
+
+Think of a line at a bakery. New customers join at the back. The person at the front is served and leaves.
+Nobody cuts in, and nobody leaves from the middle.
+
+A queue has two ends with two names. You <Term id="enqueue">enqueue</Term> at the back, which we call the
+tail, and dequeue at the front, the head. Peek reads the head without removing it.
+
+The question of this lesson is how to store that line so both ends stay cheap. A stack only works at one
+end of an array, which is easy. A queue needs both ends, and the front of an array is the expensive end.
+
+## A queue in a plain list
+
+The first idea is to keep the values in a list with the front at index 0. Enqueue appends at the end:
+cheap. Dequeue removes index 0, and then every remaining value has to move one slot to the left so that
+index 0 is the front again.
+
+<Viz def={queueNaive} id="queue-naive" hint="Try: press Next, or pick 'Same script, both ways'." />
+
+After the first dequeue, the player asks how many values move. Count the cells behind the gap.
+
+A dequeue from a list of n values moves n − 1 of them. That is O(n) per call, and n dequeues add up to
+O(n²). This is exactly what Python's `list.pop(0)` and JavaScript's `array.shift()` do: both are O(n) per
+call in general. JavaScript engines optimise some cases, but the language makes no promise, so do not rely
+on it.
+
+## The circular buffer
+
+The fix is to stop moving values and move the front instead. Keep the values in a fixed array and two
+numbers: head, the slot of the front value, and size, the number of values. The back is then derived:
+tail = (head + size) % capacity.
+
+- Enqueue writes at slot tail, then adds one to size.
+- Dequeue reads slot head, then sets head = (head + 1) % capacity and subtracts one from size.
+
+The modulo is what makes the array behave like a ring. When tail would step past the last slot, it
+<Term id="wrap-around">wraps around</Term> to slot 0, which a dequeue freed earlier. An array used this way
+is a <Term id="circular-buffer">circular buffer</Term>, also called a ring buffer.
+
+<Viz def={queueRing} id="queue-ring" code="queues-and-deques/ring_queue" hint="Try: press Next, then run the same preset in both players." />
+
+The player draws the same eight slots twice, as a ring and as a straight row. After six dequeues, head is
+at slot 6. The next enqueues land in slot 7, then in slot 0. With head = 6 and size = 3, the player asks
+which slot the next enqueue uses: work out (6 + 3) % 8 before you look.
+
+Now compare the moves counters. On the "Same script, both ways" preset the plain list makes 21 moves,
+6 + 5 + 4 + 3 + 2 + 1, one batch per dequeue. The ring makes none.
+
+Why keep size at all, instead of a separate tail index? Because head == tail happens twice: when the ring is
+empty, and when it is full. Both look the same from the indices alone. Size tells them apart, so the ring is
+full exactly when size == capacity.
+
+## Growing a full ring
+
+When an enqueue finds size == capacity, every slot is taken. Like a dynamic array, the ring moves into an
+array twice as large. The copy has one twist: if the values wrap around, copying slot k to slot k would put
+them out of order. Head may sit at slot 3, with the queue running 3, 4, 5, 6, 7, then 0, 1, 2.
+
+So the copy <Term id="unroll">unrolls</Term> the ring. For each i from 0 to size − 1, the new array's slot i
+receives old[(head + i) % oldCapacity]. The front lands in slot 0, the back in slot size − 1, and then
+head = 0. The modulo must use the old capacity: the values are still laid out for the old ring.
+
+Pick the "Grow a wrapped ring" preset in the player above. Each copy step prints its index arithmetic, and
+the values come out in queue order.
+
+That enqueue costs O(n), but it doubles the room, so many cheap enqueues follow. By the same aggregate
+argument as for dynamic arrays, enqueue stays O(1) amortized.
+
+## Deques: both ends
+
+A <Term id="deque">deque</Term>, short for double-ended queue and said "deck", allows all four moves: push
+and pop at the front, push and pop at the back. The same ring supports it with two extra formulas.
+
+- pushFront steps head back one slot: head = (head − 1 + capacity) % capacity, then writes there.
+- popBack reads the last value at (head + size − 1) % capacity, then subtracts one from size.
+
+Adding the capacity before the modulo matters. In JavaScript, `-1 % 8` is −1, not 7, so the plus keeps the
+index inside the array. Python's `%` already returns 7, and the same formula works there too.
+
+<Viz def={dequeRing} id="deque-ring" code="queues-and-deques/ring_deque" hint="Try: press Next, or pick 'Push at the front only'." />
+
+The first pushFront happens at head 0, and the player asks which slot it writes. Later the ring is full with
+head and tail on the same slot, and the player asks whether it is full or empty.
+
+Deques show up where both ends matter: a browser history that drops its oldest page, a sliding window that
+adds on one side and removes on the other, or work queues where idle workers take tasks from the far end.
+
+## A queue from two stacks
+
+There is another classic way to build a queue: two stacks, an inbox and an outbox. Enqueue pushes onto the
+inbox. Dequeue pops from the outbox; if the outbox is empty, first pop everything from the inbox and push it
+onto the outbox, which reverses the order so the oldest value ends up on top.
+
+One dequeue may move n values, so it is O(n) in the worst case. But each value is moved from inbox to outbox
+only once in its life, so any sequence of n operations costs O(n) in total: O(1) amortized per operation.
+
 ## Cost
+
+<ComplexityTable id="queue-ops" />
+
+The moves counters make the dequeue rows visible: the plain list pays n − 1 moves per dequeue, while the
+ring pays moves only on a grow.
+
 ## Pitfalls
+
+<Callout kind="pitfall" title="list.pop(0) and shift() as a queue">
+  They work, and they are fine for ten items. For a queue of a million items, each call shifts nearly a million
+  values. Use `collections.deque` in Python or a ring buffer in JavaScript.
+</Callout>
+
+- **Telling full from empty.** If you track only head and tail, head == tail means both "empty" and "full".
+  Track size, or always leave one slot unused.
+- **Growing without unrolling.** Copying slot k to slot k of a bigger array breaks the order of a wrapped
+  ring. Copy old[(head + i) % oldCapacity] into slot i, then set head = 0.
+- **Dequeue on an empty queue.** Decide what happens. Our code raises an error; Python's `deque.popleft()`
+  raises `IndexError` too, while JavaScript's `shift()` on an empty array returns `undefined`.
+- **A negative index after head − 1.** In JavaScript, add the capacity before taking `%`.
+
 ## In your language
+
+Python has a deque built in, and it is the right default queue:
+
+```python
+from collections import deque
+q = deque()
+q.append(10)        # enqueue at the back: O(1)
+q.append(20)
+q.popleft()         # dequeue from the front: 10, O(1)
+q.appendleft(5)     # push at the front: O(1)
+q.pop()             # pop at the back: 20, O(1)
+```
+
+A `deque` is fast at both ends but not in the middle: `q[i]` far from either end walks through its blocks.
+For queues shared between threads, Python also has `queue.Queue`.
+
+JavaScript has no built-in queue. Use a ring buffer class like the one below, or keep a head index into an
+array and read `items[head++]`, compacting the array once the dead part gets large.
+
+```javascript
+const q = new RingQueue();
+q.enqueue(10);
+q.enqueue(20);
+q.dequeue();        // 10
+```
+
+Here is the `RingQueue` the second player highlights, with its `grow` that unrolls the ring:
+
+<CodeTabs code="queues-and-deques/ring_queue" />
+
 ## When to use it
+
+Use a queue when items must be handled in the order they arrived: job scheduling, buffering between a fast
+producer and a slow consumer, and breadth-first search. Use a deque when you add or remove at both ends,
+such as for sliding windows.
+
+Neither is a good fit when the next item should be the most important one rather than the oldest. That is a
+priority queue, built with a heap in a later lesson. And neither helps you find a value: that is a scan.
+
 ## Check yourself
+
+<Quiz id="queues-check" />
+
 ## Practice
+
+<PracticeLinks />
+
 ## Recap
-*/}
+
+- A queue is first in, first out; a plain list that removes index 0 shifts n − 1 values per dequeue, so `list.pop(0)` and `shift()` are O(n) per call.
+- A circular buffer keeps head and size, writes at (head + size) % capacity and advances head with a modulo: dequeue is O(1) worst case, and enqueue is O(1) amortized because a full ring (size == capacity) doubles by copying old[(head + i) % oldCapacity] to slot i and setting head = 0.
+- A deque works at both ends of the same ring: pushFront uses (head − 1 + capacity) % capacity, popBack reads (head + size − 1) % capacity.
