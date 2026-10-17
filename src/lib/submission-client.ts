@@ -101,8 +101,11 @@ export type PollResult =
   | { state: "done"; submission: SubmissionDto }
   /** Still `queued` after `queuedTimeoutMs`. */
   | { state: "judge_unavailable"; submissionId: string; message: string }
-  /** Still `running` after `runningTimeoutMs`; link to `href`. */
-  | { state: "taking_longer"; submissionId: string; message: string; href: string }
+  /**
+   * Still `running` after `runningTimeoutMs`. `href` = the submission page,
+   * only for a Submit: Runs have no page (it would be a 404).
+   */
+  | { state: "taking_longer"; submissionId: string; message: string; href: string | null }
   /** 404 (gone or not yours), 401 (signed out), or repeated network/server errors. */
   | { state: "error"; submissionId: string; status: number; message: string }
   | { state: "aborted"; submissionId: string };
@@ -140,6 +143,7 @@ export async function pollSubmission(id: string, options: PollOptions): Promise<
   let runningSince: number | null = null;
   let failures = 0;
   let lastStatus: SubmissionDto["status"] = "queued";
+  let lastKind: SubmissionDto["kind"] | null = null;
 
   for (;;) {
     if (signal?.aborted) return { state: "aborted", submissionId: id };
@@ -158,6 +162,7 @@ export async function pollSubmission(id: string, options: PollOptions): Promise<
       failures = 0;
       const submission = (await res.json()) as SubmissionDto;
       lastStatus = submission.status;
+      lastKind = submission.kind;
       onUpdate?.(submission);
       if (isFinalStatus(submission.status)) return { state: "done", submission };
       if (submission.status === "running") runningSince ??= Date.now();
@@ -185,7 +190,7 @@ export async function pollSubmission(id: string, options: PollOptions): Promise<
         state: "taking_longer",
         submissionId: id,
         message: TAKING_LONGER_MESSAGE,
-        href: `/submissions/${id}`,
+        href: lastKind === "submit" ? `/submissions/${id}` : null,
       };
     }
     await wait(intervalMs, signal);

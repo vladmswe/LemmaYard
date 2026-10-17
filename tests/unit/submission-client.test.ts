@@ -102,6 +102,13 @@ describe("pollSubmission", () => {
     expect(elapsed).toBeLessThan(8500);
   });
 
+  it("taking longer after a Run: no link (a Run has no submission page)", async () => {
+    const runDto = (status: SubmissionStatus) => json({ ...dto(status), kind: "run" });
+    const fetch = sequence([runDto("queued"), runDto("running")]);
+    const { result } = await drive(pollSubmission(ID, { config: { queuedTimeoutMs: 60_000, runningTimeoutMs: 3000 }, fetch }));
+    expect(result).toEqual({ state: "taking_longer", submissionId: ID, message: TAKING_LONGER_MESSAGE, href: null });
+  });
+
   it("a long queue that then runs does not trip the queued timeout", async () => {
     const fetch = sequence(["queued", "queued", "running", "running", "wrong_answer"]);
     const { result } = await drive(
@@ -176,6 +183,20 @@ describe("startRun / startSubmit", () => {
       error: "Invalid custom input",
       fieldErrors: { customInput: "bad" },
     });
+  });
+
+  it("passes a 503 judge_disabled through with its code (no retry, no polling)", async () => {
+    const body = { error: "Code execution is not available on this deployment yet", code: "judge_disabled" };
+    for (const start of [startRun, startSubmit]) {
+      const fetch = vi.fn(async () => json(body, 503));
+      expect(await start("two-sum", { language: "python", code: "x" }, { fetch })).toEqual({
+        ok: false,
+        status: 503,
+        error: body.error,
+        code: "judge_disabled",
+      });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
   });
 
   it("maps a network failure to status 0", async () => {

@@ -21,6 +21,7 @@ import {
 } from "@/lib/workspace/judge-state";
 
 import { pillClasses, valueBlockClasses } from "./console-testcase";
+import { JudgeDisabledNotice } from "./judge-disabled-note";
 import { ShortcutKeys } from "./editor-toolbar";
 
 export type ConsoleResultProps = {
@@ -50,6 +51,8 @@ function ResultBody({ view, onRetry }: ConsoleResultProps) {
   switch (view.type) {
     case "idle":
       return <IdleResult />;
+    case "judge_disabled":
+      return <JudgeDisabledNotice message={view.message} />;
     case "pending":
       return <PendingResult status={view.status} label={view.label} />;
     case "notice":

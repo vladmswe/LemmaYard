@@ -155,6 +155,16 @@ timeouts (`QUEUED_TIMEOUT_MS`, `WALL_CAP_MS` + 30 s) reach the client as a prop:
 a server component calls `getPollingConfig()` (`src/server/submissions/config.ts`)
 and passes the result to `pollSubmission()`.
 
+**Judge disabled mode.** `JUDGE_ENABLED` (`0`/`1`) switches code execution off
+for deployments without a worker; unset, it is on everywhere except on Vercel
+(`VERCEL` set). When off, Run / Submit (also with `roomSessionId`) and room
+session start answer `503 {"error": …, "code": "judge_disabled"}` right after
+the Origin and session checks, before rate limits or any row; the problem page
+disables Run / Submit with a note (editing and drafts still work) and the room
+lobby disables Start. `GET /api/health` reports `"judge": "enabled"|"disabled"`.
+Local dev and the worker are unaffected. Code: `src/server/judge.ts`,
+`isJudgeEnabled()` in `src/server/env.ts`, copy in `src/lib/judge-availability.ts`.
+
 Docker integration tests (`tests/integration/sandbox-*.test.ts`) need Docker and
 `pnpm sandbox:build`; they run with `pnpm test:integration` (whose global setup
 also needs Postgres) and do not touch the database.

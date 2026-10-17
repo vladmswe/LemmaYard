@@ -47,6 +47,8 @@ export type RunSubmitProps = {
   disabled: boolean;
   /** Why Run is disabled (invalid custom input), shown in its tooltip. */
   runBlockedReason: string | null;
+  /** Why both are disabled (no code execution on this deployment), shown in both tooltips. */
+  unavailableReason: string | null;
   onRun: () => void;
   onSubmit: () => void;
   /** Mobile action bar: full-width default-size buttons. */
@@ -58,13 +60,16 @@ export function RunSubmitButtons({
   busyAction,
   disabled,
   runBlockedReason,
+  unavailableReason,
   onRun,
   onSubmit,
   variant = "toolbar",
 }: RunSubmitProps) {
   const bar = variant === "bar";
   const size = bar ? "default" : "sm";
-  const runDisabled = disabled || runBlockedReason !== null;
+  const runReason = unavailableReason ?? runBlockedReason;
+  const runDisabled = disabled || runReason !== null;
+  const submitDisabled = disabled || unavailableReason !== null;
   return (
     <>
       <Tooltip>
@@ -77,13 +82,13 @@ export function RunSubmitButtons({
               className={cn(
                 bar ? "flex-1" : "after:absolute after:-inset-1",
                 // Hover must reach the tooltip that says why Run is blocked.
-                runBlockedReason !== null && "aria-disabled:pointer-events-auto",
+                runReason !== null && "aria-disabled:pointer-events-auto",
               )}
               loading={busyAction === "run"}
               disabled={runDisabled}
-              // Invalid custom input: stay focusable so the tooltip with the
-              // reason is reachable by keyboard and hover.
-              focusableWhenDisabled={runBlockedReason !== null}
+              // Invalid custom input / no judge: stay focusable so the tooltip
+              // with the reason is reachable by keyboard and hover.
+              focusableWhenDisabled={runReason !== null}
               onClick={onRun}
             />
           }
@@ -92,7 +97,7 @@ export function RunSubmitButtons({
           {busyAction === "run" ? "Running…" : "Run"}
         </TooltipTrigger>
         <TooltipContent>
-          {runBlockedReason ?? (
+          {runReason ?? (
             <>
               Run · <ShortcutKeys action="run" />
             </>
@@ -105,9 +110,13 @@ export function RunSubmitButtons({
             <Button
               size={size}
               data-testid={bar ? "submit-button-mobile" : "submit-button"}
-              className={cn(bar ? "flex-1" : "after:absolute after:-inset-1")}
+              className={cn(
+                bar ? "flex-1" : "after:absolute after:-inset-1",
+                unavailableReason !== null && "aria-disabled:pointer-events-auto",
+              )}
               loading={busyAction === "submit"}
-              disabled={disabled}
+              disabled={submitDisabled}
+              focusableWhenDisabled={unavailableReason !== null}
               onClick={onSubmit}
             />
           }
@@ -116,7 +125,11 @@ export function RunSubmitButtons({
           {busyAction === "submit" ? "Submitting…" : "Submit"}
         </TooltipTrigger>
         <TooltipContent>
-          Submit · <ShortcutKeys action="submit" />
+          {unavailableReason ?? (
+            <>
+              Submit · <ShortcutKeys action="submit" />
+            </>
+          )}
         </TooltipContent>
       </Tooltip>
     </>

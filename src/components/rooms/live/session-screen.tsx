@@ -66,7 +66,8 @@ import { SessionLobby } from "../lobby/session-lobby";
 const LARGE = "(min-width: 1024px)";
 const MAX_EVENTS = 300;
 
-export function SessionScreen({ data }: { data: SessionPageData }) {
+/** `judgeEnabled` false: this deployment runs no code, so the lobby cannot start (JUDGE_ENABLED). */
+export function SessionScreen({ data, judgeEnabled }: { data: SessionPageData; judgeEnabled: boolean }) {
   const router = useRouter();
   const roomId = data.room.id;
   const sessionId = data.session.id;
@@ -284,6 +285,7 @@ export function SessionScreen({ data }: { data: SessionPageData }) {
             tags={data.tags}
             refresh={live.refresh}
             onJoinedChange={(joined) => live.patch({ viewer: { ...live.viewer, isParticipant: joined } })}
+            judgeEnabled={judgeEnabled}
           />
         )}
         {status === "live" && snapshot && (

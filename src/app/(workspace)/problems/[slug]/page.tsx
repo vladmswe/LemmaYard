@@ -9,6 +9,7 @@ import { ProblemSessionSlot } from "@/components/rooms/live/problem-session-slot
 import { ProblemSubmissions } from "@/components/submissions/problem-submissions";
 import { SubmissionsSkeleton } from "@/components/submissions/submissions-skeleton";
 import { getCurrentUser } from "@/server/auth/session";
+import { judgeEnabled } from "@/server/judge";
 import { getProblemPageData } from "@/server/problem-page";
 import { getPollingConfig } from "@/server/submissions/config";
 
@@ -48,6 +49,7 @@ export default async function ProblemPage({ params, searchParams }: PageProps<"/
           samples={problem.samples}
           signedIn={problem.signedIn}
           pollingConfig={getPollingConfig()}
+          judgeEnabled={judgeEnabled()}
           description={<ProblemDescription problem={problem} />}
           submissions={
             // Own boundary: the tab's query (AC-M6-3) streams without holding up the editor.

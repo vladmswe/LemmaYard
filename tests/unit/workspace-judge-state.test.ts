@@ -9,6 +9,12 @@ import {
   type SubmissionDto,
   type SubmissionStatus,
 } from "@/lib/submission-dto";
+import {
+  JUDGE_DISABLED_API_MESSAGE,
+  JUDGE_DISABLED_CODE,
+  JUDGE_DISABLED_NOTE,
+  JUDGE_DISABLED_SHORT,
+} from "@/lib/judge-availability";
 import { JUDGE_UNAVAILABLE_MESSAGE, TAKING_LONGER_MESSAGE } from "@/lib/submission-client";
 import {
   busyAction,
@@ -121,6 +127,54 @@ describe("state helpers", () => {
     expect(toResultView(network, PARAMS)).toMatchObject({ type: "notice", tone: "danger", title: "Network error" });
     const gone = stateFromPoll("run", false, { state: "error", submissionId: ID, status: 404, message: "Not found" })!;
     expect(gone).toMatchObject({ message: "This submission is no longer available." });
+  });
+});
+
+describe("judge disabled on this deployment", () => {
+  const disabled = { ok: false as const, status: 503, error: JUDGE_DISABLED_API_MESSAGE, code: JUDGE_DISABLED_CODE };
+
+  it("a 503 judge_disabled start is its own non-error state, not busy, no retry", () => {
+    for (const action of ["run", "submit"] as const) {
+      const state = stateFromStartError(action, disabled);
+      expect(state).toEqual({ phase: "judge_disabled", action });
+      expect(isBusy(state)).toBe(false);
+      expect(busyAction(state)).toBeNull();
+      expect(toResultView(state, PARAMS)).toEqual({
+        type: "judge_disabled",
+        message: JUDGE_DISABLED_NOTE,
+        announce: JUDGE_DISABLED_SHORT,
+      });
+    }
+  });
+
+  it("other 503s stay failures", () => {
+    expect(stateFromStartError("run", { ok: false, status: 503, error: "Service unavailable" })).toMatchObject({
+      phase: "failed",
+      status: 503,
+    });
+  });
+
+  it("the idle console explains it when the page knows the judge is off", () => {
+    expect(toResultView(IDLE, PARAMS, { judgeEnabled: false })).toMatchObject({
+      type: "judge_disabled",
+      message: "Code execution isn't available on this deployment yet. You can still read the problem and the guide.",
+    });
+    expect(toResultView(IDLE, PARAMS, { judgeEnabled: true })).toEqual({ type: "idle" });
+  });
+});
+
+describe("taking longer: link only for Submit", () => {
+  it("a Run has no submission page, so no link", () => {
+    const longer = stateFromPoll("run", false, {
+      state: "taking_longer",
+      submissionId: ID,
+      message: TAKING_LONGER_MESSAGE,
+      href: null,
+    })!;
+    const view = toResultView(longer, PARAMS);
+    expect(view).toMatchObject({ type: "notice", title: "Taking longer than expected" });
+    expect(view).not.toHaveProperty("href");
+    expect(view).toMatchObject({ message: expect.not.stringMatching(/submission page/) });
   });
 });
 

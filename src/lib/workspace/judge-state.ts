@@ -5,6 +5,7 @@
 // Everything rendered comes from the submission DTO (AC-M5-8): the view never
 // invents expected values or hidden cases, and Run vs Submit is decided by
 // the DTO's `kind`, not by which button was pressed.
+import { isJudgeDisabledError, JUDGE_DISABLED_NOTE, JUDGE_DISABLED_SHORT } from "@/lib/judge-availability";
 import { formatValue } from "@/lib/problems/samples";
 import type { PollResult, StartResult } from "@/lib/submission-client";
 import {
@@ -28,7 +29,9 @@ export type JudgeState =
   | { phase: "pending"; action: JudgeAction; custom: boolean; id: string; status: PendingStatus }
   | { phase: "done"; custom: boolean; submission: SubmissionDto }
   | { phase: "judge_unavailable"; action: JudgeAction; id: string; message: string }
-  | { phase: "taking_longer"; action: JudgeAction; id: string; message: string; href: string }
+  | { phase: "taking_longer"; action: JudgeAction; id: string; message: string; href: string | null }
+  /** The server answered 503 `judge_disabled`: not an error, nothing was queued. */
+  | { phase: "judge_disabled"; action: JudgeAction }
   /** The request was rejected (4xx), the network failed, or polling failed. */
   | { phase: "failed"; action: JudgeAction; status: number; message: string };
 
@@ -60,6 +63,7 @@ export function stateFromStartError(
   action: JudgeAction,
   result: Extract<StartResult, { ok: false }>,
 ): JudgeState {
+  if (isJudgeDisabledError(result)) return { phase: "judge_disabled", action };
   return { phase: "failed", action, status: result.status, message: startErrorMessage(result) };
 }
 
@@ -123,6 +127,8 @@ export type FailedCaseView = { input: InputView; expected: ValueView; output: Va
 
 export type ResultView =
   | { type: "idle" }
+  /** Code execution is off on this deployment (idle console, or a 503 `judge_disabled`). */
+  | { type: "judge_disabled"; message: string; announce: string }
   | { type: "pending"; status: PendingStatus; label: string }
   | {
       type: "notice";
@@ -346,10 +352,23 @@ export function submissionView(
   };
 }
 
-export function toResultView(state: JudgeState, paramOrder: readonly string[]): ResultView {
+const JUDGE_DISABLED_VIEW: ResultView = {
+  type: "judge_disabled",
+  message: JUDGE_DISABLED_NOTE,
+  announce: JUDGE_DISABLED_SHORT,
+};
+
+/** `judgeEnabled: false` = this deployment runs no code: the idle console says so. */
+export function toResultView(
+  state: JudgeState,
+  paramOrder: readonly string[],
+  options: { judgeEnabled?: boolean } = {},
+): ResultView {
   switch (state.phase) {
     case "idle":
-      return { type: "idle" };
+      return options.judgeEnabled === false ? JUDGE_DISABLED_VIEW : { type: "idle" };
+    case "judge_disabled":
+      return JUDGE_DISABLED_VIEW;
     case "starting":
       return { type: "pending", status: "queued", label: PENDING_LABELS.queued };
     case "pending":
@@ -369,8 +388,10 @@ export function toResultView(state: JudgeState, paramOrder: readonly string[]): 
         type: "notice",
         tone: "warning",
         title: state.message,
-        message: "The judge is still working on it. The result will appear on the submission page.",
-        href: state.href,
+        message: state.href
+          ? "The judge is still working on it. The result will appear on the submission page."
+          : "The judge is still working on it. Try running your code again in a moment.",
+        ...(state.href && { href: state.href }),
         announce: `${state.message}.`,
       };
     case "failed":

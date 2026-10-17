@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseEnv } from "@/server/env";
+import { isJudgeEnabled, parseEnv } from "@/server/env";
 
 const required = {
   DATABASE_URL: "postgres://leetcopy:leetcopy@localhost:5433/leetcopy",
@@ -29,5 +29,26 @@ describe("parseEnv", () => {
       /AUTH_SECRET/,
     );
     expect(() => parseEnv({ ...required, PORT: "abc" })).toThrow(/PORT/);
+  });
+});
+
+describe("isJudgeEnabled", () => {
+  it.each([
+    // JUDGE_ENABLED, VERCEL, expected
+    [undefined, undefined, true],
+    [undefined, "1", false],
+    ["1", undefined, true],
+    ["1", "1", true],
+    ["0", undefined, false],
+    ["0", "1", false],
+  ] as const)("JUDGE_ENABLED=%s VERCEL=%s → %s", (judge, vercel, expected) => {
+    expect(isJudgeEnabled({ JUDGE_ENABLED: judge, VERCEL: vercel })).toBe(expected);
+  });
+
+  it("parses through the env schema; empty means unset, other values are rejected", () => {
+    expect(isJudgeEnabled(parseEnv({ ...required, VERCEL: "1" }))).toBe(false);
+    expect(isJudgeEnabled(parseEnv({ ...required, VERCEL: "1", JUDGE_ENABLED: "1" }))).toBe(true);
+    expect(isJudgeEnabled(parseEnv({ ...required, JUDGE_ENABLED: "" }))).toBe(true);
+    expect(() => parseEnv({ ...required, JUDGE_ENABLED: "false" })).toThrow(/JUDGE_ENABLED/);
   });
 });
