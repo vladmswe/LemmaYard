@@ -1,0 +1,14 @@
+{
+  "number": 20,
+  "slug": "longest-valid-parentheses",
+  "title": "Longest Valid Parentheses",
+  "difficulty": "hard",
+  "tags": ["string", "stack", "dynamic-programming"],
+  "signature": {
+    "name": "longestValidParentheses",
+    "params": [{ "name": "s", "type": "string" }],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

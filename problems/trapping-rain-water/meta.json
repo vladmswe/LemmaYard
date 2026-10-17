@@ -1,0 +1,14 @@
+{
+  "number": 18,
+  "slug": "trapping-rain-water",
+  "title": "Trapping Rain Water",
+  "difficulty": "hard",
+  "tags": ["array", "two-pointers", "dynamic-programming"],
+  "signature": {
+    "name": "trap",
+    "params": [{ "name": "height", "type": "int[]" }],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}
