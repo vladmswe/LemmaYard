@@ -2,6 +2,6 @@
 import type { VizDefinition } from "@/lib/guide/contracts";
 import { prefixSumsModel, type PrefixInput, type PrefixState } from "@/lib/guide/traces/prefix";
 
-import { PrefixPlayer } from "./PrefixPlayer";
+import { LazyPrefixPlayer } from "./LazyPlayer";
 
-export const prefixSums: VizDefinition<PrefixState, PrefixInput> = { model: prefixSumsModel, Client: PrefixPlayer };
+export const prefixSums: VizDefinition<PrefixState, PrefixInput> = { model: prefixSumsModel, Client: LazyPrefixPlayer };

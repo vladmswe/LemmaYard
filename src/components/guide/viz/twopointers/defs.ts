@@ -2,6 +2,6 @@
 import type { VizDefinition } from "@/lib/guide/contracts";
 import { mergeModel, type MergeInput, type MergeState } from "@/lib/guide/traces/twopointers";
 
-import { MergePlayer } from "./MergePlayer";
+import { LazyMergePlayer } from "./LazyPlayer";
 
-export const twoPointersMerge: VizDefinition<MergeState, MergeInput> = { model: mergeModel, Client: MergePlayer };
+export const twoPointersMerge: VizDefinition<MergeState, MergeInput> = { model: mergeModel, Client: LazyMergePlayer };

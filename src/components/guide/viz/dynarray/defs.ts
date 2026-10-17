@@ -2,6 +2,6 @@
 import type { VizDefinition } from "@/lib/guide/contracts";
 import { dynArrayModel, type DynInput, type DynState } from "@/lib/guide/traces/dynarray";
 
-import { DynArrayPlayer } from "./DynArrayPlayer";
+import { LazyDynArrayPlayer } from "./LazyPlayer";
 
-export const dynArrayOps: VizDefinition<DynState, DynInput> = { model: dynArrayModel, Client: DynArrayPlayer };
+export const dynArrayOps: VizDefinition<DynState, DynInput> = { model: dynArrayModel, Client: LazyDynArrayPlayer };
