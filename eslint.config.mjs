@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Agent worktrees (local only, untracked).
+    ".claude/**",
+    // Problem solutions and fixtures define a global function by design.
+    "problems/**",
+    "tests/fixtures/**",
   ]),
 ]);
 
