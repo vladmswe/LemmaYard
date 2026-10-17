@@ -461,7 +461,7 @@ Do not wrap elements that update often (console output, polling results) in `Rev
 - Icon-only buttons need `aria-label` and a Tooltip. Decorative icons get `aria-hidden`.
 - No emoji anywhere in the UI. No icon-in-colored-circle feature grids.
 - Brand mark: a 28×28 rounded square (`rx 6`) in `#2457C5`, white `< >` chevrons, a 1.8px old-gold dot in the center, and the wordmark "LemmaYard" in Source Serif 4 600. Inline SVG: `src/components/brand/logo.tsx` (`Logo`, `LogoMark`).
-- Landing imagery uses CSS/SVG only. (1) A "graph paper" grid (32px, `--border` lines) masked to fade in from the right side of the hero. (2) Stacked paper "sheets", real mini components (problem card, code card, verdict card) layered with `--shadow-lg`. (3) Serif numerals (`01 02 03`) and numbered step dots joined by a 2px rule. No stock photos, no blobs, no gradients other than the masthead rule.
+- Landing imagery uses CSS/SVG only. (1) A "graph paper" grid (32px, `--border` lines) masked to fade in from the right side of the hero. (2) Staggered paper "sheets", real mini components (problem card, code card, verdict card) with `--shadow-lg`: offset left/right/left with a 16px gap, never overlapping. The code card sizes to its longest line and never clips it (a product that teaches code shows complete code); below 400px the sample drops to 11px so it fits a 360px screen. The first previews cropped the `return` line at 1024–1440px; they are superseded. (3) Serif numerals (`01 02 03`) and numbered step dots joined by a 2px rule. No stock photos, no blobs, no gradients other than the masthead rule.
 
 ---
 
@@ -597,11 +597,13 @@ General: every page has `<title>` in the form "Problems · LemmaYard" and one `h
 ├─ gold│blue 3px rule ──────────────────────────────────────────────────────────┤
 │ HERO  bg-sunken + graph-paper (right half)                                    │
 │  ── (gold 48px rule)                                                          │
-│  EYEBROW  Coding practice, at your own pace                ┌ Problem card ┐   │
-│  Display: Learn to solve problems,                          │ Two Sum Easy │   │
-│           one step at a time.                                 ┌ code card ──┐ │
-│  Lead (34rem)                                                 │ solution.py │ │
-│  [Start practicing →] [Browse problems]                 ┌ Accepted ┐──────┘ │
+│  EYEBROW  Coding practice, at your own pace            ┌ Problem card ──┐     │
+│  Display: Learn to solve problems,                      │ Two Sum   Easy │     │
+│           one step at a time.                           └────────────────┘     │
+│  Lead (34rem)                                              ┌ code card ─────┐  │
+│                                                            │ solution.py    │  │
+│  [Start practicing →] [Browse problems]                    └────────────────┘  │
+│                                                          ┌ Accepted ┐          │
 │  📖 45 original problems  </> Python 3 & JS  ⛨ Isolated sandbox  (lucide)    │
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ WHY  (2 cols 1fr | 1.25fr)   "A calmer way to practice"  | 01 ─ 02 ─ 03 list  │
