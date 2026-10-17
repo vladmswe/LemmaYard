@@ -131,6 +131,14 @@ def _check_ints(value):
             stack.extend(item.values() if isinstance(item, dict) else item)
 
 
+def _exit_message(exc):
+    """Same text the worker uses when the whole process exits without a result."""
+    code = exc.code
+    if code is None or code == 0:
+        return "program exited unexpectedly"
+    return "program exited unexpectedly (exit code %d)" % (code if isinstance(code, int) else 1)
+
+
 def _to_float(value, type_name):
     """Coerces numbers to float for `float`, `float[]`, `float[][]` parameters."""
     if type_name == "float":
@@ -249,7 +257,13 @@ def main():
             frame["status"] = "error"
             frame["memory"] = True
             frame["error"] = _format_error(exc)
-        except Exception as exc:
+        except SystemExit as exc:
+            # sys.exit() inside a test fails only this test (a Run goes on).
+            frame.setdefault("timeMs", (time.perf_counter() - started) * 1000.0)
+            frame["status"] = "error"
+            frame["error"] = _exit_message(exc)
+        except BaseException as exc:
+            # Exception, KeyboardInterrupt, GeneratorExit, user BaseException subclasses.
             frame.setdefault("timeMs", (time.perf_counter() - started) * 1000.0)
             frame["status"] = "error"
             frame["error"] = _format_error(exc)
