@@ -11,14 +11,14 @@ export interface GuidePrefs {
   readonly speed: 0.5 | 1 | 2;
 }
 
-export const PREFS_KEY = "leetcopy.learn.prefs.v1";
+export const PREFS_KEY = "lemmayard.learn.prefs.v1";
 export const DEFAULT_PREFS: GuidePrefs = {
   codeLanguage: "python",
   motion: "system",
   skipPrompts: false,
   speed: 1,
 };
-const EVENT = "leetcopy-learn-prefs";
+const EVENT = "lemmayard-learn-prefs";
 
 let cachedRaw: string | null | undefined;
 let cachedPrefs: GuidePrefs = DEFAULT_PREFS;

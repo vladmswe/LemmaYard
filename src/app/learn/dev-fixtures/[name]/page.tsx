@@ -22,7 +22,7 @@ import { fixturesEnabled } from "../guard";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Player fixture · leetcopy",
+  title: "Player fixture · LemmaYard",
   robots: { index: false, follow: false },
 };
 

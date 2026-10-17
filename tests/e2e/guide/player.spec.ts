@@ -390,7 +390,8 @@ for (const width of [1440, 390]) {
         await expect(sw.locator("[data-switch-state]")).toHaveText("off");
         let ds = await durations(page);
         expect(ds.length).toBeGreaterThan(0);
-        for (const d of ds) expect(d.split(",").every((x) => x.trim() === "0s")).toBe(true);
+        // The site-wide reduced-motion rule (globals.css) uses 0.01ms, which computes to 1e-5s: treat <= 1ms as "off".
+        for (const d of ds) expect(d.split(",").every((x) => parseFloat(x) <= 0.001)).toBe(true);
         await expect(root.getByRole("button", { name: "Play" })).toBeVisible();
 
         await sw.click();
@@ -404,7 +405,7 @@ for (const width of [1440, 390]) {
         await expect(sw).toHaveAttribute("aria-checked", "true");
         ds = await durations(page);
         for (const d of ds) expect(d.split(",").every((x) => parseFloat(x) > 0)).toBe(true);
-        expect(await page.evaluate(() => JSON.parse(localStorage.getItem("leetcopy.learn.prefs.v1") ?? "{}").motion)).toBe("on");
+        expect(await page.evaluate(() => JSON.parse(localStorage.getItem("lemmayard.learn.prefs.v1") ?? "{}").motion)).toBe("on");
         await expect(root.getByRole("button", { name: "Play" })).toBeVisible();
       });
 
