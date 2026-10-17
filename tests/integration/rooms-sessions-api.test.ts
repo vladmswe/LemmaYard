@@ -474,15 +474,17 @@ describe("lobby draw", () => {
   });
 
   it("re-roll all keeps pinned slots and counts as one re-roll", async () => {
-    const { id } = await createLobby();
-    await as(alice, () => api.pin(roomId, id, "2", { slug: "medium-4" }));
+    const { id, lobby: drawn } = await createLobby();
+    // A medium problem that is not in the lobby yet (the draw order depends on random ids).
+    const free = catalog.medium.map((p) => p.slug).find((s) => !drawn.slots.some((x) => x.problem!.slug === s))!;
+    expect((await as(alice, () => api.pin(roomId, id, "2", { slug: free }))).status).toBe(200);
     const before = (await body<{ lobby: LobbyView }>(await as(alice, () => api.lobby(roomId, id)))).lobby;
     state.seed = 7;
     const res = await as(alice, () => api.rerollAll(roomId, id));
     expect(res.status).toBe(200);
     const { lobby } = await body<{ lobby: LobbyView }>(res);
     expect(lobby.rerollCount).toBe(1);
-    expect(lobby.slots[1]).toMatchObject({ pinned: true, problem: { slug: "medium-4" } });
+    expect(lobby.slots[1]).toMatchObject({ pinned: true, problem: { slug: free } });
     for (const [i, s] of lobby.slots.entries()) {
       if (!s.pinned) {
         expect(s.problem!.slug).not.toBe(before.slots[i].problem!.slug);
