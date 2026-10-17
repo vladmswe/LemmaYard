@@ -3,7 +3,9 @@
 import { gzipSync } from "node:zlib";
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+import { forcedTheme } from "../../../src/lib/theme-config";
 
 export function player(page: Page, playerId: string): Locator {
   return page.locator(`[data-player="${playerId}"]`);
@@ -30,8 +32,14 @@ export async function stepTo(page: Page, playerId: string, n: number): Promise<v
   await expect(root).toHaveAttribute("data-step", String(n));
 }
 
-/** next-themes keeps the choice in localStorage["theme"]; reload applies it. */
+/**
+ * next-themes keeps the choice in localStorage["theme"]; reload applies it.
+ * While the site is forced to one theme (src/lib/theme-config.ts), the other
+ * theme cannot be reached: the test is skipped (the unit contrast test still
+ * covers both themes' tokens).
+ */
 export async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
+  test.skip(forcedTheme !== undefined && theme !== forcedTheme, `the site is ${forcedTheme} only (theme-config.ts)`);
   await page.evaluate((t) => window.localStorage.setItem("theme", t), theme);
   await page.reload();
   await expect(page.locator("html")).toHaveClass(theme === "dark" ? /\bdark\b/ : /^(?!.*\bdark\b)/);

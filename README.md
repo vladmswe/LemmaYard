@@ -276,6 +276,18 @@ component references. Progress (visited, quiz answers, completion) stays in the
 browser's localStorage (`lemmayard.learn.progress.v1`). Browser tests:
 `pnpm test:e2e:guide`.
 
+### Design system
+
+The UI follows `DESIGN.md` (design v2 "Proof": Instrument Serif / Instrument
+Sans / JetBrains Mono, cobalt and night blocks, the ∎ tombstone, proof
+gutters and test squares). Tokens for both themes live in
+`src/app/globals.css`; `tests/unit/contrast.test.ts` checks every text and UI
+pair of both themes and the Monaco colours. The site is dark only for now:
+`THEME_TOGGLE_ENABLED` in `src/lib/theme-config.ts` brings back the
+light/dark/system toggle. Browser checks of the landing, auth and 404 pages
+(axe, overflow, forced theme, reduced motion, focus):
+`pnpm exec playwright test tests/e2e/site`.
+
 ## Configuration
 
 All variables are listed in `.env.example` and validated with Zod in
