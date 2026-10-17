@@ -179,7 +179,7 @@ Rejected-запросы **не создают** строк в БД.
 ## 7. Скрипты и env
 
 ### package.json scripts
-`dev`, `build`, `start`, `worker`, `dev:all` (web+worker через `concurrently`), `lint`, `typecheck`, `test` (unit), `test:integration`, `test:e2e`, `db:generate`, `db:migrate`, `db:seed` (= migrate + import), `problems:import`, `problems:verify`, `sandbox:build`, `setup` (= install + `docker compose up -d --wait` + `sandbox:build` + `db:seed`).
+`dev`, `build`, `start`, `worker`, `dev:all` (web+worker через `concurrently`), `lint`, `typecheck`, `test` (unit), `test:integration`, `test:e2e`, `db:generate`, `db:migrate`, `db:seed` (= migrate + import), `problems:import`, `problems:verify`, `sandbox:build`, `setup` (вызывать как `pnpm run setup`, голый `pnpm setup` — встроенная команда pnpm; = install + `docker compose up -d --wait` + `sandbox:build` + `db:seed`).
 
 ### .env.example
 `DATABASE_URL`, `TEST_DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `PORT`, `WORKER_CONCURRENCY=2`, `WORKER_POLL_MS=500`, `STALE_RUNNING_MIN=3`, `WALL_CAP_MS=30000`, `SANDBOX_IMAGE_PYTHON`, `SANDBOX_IMAGE_NODE`, `LANG_TIME_MULT_PY=2`, `LANG_TIME_MULT_JS=1`, `RUN_RATE_PER_MIN=10`, `SUBMIT_RATE_PER_MIN=5`, `MAX_ACTIVE_PER_USER=2`, `MAX_CODE_BYTES=65536`, `PAGE_SIZE=20`, `QUEUED_TIMEOUT_MS=60000`.
@@ -281,7 +281,7 @@ Rejected-запросы **не создают** строк в БД.
 - **AC-M7-4** Безопасность: секреты только из env; в логах worker и web нет паролей и полного кода пользователя (тест: submit с маркерной строкой, grep логов); `pnpm audit --prod` без critical, допустимые исключения задокументированы в README.
 - **AC-M7-5** Цели по производительности (измерение на `pnpm build && pnpm start`, прогрев образов): p95 Run Two Sum на Python < 5 с по 20 последовательным запускам; `/problems` TTFB p95 < 300 мс на seed. Результаты замеров приложены в отчёт; это цели, не жёсткий блокер, при промахе — объяснение.
 - **AC-M7-6** README: запуск с нуля, архитектура, как добавить задачу (пример), как добавить язык (контракт harness), как запускать тесты, принятые свойства MVP (раздел 1).
-- **AC-M7-7** Проверка с нуля на чистом клоне: `cp .env.example .env`, `pnpm setup`, `pnpm dev:all` → регистрация и решение задачи работают; `lint`, `typecheck`, unit, integration, e2e зелёные, `problems:verify` зелёный.
+- **AC-M7-7** Проверка с нуля на чистом клоне: `cp .env.example .env`, `pnpm run setup`, `pnpm dev:all` → регистрация и решение задачи работают; `lint`, `typecheck`, unit, integration, e2e зелёные, `problems:verify` зелёный.
 
 ---
 
@@ -315,3 +315,11 @@ Rejected-запросы **не создают** строк в БД.
 | Flaky TLE | wall-clock как гарантия, множитель языка, ограниченная конкурентность |
 | Ошибки в авторских тестах/решениях | `problems:verify` на обоих языках |
 | Права на условия | оригинальные формулировки |
+
+## 13. Фаза деплоя (после M7 и фич; по команде Влада)
+
+Цель Влада: переименовать репозиторий, деплой на личный Vercel, бэкенд (БД) на личном Supabase.
+- БД: Supabase Postgres. Drizzle + `pg` работают; для serverless использовать pooled connection string (transaction mode), `FOR UPDATE SKIP LOCKED` и `pg_advisory_xact_lock` внутри транзакции совместимы; миграции гонять напрямую (не через pooler).
+- Проблема: worker на хосте с Docker не запускается на Vercel/Supabase. Варианты (решает оркестратор в деплой-фазе): (a) `VercelSandboxExecutor` за интерфейсом `Executor` (Vercel Sandbox = изолированные microVM) + запуск проверки из Vercel Functions/Cron/Queues вместо долгоживущего worker; (b) отдельный маленький VPS только под worker+Docker. Рекомендация: (a), если Vercel Sandbox покрывает наши лимиты (память, время, нет сети, Python 3 и Node); иначе (b).
+- Секреты только через env Vercel; `AUTH_SECRET` новый; `AUTH_URL` = боевой домен; проверка Origin уже завязана на нём.
+- Переименование: новое имя из `scratchpad/branding/NAMING.md`; заменить `leetcopy` в package.json, образах (`leetcopy-sandbox-*`), cookie `leetcopy_session`, label `leetcopy.sandbox`, README, UI-текстах; переименовать репозиторий/папку; деплой, домен и любые внешние действия — только после явного ОК Влада.
