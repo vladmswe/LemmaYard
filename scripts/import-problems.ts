@@ -4,8 +4,8 @@
 import { existsSync } from "node:fs";
 import { parseArgs } from "node:util";
 
-import { createDb } from "@/server/db";
-import { getEnv } from "@/server/env";
+import { createDb, directDatabaseUrl } from "@/server/db";
+import { describeDbTarget } from "@/server/db/config";
 import { importProblems, loadProblems, ProblemValidationError } from "@/server/problems/importer";
 
 async function main(): Promise<number> {
@@ -18,7 +18,9 @@ async function main(): Promise<number> {
   if (existsSync(".env")) process.loadEnvFile(".env");
 
   const loaded = await loadProblems(values.dir);
-  const { db, pool } = createDb(getEnv().DATABASE_URL);
+  const url = directDatabaseUrl();
+  console.log(`Importing into ${describeDbTarget(url)}`);
+  const { db, pool } = createDb(url);
   try {
     const summary = await importProblems(db, loaded, { prune: values.prune });
     console.log(

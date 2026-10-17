@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Relative import: drizzle.config.ts loads this file outside the `@/` alias.
+import { DB_SSL_MODES } from "./db/config";
+
 const int = (def: number) => z.coerce.number().int().positive().default(def);
 
 export const envSchema = z.object({
@@ -7,6 +10,18 @@ export const envSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
   DATABASE_URL: z.url(),
+  // Direct (non-transaction-pooled) connection for db:migrate / db:seed /
+  // problems:import; falls back to DATABASE_URL.
+  DATABASE_URL_DIRECT: z.url().optional(),
+  // TLS: disable | require (verified) | no-verify; see src/server/db/config.ts.
+  // Unset: from the URL's sslmode, else disable for local hosts, no-verify otherwise.
+  DATABASE_SSL: z.enum(DB_SSL_MODES).optional(),
+  // PEM CA certificate for DATABASE_SSL=require (e.g. Supabase's root CA).
+  DATABASE_SSL_CA: z.string().optional(),
+  // Connections per process; default 1 on Vercel, 10 elsewhere.
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().max(100).optional(),
+  // Set by Vercel at build and run time ("1").
+  VERCEL: z.string().optional(),
   TEST_DATABASE_URL: z.url().optional(),
   // Integration tests use database leetcopy_test_<suffix>; defaults to the git
   // worktree directory name so parallel worktrees never share a test DB.

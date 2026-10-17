@@ -1,12 +1,16 @@
-// `pnpm db:migrate`: applies pending migrations from drizzle/ to DATABASE_URL.
+// `pnpm db:migrate`: applies pending migrations from drizzle/ to
+// DATABASE_URL_DIRECT (falls back to DATABASE_URL).
 import { existsSync } from "node:fs";
 
+import { directDatabaseUrl } from "@/server/db";
+import { describeDbTarget } from "@/server/db/config";
 import { runMigrations } from "@/server/db/migrate";
-import { getEnv } from "@/server/env";
 
 async function main() {
   if (existsSync(".env")) process.loadEnvFile(".env");
-  await runMigrations(getEnv().DATABASE_URL);
+  const url = directDatabaseUrl();
+  console.log(`Applying migrations to ${describeDbTarget(url)}`);
+  await runMigrations(url);
   console.log("Migrations applied.");
 }
 
