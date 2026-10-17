@@ -1,0 +1,22 @@
+[
+  {"input": {"x": 121}, "expected": true, "sample": true},
+  {"input": {"x": -121}, "expected": false, "sample": true},
+  {"input": {"x": 10}, "expected": false, "sample": true},
+  {"input": {"x": 0}, "expected": true},
+  {"input": {"x": 7}, "expected": true},
+  {"input": {"x": 11}, "expected": true},
+  {"input": {"x": 12}, "expected": false},
+  {"input": {"x": 1221}, "expected": true},
+  {"input": {"x": 12321}, "expected": true},
+  {"input": {"x": 123421}, "expected": false},
+  {"input": {"x": 100001}, "expected": true},
+  {"input": {"x": 1000021}, "expected": false},
+  {"input": {"x": -1}, "expected": false},
+  {"input": {"x": 2147483647}, "expected": false},
+  {"input": {"x": 1000000000000001}, "expected": true},
+  {"input": {"x": 1234567887654321}, "expected": true},
+  {"input": {"x": 1234567897654321}, "expected": false},
+  {"input": {"x": 9007199119917009}, "expected": true},
+  {"input": {"x": 9007199254740991}, "expected": false},
+  {"input": {"x": -9007199254740991}, "expected": false}
+]

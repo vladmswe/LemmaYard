@@ -1,0 +1,26 @@
+{
+  "number": 9,
+  "slug": "palindrome-number",
+  "title": "Palindrome Number",
+  "difficulty": "easy",
+  "tags": [
+    "math"
+  ],
+  "signature": {
+    "name": "isPalindrome",
+    "params": [
+      {
+        "name": "x",
+        "type": "int"
+      }
+    ],
+    "returns": "bool"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}

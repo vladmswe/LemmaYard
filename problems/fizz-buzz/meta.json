@@ -1,0 +1,27 @@
+{
+  "number": 8,
+  "slug": "fizz-buzz",
+  "title": "Fizz Buzz",
+  "difficulty": "easy",
+  "tags": [
+    "math",
+    "string"
+  ],
+  "signature": {
+    "name": "fizzBuzz",
+    "params": [
+      {
+        "name": "n",
+        "type": "int"
+      }
+    ],
+    "returns": "string[]"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}

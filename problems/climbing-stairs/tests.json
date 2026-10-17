@@ -1,0 +1,14 @@
+[
+  {"input": {"n": 2}, "expected": 2, "sample": true},
+  {"input": {"n": 3}, "expected": 3, "sample": true},
+  {"input": {"n": 1}, "expected": 1},
+  {"input": {"n": 4}, "expected": 5},
+  {"input": {"n": 5}, "expected": 8},
+  {"input": {"n": 10}, "expected": 89},
+  {"input": {"n": 20}, "expected": 10946},
+  {"input": {"n": 35}, "expected": 14930352},
+  {"input": {"n": 45}, "expected": 1836311903},
+  {"input": {"n": 50}, "expected": 20365011074},
+  {"input": {"n": 69}, "expected": 190392490709135},
+  {"input": {"n": 70}, "expected": 308061521170129}
+]

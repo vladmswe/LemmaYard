@@ -1,0 +1,27 @@
+{
+  "number": 10,
+  "slug": "climbing-stairs",
+  "title": "Climbing Stairs",
+  "difficulty": "easy",
+  "tags": [
+    "dynamic-programming",
+    "math"
+  ],
+  "signature": {
+    "name": "climbStairs",
+    "params": [
+      {
+        "name": "n",
+        "type": "int"
+      }
+    ],
+    "returns": "int"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}
