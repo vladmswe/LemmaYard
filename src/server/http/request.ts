@@ -59,13 +59,15 @@ async function readTextWithLimit(
 
 /**
  * Reads a JSON body of at most `maxBytes` and validates it with `schema`.
- * Returns the parsed data or an error response (413 too large, 400 invalid).
+ * Returns the parsed data (plus the raw body text, for checks that must see
+ * the literals before `JSON.parse`) or an error response (413 too large,
+ * 400 invalid).
  */
 export async function readJsonBody<T extends z.ZodType>(
   request: Request,
   schema: T,
   maxBytes: number,
-): Promise<{ data: z.infer<T> } | { response: NextResponse }> {
+): Promise<{ data: z.infer<T>; text: string } | { response: NextResponse }> {
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (declared > maxBytes) {
     return { response: jsonError(413, "Request body too large") };
@@ -89,5 +91,5 @@ export async function readJsonBody<T extends z.ZodType>(
     }
     return { response: jsonError(400, "Invalid input", fieldErrors) };
   }
-  return { data: result.data };
+  return { data: result.data, text };
 }
