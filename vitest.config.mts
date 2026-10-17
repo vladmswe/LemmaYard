@@ -9,5 +9,7 @@ export default defineConfig({
   test: {
     include: ["tests/unit/**/*.test.ts"],
     environment: "node",
+    // Property tests (fast-check) are CPU heavy; the default 5 s flaked when parallel builds loaded the host.
+    testTimeout: 30_000,
   },
 });
