@@ -101,7 +101,7 @@ describe("checkTraceInvariants", () => {
 
   it("rule 9: the default input must have at least one prompt", () => {
     const t = good();
-    const broken = { ...t, frames: t.frames.map(({ prompt: _p, ...f }) => f) };
+    const broken = { ...t, frames: t.frames.map((f) => ({ ...f, prompt: undefined })) };
     expect(rulesOf(broken, modelFor(broken))).toEqual([9]);
     // ... but a custom input may have none.
     const custom = { values: [1, 2], target: 1 };

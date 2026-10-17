@@ -60,7 +60,13 @@ function Swatches() {
   return (
     <div className="viz space-y-6">
       <Legend roles={ROLES} />
-      <div className="viz-figure-bg overflow-x-auto rounded-lg p-3" data-swatches="">
+      <div
+        className="viz-figure-bg overflow-x-auto rounded-lg p-3"
+        data-swatches=""
+        tabIndex={0}
+        role="region"
+        aria-label="Role swatches"
+      >
         <VizSvg width={ROLES.length * 64 + 80} height={84} title="Role swatches" fit={false}>
           <Cell id="sw-default" x={8} y={24} w={48} h={40} value={7} sub="default" />
           {ROLES.map((role, k) => (
@@ -70,7 +76,7 @@ function Swatches() {
           ))}
         </VizSvg>
       </div>
-      <div className="viz-figure-bg overflow-x-auto rounded-lg p-3">
+      <div className="viz-figure-bg overflow-x-auto rounded-lg p-3" tabIndex={0} role="region" aria-label="Primitive gallery">
         <VizSvg width={560} height={300} title="Primitive gallery" fit={false}>
           <ArrayRow
             items={[
