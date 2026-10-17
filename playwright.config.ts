@@ -23,7 +23,9 @@ export default defineConfig({
   webServer: {
     command: "node scripts/next.mjs build && node scripts/next.mjs start",
     url: baseURL,
-    env: { GUIDE_FIXTURES: "1" },
+    // Specs register many users from one address; the auth limits have their
+    // own integration tests (tests/integration/auth-rate-limit.test.ts).
+    env: { GUIDE_FIXTURES: "1", AUTH_RATE_LIMITS: "0" },
     reuseExistingServer: true,
     timeout: 300_000,
   },

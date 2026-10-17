@@ -31,6 +31,7 @@ import { POST as logout } from "@/app/api/auth/logout/route";
 import { POST as register } from "@/app/api/auth/register/route";
 import SubmissionsPage from "@/app/(site)/submissions/page";
 import { SESSION_COOKIE } from "@/server/auth/cookie";
+import { resetAuthLimits } from "@/server/auth/rate-limit";
 import { getCurrentUser, requireUser } from "@/server/auth/session";
 import { getEnv } from "@/server/env";
 
@@ -90,6 +91,7 @@ beforeAll(() => {
 });
 beforeEach(async () => {
   await resetTestDb();
+  resetAuthLimits();
   sendToken(null);
 });
 afterAll(closeTestDb);
