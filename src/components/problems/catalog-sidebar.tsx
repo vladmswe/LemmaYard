@@ -54,7 +54,7 @@ export function CatalogSidebar({ data, filters }: { data: CatalogPage; filters: 
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="flex flex-wrap gap-2">
+            <ul className="flex flex-wrap gap-1.5">
               {data.tags.map((t) => {
                 const active = filters.tag === t.slug;
                 return (
@@ -63,7 +63,7 @@ export function CatalogSidebar({ data, filters }: { data: CatalogPage; filters: 
                       href={catalogHref(filters, { tag: active ? undefined : t.slug })}
                       aria-current={active ? "true" : undefined}
                       className={cn(
-                        "inline-flex h-7 items-center gap-1.5 rounded-sm px-2 text-[0.8125rem] font-medium transition-colors duration-120",
+                        "inline-flex h-7 items-center gap-1.5 rounded-sm px-2 text-[0.78rem] font-medium transition-colors duration-120",
                         active
                           ? "bg-secondary text-secondary-foreground"
                           : "bg-muted text-foreground-secondary hover:bg-secondary hover:text-secondary-foreground",

@@ -65,12 +65,12 @@ export function CatalogResults({
         <caption className="sr-only">Problems</caption>
         <TableHeader>
           <TableRow>
-            {showStatus && <TableHead className="w-16">Status</TableHead>}
+            {showStatus && <TableHead className="w-[4.5rem]">Status</TableHead>}
             <TableHead numeric className="w-16">
               #
             </TableHead>
             <TableHead>Title</TableHead>
-            <TableHead className="hidden w-[30%] xl:table-cell">Topics</TableHead>
+            <TableHead className="hidden w-56 xl:table-cell">Topics</TableHead>
             <TableHead numeric className="w-32">
               Acceptance
             </TableHead>
@@ -81,7 +81,13 @@ export function CatalogResults({
           {data.rows.map((row) => (
             <TableRow key={row.id}>
               {showStatus && (
-                <TableCell>{row.status && <ProblemStatusIcon status={row.status} />}</TableCell>
+                <TableCell>
+                  {row.status && (
+                    <span className="flex items-center">
+                      <ProblemStatusIcon status={row.status} />
+                    </span>
+                  )}
+                </TableCell>
               )}
               <TableCell numeric className="text-muted-foreground">
                 {row.number}
@@ -138,21 +144,36 @@ export function CatalogResults({
   );
 }
 
+const MAX_ROW_TAGS = 2;
+
+/** Up to two topic links, then "+N" (full list in the title); one line. */
 function TagList({ row, filters }: { row: CatalogRow; filters: CatalogFilters }) {
   if (row.tags.length === 0) return <span className="text-muted-foreground">—</span>;
+  const shown = row.tags.slice(0, MAX_ROW_TAGS);
+  const rest = row.tags.slice(MAX_ROW_TAGS);
   return (
-    <ul aria-label="Topics" className="flex flex-wrap gap-1.5 overflow-hidden">
-      {row.tags.map((t) => (
-        <li key={t.slug} className="min-w-0">
+    <ul aria-label="Topics" className="flex min-w-0 items-center gap-1.5">
+      {shown.map((t, i) => (
+        // The first tag keeps its width; only the second one truncates.
+        <li key={t.slug} className={i === 0 ? "shrink-0" : "min-w-0"}>
           <Badge
             variant="tag"
-            className="max-w-full"
-            render={<Link href={catalogHref(filters, { tag: t.slug })} aria-label={`Filter by ${t.name}`} />}
+            className="max-w-full justify-start"
+            render={<Link href={catalogHref(filters, { tag: t.slug })} title={`Show ${t.name} problems`} />}
           >
             <span className="truncate">{t.name}</span>
           </Badge>
         </li>
       ))}
+      {rest.length > 0 && (
+        <li
+          className="shrink-0 text-[0.78rem] font-medium text-muted-foreground tabular-nums"
+          title={rest.map((t) => t.name).join(", ")}
+        >
+          +{rest.length}
+          <span className="sr-only"> more: {rest.map((t) => t.name).join(", ")}</span>
+        </li>
+      )}
     </ul>
   );
 }

@@ -114,8 +114,10 @@ export function CatalogFilterBar({
     <div className="mb-5">
       <div
         className={cn(
-          "grid grid-cols-3 gap-3",
-          showStatus ? "md:grid-cols-[minmax(0,1fr)_repeat(3,9.5rem)]" : "md:grid-cols-[minmax(0,1fr)_repeat(2,9.5rem)]",
+          "grid gap-3",
+          showStatus
+            ? "grid-cols-3 md:grid-cols-[minmax(0,1fr)_repeat(3,9.5rem)]"
+            : "grid-cols-2 md:grid-cols-[minmax(0,1fr)_repeat(2,9.5rem)]",
         )}
       >
         <SearchBox
@@ -214,7 +216,7 @@ function SearchBox({
   return (
     <form
       role="search"
-      className="relative col-span-3 md:col-span-1"
+      className="relative col-span-full md:col-span-1"
       onSubmit={(e) => {
         e.preventDefault();
         apply(value, false);
