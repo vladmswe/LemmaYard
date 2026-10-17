@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cn } from "cn";
 
+import { formatTagLabel } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { type CatalogFilters, catalogHref } from "@/lib/catalog/filters";
@@ -69,7 +70,7 @@ export function CatalogSidebar({ data, filters }: { data: CatalogPage; filters: 
                           : "bg-muted text-foreground-secondary hover:bg-secondary hover:text-secondary-foreground",
                       )}
                     >
-                      {t.name}
+                      {formatTagLabel(t.name)}
                       <span className="text-muted-foreground tabular-nums">{t.count}</span>
                     </Link>
                   </li>

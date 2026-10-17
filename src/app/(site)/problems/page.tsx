@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { formatTagLabel } from "@/lib/format";
 import { PageHead } from "@/components/page-head";
 import {
   CatalogFilterBar,
@@ -45,7 +46,7 @@ export default async function ProblemsPage({ searchParams }: PageProps<"/problem
           <CatalogShell>
             <CatalogFilterBar
               filters={filters}
-              tags={data.tags.map((t) => ({ value: t.slug, label: t.name }))}
+              tags={data.tags.map((t) => ({ value: t.slug, label: formatTagLabel(t.name) }))}
               showStatus={showStatus}
             />
             <CatalogResultsRegion>

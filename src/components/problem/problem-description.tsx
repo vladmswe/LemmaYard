@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { formatTagLabel } from "@/lib/format";
 import { DifficultyBadge } from "@/components/problems/difficulty-badge";
 import { ProblemStatusBadge } from "@/components/problems/problem-status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,7 @@ export function ProblemDescription({ problem }: { problem: ProblemPageData }) {
               {problem.tags.map((t) => (
                 <li key={t.slug}>
                   <Badge variant="tag" render={<Link href={catalogHref({ page: 1 }, { tag: t.slug })} />}>
-                    {t.name}
+                    {formatTagLabel(t.name)}
                   </Badge>
                 </li>
               ))}

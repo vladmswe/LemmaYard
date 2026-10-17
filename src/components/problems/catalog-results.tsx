@@ -2,6 +2,7 @@ import { SearchXIcon } from "lucide-react";
 import Link from "next/link";
 import { cn } from "cn";
 
+import { formatTagLabel } from "@/lib/format";
 import { EmptyState } from "@/components/empty-state";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
@@ -159,19 +160,19 @@ function TagList({ row, filters }: { row: CatalogRow; filters: CatalogFilters })
           <Badge
             variant="tag"
             className="max-w-full justify-start"
-            render={<Link href={catalogHref(filters, { tag: t.slug })} title={`Show ${t.name} problems`} />}
+            render={<Link href={catalogHref(filters, { tag: t.slug })} title={`Show ${formatTagLabel(t.name)} problems`} />}
           >
-            <span className="truncate">{t.name}</span>
+            <span className="truncate">{formatTagLabel(t.name)}</span>
           </Badge>
         </li>
       ))}
       {rest.length > 0 && (
         <li
           className="shrink-0 text-[0.78rem] font-medium text-muted-foreground tabular-nums"
-          title={rest.map((t) => t.name).join(", ")}
+          title={rest.map((t) => formatTagLabel(t.name)).join(", ")}
         >
           +{rest.length}
-          <span className="sr-only"> more: {rest.map((t) => t.name).join(", ")}</span>
+          <span className="sr-only"> more: {rest.map((t) => formatTagLabel(t.name)).join(", ")}</span>
         </li>
       )}
     </ul>

@@ -13,6 +13,7 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
       <SiteHeader compact />
       <main
         id="main"
+        tabIndex={-1}
         className="flex h-[calc(100dvh-55px)] min-h-0 flex-col overflow-hidden bg-surface-sunken"
       >
         {children}
