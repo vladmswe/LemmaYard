@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import type { SignatureLike } from "@/lib/types";
@@ -57,9 +60,10 @@ describe("generateTemplate (golden files in tests/unit/__golden__)", () => {
   for (const [caseName, signature] of Object.entries(cases)) {
     for (const language of ["python", "javascript"] as const) {
       it(`${caseName} / ${language}`, async () => {
-        await expect(generateTemplate(signature, language)).toMatchFileSnapshot(
-          `./__golden__/${caseName}.${extensions[language]}`,
-        );
+        const golden = `__golden__/${caseName}.${extensions[language]}`;
+        // A missing golden file must fail, not be written silently.
+        expect(existsSync(path.join(import.meta.dirname, golden)), `missing ${golden}`).toBe(true);
+        await expect(generateTemplate(signature, language)).toMatchFileSnapshot(`./${golden}`);
       });
     }
   }
