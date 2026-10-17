@@ -41,6 +41,12 @@ describe("metaSchema", () => {
     expect(messages({ ...meta, signature: { ...meta.signature, returns: "float" }, compare: { mode: "float", epsilon: 1e-6 } })).toEqual([]);
   });
 
+  it("bounds number to 1..999999999", () => {
+    expect(messages({ ...meta, number: 999_999_999 })).toEqual([]);
+    expect(messages({ ...meta, number: 1_000_000_000 })[0]).toMatch(/^number: /);
+    expect(messages({ ...meta, number: 0 })[0]).toMatch(/^number: /);
+  });
+
   it("matches compare.mode to the return base type", () => {
     const withReturn = (returns: string, compare: unknown) =>
       messages({ ...meta, signature: { ...meta.signature, returns }, compare });

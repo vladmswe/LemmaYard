@@ -55,6 +55,8 @@ export const compareSchema = z.discriminatedUnion("mode", [
   }),
 ]);
 
+export const MAX_PROBLEM_NUMBER = 999_999_999;
+
 export const DEFAULT_LIMITS = { timeMs: 2000, memoryMb: 256 } as const;
 
 export const limitsSchema = z.strictObject({
@@ -64,7 +66,8 @@ export const limitsSchema = z.strictObject({
 
 export const metaSchema = z
   .strictObject({
-    number: z.int().positive(),
+    // Upper bound keeps `number + NUMBER_PARK_OFFSET` (importer) within int4.
+    number: z.int().positive().max(MAX_PROBLEM_NUMBER),
     slug: z.string().regex(slugRe, "slug must be kebab-case: [a-z0-9]+(-[a-z0-9]+)*"),
     title: z.string().trim().min(1),
     difficulty: z.enum(["easy", "medium", "hard"]),
