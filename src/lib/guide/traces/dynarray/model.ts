@@ -6,14 +6,14 @@
 // Line ids, and the line of the snippet `dynamic-arrays/dynamic_array` each
 // one marks (Python / JavaScript, written in phase B; `@line` markers at line end):
 //
-//   dynarray.append.grow   if self._size == self._capacity:      if (this.size === this.capacity) {
+//   dynarray.append.grow   if self._size == self._capacity:      if (this.size === this.capacity) this.resize(this.capacity * 2);
 //   dynarray.append.write  self._data[self._size] = value        this.data[this.size] = value;
-//   dynarray.pop.empty     if self._size == 0:                    if (this.size === 0) {   (then raise IndexError / throw RangeError)
+//   dynarray.pop.empty     if self._size == 0:                    if (this.size === 0) throw new RangeError(...);
 //   dynarray.pop.read      value = self._data[self._size]         const value = this.data[this.size];   (after size -= 1)
 //   dynarray.pop.shrink    if 4 * self._size <= self._capacity and self._capacity // 2 >= self._min:
 //                                                                 if (4 * this.size <= this.capacity && Math.floor(this.capacity / 2) >= this.min) {
 //   dynarray.resize.alloc  new_data = [None] * new_capacity       const newData = new Array(newCapacity).fill(null);
-//   dynarray.resize.copy   new_data[i] = self._data[i]            newData[i] = this.data[i];
+//   dynarray.resize.copy   new_data[i] = self._data[i]            for (...) newData[i] = this.data[i];
 //   dynarray.resize.swap   self._data = new_data                  this.data = newData;   (then capacity = new capacity)
 //
 // The snippet implements the default policy (x2, shrink at a quarter); the
