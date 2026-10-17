@@ -159,6 +159,16 @@ Docker integration tests (`tests/integration/sandbox-*.test.ts`) need Docker and
 `pnpm sandbox:build`; they run with `pnpm test:integration` (whose global setup
 also needs Postgres) and do not touch the database.
 
+### Rooms (in progress)
+
+Private friend rooms with timed sessions, spec `docs/specs/rooms.md`. Tables
+`rooms`, `room_members`, `room_sessions`, `room_session_problems`,
+`room_session_participants`, `room_session_results`, `room_events` and the
+nullable `submissions.room_session_id` come from migration `0003_rooms`. The
+selection, scoring, invite, state-machine and event logic is pure TypeScript in
+`src/lib/rooms/`; the membership gate is `src/server/rooms/access.ts`. No routes
+or UI yet.
+
 Known, accepted property: user code can read the **inputs** of hidden tests inside
 the container (never the expected outputs). The per-run frame nonce only stops
 accidental or naive forging; code in the same process can find it, which is harmless

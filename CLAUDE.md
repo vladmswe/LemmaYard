@@ -55,12 +55,20 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
   `worker/queue.ts`, slots + sweep `worker/loop.ts`, process `worker/index.ts`.
   Finalize only `WHERE status='running'`; never requeue; worker logs never
   contain user code or stdout.
+- Rooms (`docs/specs/rooms.md`): pure, deterministic domain code in
+  `src/lib/rooms/` (`types`, `selection`, `scoring`, `invite`, `session-state`,
+  `events`, `rng`) with no DB or server imports, so the client can reuse it;
+  inject randomness (`createSeededRng` in tests, `cryptoRng` in production).
+  DB enums are built from its tuples. Server code in `src/server/rooms/`;
+  every room read goes through `requireRoomMember` / `requireSessionInRoom`
+  (null → 404). Test factories: `tests/helpers/rooms.ts`.
 - Import alias `@/` → `src/`.
 
 ## Rules
 
 - UI must follow DESIGN.md (tokens, components, motion, accessibility).
 - DB schema changes only in M1. Later milestones must not change the schema.
+  Exception: each feature spec (F-features, Rooms) adds one additive migration.
 - User code runs only inside the Docker sandbox, always, including in tests.
 - Zod validation on every boundary (env, request bodies, problem files, worker
   input/output). SQL only through Drizzle.
