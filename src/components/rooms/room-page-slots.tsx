@@ -57,8 +57,8 @@ export function ComingSoonPanel({ icon, title, children }: { icon: LucideIcon; t
 
 export function SessionsPlaceholder() {
   return (
-    <ComingSoonPanel icon={HistoryIcon} title="Sessions arrive in the next update">
-      Finished sessions will be listed here with their problems and who solved what.
+    <ComingSoonPanel icon={HistoryIcon} title="No session history yet">
+      Session history arrives in the next update: every finished session with its problems and who solved what.
     </ComingSoonPanel>
   );
 }

@@ -104,7 +104,7 @@ export function InviteLinkCard({
         {created ? (
           <Field>
             <Label htmlFor={`${id}-url`}>Link</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 ref={inputRef}
                 id={`${id}-url`}
@@ -112,9 +112,9 @@ export function InviteLinkCard({
                 value={created.url}
                 onFocus={(e) => e.currentTarget.select()}
                 aria-describedby={`${id}-url-help`}
-                className="min-w-0 flex-1 font-mono text-sm"
+                className="w-full min-w-0 font-mono text-sm sm:flex-1"
               />
-              <Button variant="secondary" onClick={copy} className="shrink-0">
+              <Button variant="secondary" onClick={copy} className="shrink-0 self-start sm:self-auto">
                 {copied ? <CheckIcon aria-hidden className="text-success" /> : <CopyIcon aria-hidden />}
                 {copied ? "Copied" : "Copy link"}
               </Button>

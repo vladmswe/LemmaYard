@@ -277,7 +277,7 @@ export function DangerZoneCard({
           {needsName ? (
             <Field>
               <Label htmlFor={`${id}-confirm`}>
-                Type <span className="font-mono">{roomName}</span> to confirm
+                Type “{roomName}” to confirm
               </Label>
               <Input
                 id={`${id}-confirm`}
