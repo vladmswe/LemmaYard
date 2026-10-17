@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { NOT_FOUND_TITLE } from "@/components/not-found-content";
 import { PageHead } from "@/components/page-head";
 import { memberCountLabel } from "@/components/rooms/room-card";
 import { RoomMembersTab } from "@/components/rooms/room-members-tab";
-import {
-  LeaderboardPlaceholder,
-  parseRoomTab,
-  RoomOpenSessionRegion,
-  SessionsPlaceholder,
-} from "@/components/rooms/room-page-slots";
+import { RoomHistoryPanel } from "@/components/rooms/room-history";
+import { RoomLeaderboardPanel } from "@/components/rooms/room-leaderboard";
+import { parseRoomTab, RoomOpenSessionRegion } from "@/components/rooms/room-page-slots";
 import { RoomTabs } from "@/components/rooms/room-tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { parseLeaderboardRange, parsePageParam, type LeaderboardRange } from "@/lib/rooms/history";
 import { getCurrentUser, requireUser } from "@/server/auth/session";
 import { getDb } from "@/server/db";
 import { requireRoomMember } from "@/server/rooms/access";
+import { getRoomHistory, getRoomLeaderboard } from "@/server/rooms/history";
 import { getRoomDetail } from "@/server/rooms/queries";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,9 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
   const user = await requireUser(`/rooms/${roomId}`);
   const detail = await getRoomDetail(getDb(), roomId, user.id);
   if (!detail) notFound();
-  const { tab } = await searchParams;
+  const { tab, page, range } = await searchParams;
+  const historyPage = parsePageParam(page);
+  const leaderboardRange = parseLeaderboardRange(range);
   const isOwner = detail.viewer.role === "owner";
 
   return (
@@ -54,11 +57,44 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
         <RoomOpenSessionRegion />
         <RoomTabs
           initialTab={parseRoomTab(tab)}
-          sessions={<SessionsPlaceholder />}
-          leaderboard={<LeaderboardPlaceholder />}
+          sessions={
+            <Suspense key={historyPage} fallback={<PanelSkeleton />}>
+              <SessionsTab roomId={roomId} userId={user.id} page={historyPage} />
+            </Suspense>
+          }
+          leaderboard={
+            <Suspense key={leaderboardRange} fallback={<PanelSkeleton />}>
+              <LeaderboardTab roomId={roomId} userId={user.id} range={leaderboardRange} />
+            </Suspense>
+          }
           members={<RoomMembersTab detail={detail} />}
         />
       </div>
     </>
+  );
+}
+
+/** Sessions tab (R5): history list with `?page=`. */
+async function SessionsTab({ roomId, userId, page }: { roomId: string; userId: string; page: number }) {
+  const history = await getRoomHistory(getDb(), roomId, userId, { page });
+  if (!history) notFound();
+  return <RoomHistoryPanel roomId={roomId} history={history} />;
+}
+
+/** Leaderboard tab (R5): standings over `?range=`. */
+async function LeaderboardTab({ roomId, userId, range }: { roomId: string; userId: string; range: LeaderboardRange }) {
+  const leaderboard = await getRoomLeaderboard(getDb(), roomId, userId, range);
+  if (!leaderboard) notFound();
+  return <RoomLeaderboardPanel roomId={roomId} viewerId={userId} leaderboard={leaderboard} />;
+}
+
+function PanelSkeleton() {
+  return (
+    <div aria-busy="true" className="flex flex-col gap-3">
+      <span className="sr-only">Loading…</span>
+      {[0, 1, 2, 3].map((i) => (
+        <Skeleton key={i} className="h-12 rounded-md" />
+      ))}
+    </div>
   );
 }
