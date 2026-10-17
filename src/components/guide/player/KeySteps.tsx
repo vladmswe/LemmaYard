@@ -7,7 +7,9 @@ import type { Frame } from "@/lib/guide/contracts";
 
 import type { RendererProps } from "./TracePlayer";
 
-const THUMB_W = 160;
+// Thumbnails lay out at this width (so a whole row fits, as in the figure) and
+// are scaled down by the SVG viewBox to the thumbnail box (about 160 px).
+const THUMB_LAYOUT_W = 320;
 const HIDDEN = { descId: null, hidden: true } as const;
 const noop = () => {};
 
@@ -55,7 +57,7 @@ export function KeySteps<S>({
                     <Renderer
                       frame={f}
                       prev={i > 0 ? (frames[i - 1] as Frame<S>) : null}
-                      width={THUMB_W}
+                      width={THUMB_LAYOUT_W}
                       motion={false}
                       hovered={null}
                       onHover={noop}
