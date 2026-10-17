@@ -41,6 +41,28 @@ describe("metaSchema", () => {
     expect(messages({ ...meta, signature: { ...meta.signature, returns: "float" }, compare: { mode: "float", epsilon: 1e-6 } })).toEqual([]);
   });
 
+  it("matches compare.mode to the return base type", () => {
+    const withReturn = (returns: string, compare: unknown) =>
+      messages({ ...meta, signature: { ...meta.signature, returns }, compare });
+    const float = { mode: "float", epsilon: 1e-6 };
+    for (const returns of ["float", "float[]", "float[][]"]) {
+      expect(withReturn(returns, float)).toEqual([]);
+      expect(withReturn(returns, { mode: "exact" })).toEqual([
+        'compare.mode: "exact" cannot compare a float return type; use "float" with an epsilon',
+      ]);
+    }
+    for (const returns of ["int", "int[]", "bool", "string[][]"]) {
+      expect(withReturn(returns, float)).toEqual([
+        'compare.mode: "float" requires a float return type (float, float[] or float[][])',
+      ]);
+      expect(withReturn(returns, { mode: "exact" })).toEqual([]);
+    }
+    expect(withReturn("int[][]", { mode: "unordered" })).toEqual([]);
+    expect(withReturn("string", { mode: "unordered" })).toEqual([
+      'compare.mode: "unordered" requires an array return type',
+    ]);
+  });
+
   it("rejects unknown keys, bad types and unordered with a scalar return", () => {
     expect(messages({ ...meta, extra: 1 })[0]).toMatch(/extra/);
     expect(messages({ ...meta, signature: { ...meta.signature, returns: "long" } })).toEqual([
@@ -104,6 +126,14 @@ describe("testsSchema", () => {
     expect(few.error?.issues[0].message).toBe("at least 5 tests are required");
     const noSample = testsSchema.safeParse([test(), test(), test(), test(), test()]);
     expect(noSample.error?.issues[0].message).toBe('at least one test must have "sample": true');
+  });
+
+  it('rejects a "__proto__" input key as an unknown parameter', () => {
+    const proto = JSON.parse('{"input": {"x": 1, "__proto__": 2}, "expected": 1}');
+    const result = testsSchema.safeParse([proto, test(true), test(), test(), test()]);
+    expect(result.error?.issues.map((i) => [i.path, i.message])).toEqual([
+      [[0, "input"], 'unknown parameter "__proto__"'],
+    ]);
   });
 
   it("requires expected", () => {

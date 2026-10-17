@@ -77,19 +77,38 @@ export const metaSchema = z
   })
   .superRefine((meta, ctx) => {
     const returns = parseType(meta.signature.returns);
-    if (meta.compare.mode === "unordered" && returns && returns.kind !== "array") {
-      ctx.addIssue({
-        code: "custom",
-        path: ["compare", "mode"],
-        message: '"unordered" requires an array return type',
-      });
+    if (!returns) return;
+    let base = returns;
+    while (base.kind === "array") base = base.of;
+    const floatReturn = base.name === "float";
+    const issue = (message: string) =>
+      ctx.addIssue({ code: "custom", path: ["compare", "mode"], message });
+    if (meta.compare.mode === "unordered" && returns.kind !== "array") {
+      issue('"unordered" requires an array return type');
+    }
+    if (meta.compare.mode === "float" && !floatReturn) {
+      issue('"float" requires a float return type (float, float[] or float[][])');
+    }
+    if (meta.compare.mode === "exact" && floatReturn) {
+      issue('"exact" cannot compare a float return type; use "float" with an epsilon');
     }
   });
 
 export const MIN_TESTS = 5;
 
+// `z.record` silently drops an own "__proto__" key (JSON.parse creates one),
+// so it is rejected on the raw value before the record is built.
+const testInputSchema = z
+  .unknown()
+  .superRefine((value, ctx) => {
+    if (typeof value === "object" && value !== null && Object.hasOwn(value, "__proto__")) {
+      ctx.addIssue({ code: "custom", message: 'unknown parameter "__proto__"' });
+    }
+  })
+  .pipe(z.record(z.string(), z.json()));
+
 export const testCaseSchema = z.strictObject({
-  input: z.record(z.string(), z.json()),
+  input: testInputSchema,
   expected: z.json(),
   sample: z.boolean().default(false),
 });
