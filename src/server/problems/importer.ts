@@ -5,16 +5,17 @@ import { existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
-import { and, eq, inArray, notInArray } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { z } from "zod";
 
 import {
+  MAX_PROBLEM_NUMBER,
   metaSchema,
   testsSchema,
   type ProblemMeta,
   type ProblemTest,
 } from "@/lib/problems/schema";
-import { findUnsafeIntegerLiterals, parseType, validateInput, validateValue } from "@/lib/types";
+import { findUnsafeNumberLiterals, parseType, validateInput, validateValue } from "@/lib/types";
 import type { Db } from "@/server/db";
 import { problems, problemTags, tags, testCases } from "@/server/db/schema";
 
@@ -55,18 +56,14 @@ function zodErrors(file: string, error: z.ZodError): string[] {
   });
 }
 
-/** Reads a JSON file; reports unsafe integer literals (before parsing) and bad JSON. */
+/** Reads a JSON file; reports unsafe number literals (before parsing) and bad JSON. */
 async function readJson(
   file: string,
   errors: string[],
 ): Promise<{ ok: true; value: unknown } | { ok: false }> {
   const text = await readFile(file, "utf8");
-  const unsafe = findUnsafeIntegerLiterals(text);
-  for (const u of unsafe) {
-    errors.push(
-      `${display(file)}:${u.line}:${u.column}: integer ${u.literal} is outside the range ±(2^53−1)`,
-    );
-  }
+  const unsafe = findUnsafeNumberLiterals(text);
+  for (const u of unsafe) errors.push(`${display(file)}:${u.line}:${u.column}: ${u.message}`);
   if (unsafe.length > 0) return { ok: false };
   try {
     return { ok: true, value: JSON.parse(text) };
@@ -197,6 +194,9 @@ export function tagNameFromSlug(slug: string): string {
     .join(" ");
 }
 
+/** Added to existing numbers while importing; above any valid problem number. */
+const NUMBER_PARK_OFFSET = MAX_PROBLEM_NUMBER + 1;
+
 /**
  * Upserts problems by slug in one transaction: problem row (published=true),
  * tags, and a full replacement of its test cases. With `prune`, published
@@ -229,6 +229,17 @@ export async function importProblems(
           return `${display(path.join(p.dir, "meta.json"))}: number: duplicate number ${row.number} (already used by "${row.slug}" in the database)`;
         }),
       );
+    }
+
+    // Move the numbers of the imported problems that already exist out of the
+    // way, so swaps and renumber chains between them do not hit the unique
+    // constraint mid-loop. Every parked row gets its real number back from the
+    // upsert below (or the transaction rolls back).
+    if (slugs.length > 0) {
+      await tx
+        .update(problems)
+        .set({ number: sql`${problems.number} + ${NUMBER_PARK_OFFSET}` })
+        .where(inArray(problems.slug, slugs));
     }
 
     const tagSlugs = [...new Set(loaded.flatMap((p) => p.meta.tags))];

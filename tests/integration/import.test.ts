@@ -2,7 +2,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { problems, problemTags, tags, testCases } from "@/server/db/schema";
@@ -33,6 +33,18 @@ async function counts() {
 }
 
 let tmp: string | undefined;
+async function editMeta(dir: string, slug: string, edit: (meta: Record<string, unknown>) => void) {
+  const file = path.join(dir, slug, "meta.json");
+  const meta = JSON.parse(await readFile(file, "utf8"));
+  edit(meta);
+  await writeFile(file, JSON.stringify(meta));
+}
+
+async function numbers() {
+  const rows = await getTestDb().select({ slug: problems.slug, number: problems.number }).from(problems);
+  return Object.fromEntries(rows.map((r) => [r.slug, r.number]));
+}
+
 async function copyFixtures(): Promise<string> {
   tmp = await mkdtemp(path.join(tmpdir(), "leetcopy-import-"));
   await cp(FIXTURES, tmp, { recursive: true });
@@ -180,5 +192,74 @@ describe("importProblems", () => {
     expect(await counts()).toEqual({ problems: 3, published: 3, tags: 4, problemTags: 6, testCases: 16 });
     const [average] = await getTestDb().select().from(problems).where(eq(problems.slug, "fixture-average"));
     expect(average.title).toBe("Fixture: Average");
+  });
+
+  it("swaps numbers between imported problems and follows renumber chains", async () => {
+    await importDir(FIXTURES);
+    expect(await numbers()).toEqual({
+      "fixture-average": 9003,
+      "fixture-evens": 9002,
+      "fixture-join-words": 9001,
+    });
+
+    const dir = await copyFixtures();
+    await editMeta(dir, "fixture-average", (m) => (m.number = 9002));
+    await editMeta(dir, "fixture-evens", (m) => (m.number = 9003));
+    await importDir(dir);
+    expect(await numbers()).toEqual({
+      "fixture-average": 9002,
+      "fixture-evens": 9003,
+      "fixture-join-words": 9001,
+    });
+
+    // Chain: join-words -> 9004 (new), average -> 9001 (join-words'), evens -> 9002 (average's).
+    await editMeta(dir, "fixture-join-words", (m) => (m.number = 9004));
+    await editMeta(dir, "fixture-average", (m) => (m.number = 9001));
+    await editMeta(dir, "fixture-evens", (m) => (m.number = 9002));
+    await importDir(dir);
+    expect(await numbers()).toEqual({
+      "fixture-average": 9001,
+      "fixture-evens": 9002,
+      "fixture-join-words": 9004,
+    });
+    expect(await counts()).toEqual({ problems: 3, published: 3, tags: 4, problemTags: 6, testCases: 16 });
+  });
+
+  it("rolls back everything when a write fails after earlier problems were upserted", async () => {
+    await importDir(FIXTURES);
+    const db = getTestDb();
+    const snapshot = async () => ({
+      problems: await db.select().from(problems).orderBy(asc(problems.slug)),
+      cases: await db.select().from(testCases).orderBy(asc(testCases.id)),
+      links: await db.select().from(problemTags).orderBy(asc(problemTags.problemId), asc(problemTags.tagId)),
+      tags: await db.select().from(tags).orderBy(asc(tags.id)),
+    });
+    const before = await snapshot();
+
+    const loaded = await loadProblems(FIXTURES);
+    // Earlier problems change (and get swapped numbers + a new tag)...
+    loaded[0].meta.title = "Changed";
+    loaded[0].meta.number = 9002;
+    loaded[0].meta.tags = [...loaded[0].meta.tags, "brand-new-tag"];
+    loaded[1].meta.number = 9003;
+    // ...and the last one violates a CHECK constraint (time_limit_ms > 0).
+    loaded[2].meta.limits.timeMs = 0;
+    expect(loaded.map((p) => p.meta.slug)).toEqual(["fixture-average", "fixture-evens", "fixture-join-words"]);
+
+    await expect(importProblems(db, loaded)).rejects.toThrow();
+    expect(await snapshot()).toEqual(before);
+  });
+
+  it("imports the real problems/ catalog (AC-M1-6)", async () => {
+    const summary = await importDir(path.join(process.cwd(), "problems"));
+    expect(summary.imported.length).toBeGreaterThanOrEqual(15);
+    const db = getTestDb();
+    const published = eq(problems.published, true);
+    expect(await db.$count(problems, published)).toBeGreaterThanOrEqual(15);
+    const byDifficulty = async (difficulty: "easy" | "medium" | "hard") =>
+      db.$count(problems, and(published, eq(problems.difficulty, difficulty)));
+    expect(await byDifficulty("easy")).toBeGreaterThanOrEqual(6);
+    expect(await byDifficulty("medium")).toBeGreaterThanOrEqual(6);
+    expect(await byDifficulty("hard")).toBeGreaterThanOrEqual(3);
   });
 });

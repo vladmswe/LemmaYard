@@ -124,15 +124,40 @@ export function validateInput(input: unknown, signature: SignatureLike): ValueIs
   return issues;
 }
 
-export type UnsafeIntegerLiteral = { literal: string; line: number; column: number };
+export type UnsafeNumberLiteral = {
+  literal: string;
+  line: number;
+  column: number;
+  message: string;
+};
+
+const TWO_POW_52 = 2 ** 52;
+
+/** True when the decimal literal denotes an integer exactly (e.g. `1.0`, `2.5e1`). */
+function isExactIntegerLiteral(literal: string): boolean {
+  const m = /^-?(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(literal)!;
+  const digits = m[1] + (m[2] ?? "");
+  const scale = (m[2]?.length ?? 0) - Number(m[3] ?? 0);
+  if (scale <= 0) return true;
+  const trimmed = digits.replace(/0+$/, "");
+  return trimmed === "" || digits.length - trimmed.length >= scale;
+}
 
 /**
- * Finds integer literals beyond ±(2^53−1) in raw JSON text. `JSON.parse`
- * silently rounds them, so this must run on the text before parsing.
- * Literals with a fraction or exponent are left to the type check.
+ * Finds number literals in raw JSON text that `JSON.parse` would silently
+ * change. Must run on the text before parsing:
+ * - integer literals (no fraction/exponent) beyond ±(2^53−1);
+ * - literals with a fraction or exponent and |value| ≥ 2^52: at that magnitude
+ *   doubles have no fractional bits, so e.g. `4503599627370496.5` would parse
+ *   to an integer and pass as `int`;
+ * - other non-integer literals that still parse to an integer
+ *   (`0.99999999999999999999` → 1).
+ * Exact integers written with a fraction or exponent below 2^52 (`1.0`, `2e3`)
+ * are accepted: they parse to exactly that integer, so the type check can
+ * treat them as `int` without losing anything.
  */
-export function findUnsafeIntegerLiterals(text: string): UnsafeIntegerLiteral[] {
-  const found: UnsafeIntegerLiteral[] = [];
+export function findUnsafeNumberLiterals(text: string): UnsafeNumberLiteral[] {
+  const found: UnsafeNumberLiteral[] = [];
   const max = BigInt(Number.MAX_SAFE_INTEGER);
   const numberRe = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
   let line = 1;
@@ -157,9 +182,21 @@ export function findUnsafeIntegerLiterals(text: string): UnsafeIntegerLiteral[] 
         continue;
       }
       const literal = match[0];
+      const at = { literal, line, column: i - lineStart + 1 };
       if (/^-?\d+$/.test(literal)) {
-        const magnitude = BigInt(literal.replace("-", ""));
-        if (magnitude > max) found.push({ literal, line, column: i - lineStart + 1 });
+        if (BigInt(literal.replace("-", "")) > max) {
+          found.push({ ...at, message: `integer ${literal} is outside the range ±(2^53−1)` });
+        }
+      } else if (Math.abs(Number(literal)) >= TWO_POW_52) {
+        found.push({
+          ...at,
+          message: `number ${literal} has a fraction or exponent and |value| ≥ 2^52, so it cannot be represented exactly (write an integer within ±(2^53−1) or a smaller number)`,
+        });
+      } else if (Number.isInteger(Number(literal)) && !isExactIntegerLiteral(literal)) {
+        found.push({
+          ...at,
+          message: `number ${literal} is not an integer but parses as ${Number(literal)} (precision loss)`,
+        });
       }
       i += literal.length;
     } else {

@@ -1,5 +1,6 @@
 // Function and parameter names must be valid identifiers in BOTH Python and
-// JavaScript and must not be reserved words in either language.
+// JavaScript, must not be reserved words in either language and must not
+// shadow globals/builtins that the harness or typical user code relies on.
 
 const PYTHON_KEYWORDS = [
   "False", "None", "True", "and", "as", "assert", "async", "await", "break",
@@ -24,6 +25,22 @@ const TEMPLATE_RESERVED = ["self"];
 
 const RESERVED = new Set([...PYTHON_KEYWORDS, ...JS_RESERVED, ...TEMPLATE_RESERVED]);
 
+// A parameter or function with one of these names would shadow a global the
+// solution (or harness) is likely to use.
+const JS_GLOBALS = [
+  "JSON", "console", "Math", "Object", "Array", "Number", "String", "Boolean",
+  "Map", "Set", "Promise", "Symbol", "Error", "globalThis", "require", "module",
+  "exports", "process", "Function", "Date", "RegExp", "BigInt",
+];
+
+const PYTHON_BUILTINS = [
+  "input", "list", "dict", "set", "sum", "max", "min", "len", "id", "str", "int",
+  "float", "bool", "range", "map", "filter", "sorted", "reversed", "enumerate",
+  "zip", "print", "type", "object", "tuple", "abs", "any", "all",
+];
+
+const SHADOWING = new Set([...JS_GLOBALS, ...PYTHON_BUILTINS]);
+
 // ASCII intersection of Python and JS identifier syntax (`$` is JS-only).
 const IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -32,8 +49,14 @@ export function identifierProblem(name: string): string | null {
   if (!IDENTIFIER_RE.test(name)) {
     return `"${name}" is not a valid identifier in both Python and JavaScript (use [A-Za-z_][A-Za-z0-9_]*)`;
   }
+  if (name.startsWith("__")) {
+    return `"${name}" starts with "__" (reserved for Python dunder names and name mangling)`;
+  }
   if (RESERVED.has(name)) {
     return `"${name}" is a reserved word in Python or JavaScript`;
+  }
+  if (SHADOWING.has(name)) {
+    return `"${name}" would shadow a JavaScript global or Python builtin`;
   }
   return null;
 }
