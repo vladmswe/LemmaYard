@@ -4,8 +4,9 @@ import type { RendererProps } from "@/components/guide/player/TracePlayer";
 import { Cell } from "@/components/guide/svg/Cell";
 import { RoleShape } from "@/components/guide/svg/RoleShape";
 import { VizSvg } from "@/components/guide/svg/VizSvg";
-import { rowLayout } from "@/lib/guide/layout/row";
 import { ARRAY_ID, type ArrayState } from "@/lib/guide/traces/array/model";
+
+import { balancedRowLayout } from "./balanced-row";
 
 const PAD = 12;
 const FRAME = 10; // space between the array outline and its cells
@@ -19,11 +20,11 @@ export function ArrayRenderer({ frame, width, hovered, onHover, mode }: Renderer
   const thumb = mode === "thumb";
   const s = frame.state;
   const inner = Math.max(40, width - 2 * PAD - 2 * FRAME);
-  const layout = rowLayout(s.capacity, inner, {
+  const layout = balancedRowLayout(s.capacity, inner, {
     minCell: 32,
     maxCell: thumb ? 36 : 52,
     gap: GAP,
-    rowGap: MARKER + (thumb ? 4 : INDEX),
+    rowGap: MARKER + (thumb ? 4 : INDEX) + 6,
   });
   const cellW = layout.cellW;
   const header = thumb ? 0 : HEADER;

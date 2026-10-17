@@ -7,8 +7,9 @@ import { Cell } from "@/components/guide/svg/Cell";
 import { RoleShape } from "@/components/guide/svg/RoleShape";
 import { VizSvg } from "@/components/guide/svg/VizSvg";
 import type { ElementId, Role } from "@/lib/guide/contracts";
-import { rowLayout } from "@/lib/guide/layout/row";
 import { DYN_MAX_OPS, formatAverage, type DynBuffer, type DynState } from "@/lib/guide/traces/dynarray/model";
+
+import { balancedRowLayout } from "../array/balanced-row";
 
 const PAD = 12;
 const FRAME = 8; // space between a buffer outline and its cells
@@ -35,7 +36,7 @@ export function DynArrayRenderer({ frame, width, hovered, onHover, mode }: Rende
   let y = PAD + (thumb ? 0 : HEADER);
 
   const drawBuffer = (buf: DynBuffer, caption: string, size: number) => {
-    const layout = rowLayout(buf.capacity, inner, { minCell: 32, maxCell: thumb ? 32 : 44, gap: GAP, rowGap: index + 10 });
+    const layout = balancedRowLayout(buf.capacity, inner, { minCell: 32, maxCell: thumb ? 32 : 44, gap: GAP, rowGap: index + 10 });
     const cellW = layout.cellW;
     if (!thumb) {
       parts.push(
@@ -137,9 +138,11 @@ export function DynArrayRenderer({ frame, width, hovered, onHover, mode }: Rende
           strokeWidth={1}
           strokeDasharray="3 4"
         />
-        <text className="viz-label" x={PAD} y={yOf(3)} dy="0.35em">
-          3
-        </text>
+        {base - yOf(3) >= 14 && (
+          <text className="viz-label" x={PAD} y={yOf(3)} dy="0.35em">
+            3
+          </text>
+        )}
         <text className="viz-label" x={PAD} y={base} dy="0.35em">
           0
         </text>

@@ -3,9 +3,10 @@
 import type { RendererProps } from "@/components/guide/player/TracePlayer";
 import { Cell } from "@/components/guide/svg/Cell";
 import { VizSvg } from "@/components/guide/svg/VizSvg";
-import { rowLayout } from "@/lib/guide/layout/row";
 import { textWidth } from "@/lib/guide/layout/text";
 import type { PrefixState } from "@/lib/guide/traces/prefix/model";
+
+import { balancedRowLayout } from "../array/balanced-row";
 
 const PAD = 12;
 const HEADER = 22;
@@ -33,7 +34,7 @@ export function PrefixRenderer({ frame, width, hovered, onHover, mode }: Rendere
   const minCell = Math.max(32, Math.ceil(textWidth("0".repeat(longest), 14) + 8));
   const labelW = thumb ? 0 : LABEL_W;
   const inner = Math.max(40, width - 2 * PAD - labelW);
-  const layout = rowLayout(cols, inner, { minCell, maxCell: Math.max(minCell, thumb ? 40 : 52), gap: GAP });
+  const layout = balancedRowLayout(cols, inner, { minCell, maxCell: Math.max(minCell, thumb ? 40 : 52), gap: GAP });
   const cellW = layout.cellW;
   const idxH = thumb ? 4 : 16;
   const aY = idxH;

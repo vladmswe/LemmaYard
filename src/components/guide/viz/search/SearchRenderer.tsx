@@ -4,9 +4,10 @@ import type { RendererProps } from "@/components/guide/player/TracePlayer";
 import { ArrayRow } from "@/components/guide/svg/ArrayRow";
 import { PointerTag } from "@/components/guide/svg/PointerTag";
 import { VizSvg } from "@/components/guide/svg/VizSvg";
-import { rowLayout } from "@/lib/guide/layout/row";
 import { textWidth } from "@/lib/guide/layout/text";
 import type { SearchState } from "@/lib/guide/traces/search/model";
+
+import { balancedRowLayout } from "../array/balanced-row";
 
 const PAD = 12;
 const HEADER = 22; // "Target 71 · range [17, 24)" line
@@ -31,7 +32,7 @@ export function SearchRenderer({ frame, width, hovered, onHover, mode }: Rendere
   const longest = Math.max(1, ...s.items.map((it) => String(it.value).length));
   const minCell = Math.max(32, Math.ceil(textWidth("0".repeat(longest), 14) + 8));
   const below = (thumb ? 0 : INDEX) + (binary ? BOUNDS : 0);
-  const layout = rowLayout(n, inner, {
+  const layout = balancedRowLayout(n, inner, {
     minCell,
     maxCell: Math.max(minCell, thumb ? 36 : 48),
     gap: GAP,

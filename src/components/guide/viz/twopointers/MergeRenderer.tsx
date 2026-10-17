@@ -5,9 +5,11 @@ import { Cell } from "@/components/guide/svg/Cell";
 import { PointerTag } from "@/components/guide/svg/PointerTag";
 import { VizSvg } from "@/components/guide/svg/VizSvg";
 import type { ElementId } from "@/lib/guide/contracts";
-import { rowLayout, type RowLayout } from "@/lib/guide/layout/row";
+import type { RowLayout } from "@/lib/guide/layout/row";
 import { textWidth } from "@/lib/guide/layout/text";
 import type { MergeCell, MergeState } from "@/lib/guide/traces/twopointers/model";
+
+import { balancedRowLayout } from "../array/balanced-row";
 
 const PAD = 12;
 const HEADER = 22;
@@ -36,7 +38,7 @@ export function MergeRenderer({ frame, width, hovered, onHover, mode }: Renderer
   const labelW = thumb ? 0 : LABEL_W;
   const inner = Math.max(40, width - 2 * PAD - labelW);
   // One cell size for all rows: the one that fits the longest row (C).
-  const cellW = rowLayout(Math.max(1, s.c.length), inner, { minCell, maxCell: Math.max(minCell, thumb ? 36 : 48), gap: GAP }).cellW;
+  const cellW = balancedRowLayout(Math.max(1, s.c.length), inner, { minCell, maxCell: Math.max(minCell, thumb ? 36 : 48), gap: GAP }).cellW;
   const index = thumb ? 4 : INDEX;
   const tag = thumb ? 34 : TAG;
 
@@ -47,8 +49,8 @@ export function MergeRenderer({ frame, width, hovered, onHover, mode }: Renderer
     cells: readonly (MergeCell | null)[],
     pointer: Section["pointer"],
   ) => {
-    const below = index + (pointer ? tag : 0);
-    const layout = rowLayout(Math.max(1, cells.length), inner, { minCell: cellW, maxCell: cellW, gap: GAP, rowGap: below });
+    const below = index + (pointer ? tag : 12); // 12: room for the "done" badges of a wrapped C
+    const layout = balancedRowLayout(Math.max(1, cells.length), inner, { minCell: cellW, maxCell: cellW, gap: GAP, rowGap: below });
     const height = layout.height + below;
     sections.push({ name, cells, layout, top: y, height, pointer });
     y += height + SECTION_GAP;

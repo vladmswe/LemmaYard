@@ -129,7 +129,7 @@ export function generateMerge(input: MergeInput): Trace<MergeState, number[]> {
   const result = c.map((cell) => (cell as MergeCell).value);
   frames.push({
     state: snap(),
-    roles: Object.fromEntries(c.map((cell) => [(cell as MergeCell).id, "done" as Role])),
+    roles: { ...used(), ...Object.fromEntries(c.map((cell) => [(cell as MergeCell).id, "done" as Role])) },
     pointers: pointers(),
     line: null,
     phase: "Merged",
