@@ -18,7 +18,7 @@
     "db:seed": "pnpm db:migrate && pnpm problems:import",
     "problems:import": "tsx scripts/import-problems.ts",
     "problems:verify": "node scripts/not-implemented.mjs problems:verify M4",
-    "sandbox:build": "node scripts/not-implemented.mjs sandbox:build M4",
+    "sandbox:build": "tsx scripts/sandbox-build.ts",
     "setup": "node scripts/not-implemented.mjs setup M4"
   },
   "dependencies": {
