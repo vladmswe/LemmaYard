@@ -559,7 +559,7 @@ Row `flex justify-between items-center`: left "Showing 21–40 of 45" (`text-sm 
 - Copy note: the current UI says "Login"/"Register". Change the visible labels to **"Log in" / "Sign up"**. Page routes stay `/login` and `/register`.
 
 ### 8.19 Account menu (`components/user-menu.tsx`, change)
-Trigger as above. Content (align end, `w-56`): header block `px-2 py-2` with username `font-semibold` and "View profile" muted; separator; items `User` Profile → `/u/[username]`, `History` Submissions → `/submissions`; separator; `LogOut` Log out (shows `LoaderCircle` while pending). Keyboard: Base UI defaults.
+Trigger as above. Content (align end, `w-56`): header block `px-2 py-2` with username `font-semibold` and "Signed in" muted (not "View profile": the block is not a link, the Profile item is); separator; items `User` Profile → `/u/[username]`, `History` Submissions → `/submissions`; separator; `LogOut` Log out (shows `LoaderCircle` while pending). Keyboard: Base UI defaults.
 
 ### 8.20 Footer (`components/site-footer.tsx`, add)
 `bg-surface-sunken border-t py-14`. Grid `md:grid-cols-[2fr_1fr_1fr]` (mobile: 2 cols): brand + one-line description; Practice (Problems, Submissions for users); Account (Log in, Sign up or Profile). A Project column (About, Source) is added once the project has a public URL; no placeholder links. Bottom row `mt-10 pt-5 border-t text-sm text-muted-foreground`: "© 2026 LemmaYard. Problem statements are original." Show it on all pages **except** the problem page (full-height workspace).
@@ -616,7 +616,7 @@ General: every page has `<title>` in the form "Problems · LemmaYard" and one `h
 │ PROGRESS PREVIEW  text + CTA  |  card: 18/45 · 64 · 57%  + 3 difficulty bars  │
 ├ footer ───────────────────────────────────────────────────────────────────────┤
 ```
-Rules: hero CTA goes to `/problems` for signed-in users ("Continue practicing") and to `/register` for guests ("Start practicing"). The featured list is the 4 lowest-numbered published problems spanning easy, medium and hard (server query). The progress preview card uses the real stats for signed-in users and the static example (marked `aria-hidden`, with the caption "Example profile") for guests. The trust row counts real published problems. Mobile: single column, the illustration becomes three stacked static cards, the steps list goes vertical with dots on the left, and the featured table hides the Topics and Acceptance columns.
+Rules: hero CTA goes to `/problems` for signed-in users ("Continue practicing") and to `/register` for guests ("Start practicing"). The featured list is a curated starter set that spans easy, medium and hard (`FEATURED_SLUGS` in `src/server/landing.ts`; unpublished or missing slugs are skipped), because the lowest numbers are all easy. The progress preview card uses the real stats for signed-in users and the static example (marked `aria-hidden`, with the caption "Example profile") for guests. The trust row counts real published problems. Mobile: single column, the illustration becomes three stacked static cards, the steps list goes vertical with dots on the left, and the featured table hides the Topics and Acceptance columns.
 
 ### 9.2 Login / Register `/login`, `/register`
 ```

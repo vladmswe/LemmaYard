@@ -12,7 +12,7 @@ export default function NotFound() {
   return (
     <>
       <SiteHeader />
-      <main id="main" className="flex flex-1 flex-col">
+      <main id="main" tabIndex={-1} className="flex flex-1 flex-col focus:outline-none">
         <NotFoundContent />
       </main>
       <SiteFooter />

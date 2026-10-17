@@ -6,7 +6,8 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
   return (
     <>
       <SiteHeader />
-      <main id="main" className="flex flex-1 flex-col">
+      {/* tabIndex -1: the skip link moves focus here, not just the scroll. */}
+      <main id="main" tabIndex={-1} className="flex flex-1 flex-col focus:outline-none">
         {children}
       </main>
       <SiteFooter />
