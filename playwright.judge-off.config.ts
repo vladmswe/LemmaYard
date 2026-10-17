@@ -23,7 +23,8 @@ export default defineConfig({
     command: `node scripts/next.mjs start --port ${PORT}`,
     url: baseURL,
     // AUTH_URL must match this origin, or every POST (register) is a 403.
-    env: { JUDGE_ENABLED: "0", PORT: String(PORT), AUTH_URL: baseURL },
+    // AUTH_RATE_LIMITS=0: specs register users from one address (see playwright.config.ts).
+    env: { JUDGE_ENABLED: "0", PORT: String(PORT), AUTH_URL: baseURL, AUTH_RATE_LIMITS: "0" },
     reuseExistingServer: false,
     timeout: 120_000,
   },
