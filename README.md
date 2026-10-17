@@ -175,6 +175,31 @@ accidental or naive forging; code in the same process can find it, which is harm
 because verdicts are computed on the host against expected values the container
 never sees.
 
+### Learn (Data Structures guide)
+
+Routes: `/learn` (roadmap), `/learn/<slug>` (lesson), `/learn/glossary`. Each
+lesson lives in its own folder `src/content/learn/<slug>/`: `lesson.mdx` (prose
+plus the components `Viz`, `CodeTabs`, `Quiz`, `ComplexityTable`, `Callout`,
+`PracticeLinks`, `Term`), `meta.ts` (title, summary, track, order,
+prerequisites, practice problems, `status`), `quiz.ts`, `complexity.ts`,
+`glossary.ts` and `code/<name>.py|.js|.cases.json`. The registry
+`src/content/learn/index.ts` imports every lesson statically. A lesson is
+hidden from the roadmap, prev/next and the glossary (and is `noindex`) until its
+`meta.ts` says `status: "published"`. The pipeline fixture lesson
+(`src/content/learn/_fixture/`) renders at `/learn/dev-fixtures/lesson` only with
+`GUIDE_FIXTURES=1`.
+
+Code samples mark the lines a player highlights with `# @line some.id`
+(Python) or `// @line some.id` (JS) at the end of a line; the markers are
+stripped and the listing is highlighted with Shiki on the server.
+`tests/unit/guide/content/code-samples.test.ts` runs every `*.cases.json`
+against both listings on the host through `tests/helpers/guide/driver.{py,mjs}`,
+so `pnpm test` needs `python3` >= 3.10 (it fails, not skips, without it).
+`lesson-files.test.ts` checks folders, metadata, headings, word counts and
+component references. Progress (visited, quiz answers, completion) stays in the
+browser's localStorage (`lemmayard.learn.progress.v1`). Browser tests:
+`pnpm test:e2e:guide`.
+
 ## Configuration
 
 All variables are listed in `.env.example` and validated with Zod in

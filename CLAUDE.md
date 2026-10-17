@@ -70,6 +70,7 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
 - DB schema changes only in M1. Later milestones must not change the schema.
   Exception: each feature spec (F-features, Rooms) adds one additive migration.
 - User code runs only inside the Docker sandbox, always, including in tests.
+  Authored guide code samples in `src/content/learn/**/code/` are trusted repo code and may run on the host in unit tests; the Docker-only rule applies to untrusted user submissions.
 - Zod validation on every boundary (env, request bodies, problem files, worker
   input/output). SQL only through Drizzle.
 - No shell execution: use `execFile` / `spawn` with an argument array, never

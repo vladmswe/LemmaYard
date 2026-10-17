@@ -22,6 +22,8 @@ const eslintConfig = defineConfig([
     ".claude/**",
     // Problem solutions and fixtures define a global function by design.
     "problems/**",
+    // Guide code samples define a global class or function by design.
+    "src/content/learn/**/code/**",
     "tests/fixtures/**",
     "tests/unit/__golden__/**",
   ]),

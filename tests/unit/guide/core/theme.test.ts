@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { fixturesEnabled } from "@/app/learn/dev-fixtures/guard";
+import { fixturesEnabled } from "@/app/(site)/learn/dev-fixtures/guard";
 import { DEFAULT_STYLE, ROLE_STYLES } from "@/components/guide/svg/role-style";
 import { ROLES } from "@/lib/guide/contracts";
 
