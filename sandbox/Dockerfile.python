@@ -1,0 +1,14 @@
+# Python sandbox image (PLAN.md section 5). Build with `pnpm sandbox:build`.
+# Base pinned by tag and multi-arch digest.
+FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
+
+# The root filesystem is read-only at run time: never write .pyc files.
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
+COPY --chown=0:0 --chmod=0444 harness.py /sandbox/harness.py
+RUN chmod 0555 /sandbox
+
+WORKDIR /tmp
+USER 65534:65534
+# The worker passes this command explicitly (worker/docker-executor.ts).
+CMD ["python3", "-I", "-B", "/sandbox/harness.py"]
