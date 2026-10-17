@@ -5,7 +5,16 @@
 // left; participants, Join/Leave and Start/Cancel on the right. Everyone else
 // sees the slots without titles and a waiting state. Updates from others
 // arrive through the session poller (lobby_updated → the view is re-read).
-import { CircleAlertIcon, DicesIcon, InfoIcon, LoaderCircleIcon, PlayIcon, UserCheckIcon, UserPlusIcon, XIcon } from "lucide-react";
+import {
+  CircleAlertIcon,
+  DicesIcon,
+  InfoIcon,
+  LoaderCircleIcon,
+  PlayIcon,
+  UserCheckIcon,
+  UserPlusIcon,
+  XIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -127,7 +136,7 @@ export function SessionLobby({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-      <div className="flex min-w-0 flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-1">
         <section aria-labelledby="lobby-problems" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -148,7 +157,11 @@ export function SessionLobby({
                   size="sm"
                   loading={busy === "reroll-all"}
                   disabled={busy !== null || lobby.rerollsLeft === 0 || lobby.slots.length === 0}
-                  onClick={() => act("reroll-all", () => sessionApi.rerollAll(roomId, sessionId), { success: "Re-rolled the unpinned problems" })}
+                  onClick={() =>
+                    act("reroll-all", () => sessionApi.rerollAll(roomId, sessionId), {
+                      success: "Re-rolled the unpinned problems",
+                    })
+                  }
                 >
                   <DicesIcon aria-hidden />
                   Re-roll all
@@ -160,7 +173,9 @@ export function SessionLobby({
           {drawProblem && (
             <Alert variant="warning" data-testid="draw-error">
               <CircleAlertIcon aria-hidden />
-              <AlertTitle>{drawProblem.code === "pool_too_small" ? "Not enough problems" : "This mix is not possible"}</AlertTitle>
+              <AlertTitle>
+                {drawProblem.code === "pool_too_small" ? "Not enough problems" : "This mix is not possible"}
+              </AlertTitle>
               <AlertDescription>
                 <p>{drawProblem.error}</p>
                 {drawProblem.code === "pool_too_small" && <p>{availableLine(drawProblem.counts)}</p>}
@@ -212,18 +227,12 @@ export function SessionLobby({
             }
           />
         </section>
-
-        {canManage && <CalibrationPanel lobby={lobby} />}
-        {canManage && (
-          <Card>
-            <CardContent>
-              <SessionSettingsForm lobby={lobby} tags={tags} pending={busy === "draw"} onApply={apply} />
-            </CardContent>
-          </Card>
-        )}
       </div>
 
-      <aside aria-labelledby="lobby-people" className="flex min-w-0 flex-col gap-4">
+      <aside
+        aria-labelledby="lobby-people"
+        className="flex min-w-0 flex-col gap-4 self-start lg:col-start-2 lg:row-span-2 lg:row-start-1"
+      >
         <Card>
           <CardContent className="flex flex-col gap-4">
             <div>
@@ -284,7 +293,10 @@ export function SessionLobby({
                 </Button>
               </div>
             ) : (
-              <p className="flex items-center gap-2 border-t pt-4 text-sm text-foreground-secondary" data-testid="waiting-host">
+              <p
+                className="flex items-center gap-2 border-t pt-4 text-sm text-foreground-secondary"
+                data-testid="waiting-host"
+              >
                 <LoaderCircleIcon aria-hidden className="size-4 shrink-0 motion-safe:animate-spin-slow" />
                 Waiting for the host to start the session.
               </p>
@@ -295,6 +307,18 @@ export function SessionLobby({
           Room members who have not joined can open this session from the room page and press Join.
         </p>
       </aside>
+
+      {/* DOM order = mobile order (problems, people + Start, then settings); lg places the aside right. */}
+      <div className="flex min-w-0 flex-col gap-6 lg:col-start-1">
+        {canManage && <CalibrationPanel lobby={lobby} />}
+        {canManage && (
+          <Card>
+            <CardContent>
+              <SessionSettingsForm lobby={lobby} tags={tags} pending={busy === "draw"} onApply={apply} />
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {canManage && pinFor !== null && (
         <ProblemSearchDialog
@@ -333,7 +357,12 @@ export function SessionLobby({
                 Start session
               </AlertDialogAction>
             ) : (
-              <AlertDialogAction variant="destructive" loading={busy === "cancel"} onClick={cancel} data-testid="confirm-cancel">
+              <AlertDialogAction
+                variant="destructive"
+                loading={busy === "cancel"}
+                onClick={cancel}
+                data-testid="confirm-cancel"
+              >
                 Cancel session
               </AlertDialogAction>
             )}

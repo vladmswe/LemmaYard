@@ -557,7 +557,13 @@ function FinishedBody({
           </ul>
         </section>
         <div className="flex flex-wrap gap-3">
-          <Link href={resultsHref(roomId, sessionId)} className={buttonVariants()} data-testid="results-link">
+          {/* No prefetch: the results page is R5's route and may not exist yet. */}
+          <Link
+            href={resultsHref(roomId, sessionId)}
+            prefetch={false}
+            className={buttonVariants()}
+            data-testid="results-link"
+          >
             Full results
           </Link>
           <NewSessionButton roomId={roomId} variant="secondary" />

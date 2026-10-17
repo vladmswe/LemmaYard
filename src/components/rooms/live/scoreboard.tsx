@@ -42,7 +42,11 @@ function CellMarks({ cell, final }: { cell: CellView; final: boolean }) {
 export function ScoreCell({ cell, final = false }: { cell: CellView; final?: boolean }) {
   const key = `${cell.state}-${cell.time}-${cell.wrong}-${cell.firstSolver}`;
   return (
-    <span key={key} data-cell-state={cell.state} className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 motion-safe:animate-enter-fade">
+    <span
+      key={key}
+      data-cell-state={cell.state}
+      className="inline-flex items-center whitespace-nowrap gap-x-1.5 gap-y-0.5 motion-safe:animate-enter-fade"
+    >
       <span className="sr-only">{cell.srText}</span>
       {cell.state === "solved" && (
         <span aria-hidden className="inline-flex items-center gap-1 font-medium text-success">
@@ -69,7 +73,7 @@ export function ScoreCell({ cell, final = false }: { cell: CellView; final?: boo
 
 function Name({ row }: { row: ScoreRow }) {
   return (
-    <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+    <span className="inline-flex min-w-0 items-center gap-1.5">
       <span className="truncate font-medium text-foreground">{row.username}</span>
       {row.isViewer && <span className="text-sm text-muted-foreground">(you)</span>}
       {row.isHost && (
@@ -125,7 +129,7 @@ export function Scoreboard({ snapshot, viewerId, final = false, caption = "Score
                 className={cn("border-b last:border-b-0", row.isViewer ? "bg-secondary" : "even:bg-surface-sunken")}
               >
                 <td className="h-12 px-3 text-right text-muted-foreground tabular-nums">{row.rank ?? "—"}</td>
-                <th scope="row" className="h-12 max-w-56 px-3 text-left font-normal">
+                <th scope="row" className="h-12 px-3 text-left font-normal whitespace-nowrap">
                   <Name row={row} />
                 </th>
                 <td className="h-12 px-3 text-right font-semibold tabular-nums">{row.solved}</td>

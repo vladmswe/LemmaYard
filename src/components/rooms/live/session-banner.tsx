@@ -183,6 +183,7 @@ export function SessionBanner({ context, viewerId }: { context: ProblemSessionCo
         )}
         <Link
           href={status === "live" ? backHref : resultsHref(roomId, sessionId)}
+          prefetch={status === "live" ? undefined : false}
           className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "after:absolute after:-inset-1")}
           data-testid="banner-session-link"
         >
