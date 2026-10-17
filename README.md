@@ -141,6 +141,20 @@ jobs, then mark the rest `internal_error` and remove this worker's containers
 `worker/index.ts` (process), `worker/loop.ts` (slots, sweep timer),
 `worker/queue.ts` (SQL and job/result mapping).
 
+### Run / Submit API
+
+`POST /api/problems/:slug/run` (`{language, code, customInput?}`) and
+`/submit` (`{language, code}`) answer `202 {id}`; `GET /api/submissions/:id`
+returns the submission DTO to its owner (404 for anyone else). Handlers:
+`src/server/submissions/` (checks in the PLAN section 6 order; the
+active-submission cap and the per-minute rates are counted and the row is
+inserted in one transaction under `pg_advisory_xact_lock(hashtext(user_id))`;
+429 carries `Retry-After`). Types shared with the UI: `src/lib/submission-dto.ts`;
+browser client with polling: `src/lib/submission-client.ts`. The polling
+timeouts (`QUEUED_TIMEOUT_MS`, `WALL_CAP_MS` + 30 s) reach the client as a prop:
+a server component calls `getPollingConfig()` (`src/server/submissions/config.ts`)
+and passes the result to `pollSubmission()`.
+
 Docker integration tests (`tests/integration/sandbox-*.test.ts`) need Docker and
 `pnpm sandbox:build`; they run with `pnpm test:integration` (whose global setup
 also needs Postgres) and do not touch the database.
