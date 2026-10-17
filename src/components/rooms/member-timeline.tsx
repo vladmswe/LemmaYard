@@ -182,39 +182,46 @@ function TimelineItem({ roomId, session: s }: { roomId: string; session: Timelin
           {s.problems.length} solved
         </p>
       </div>
-      <div className="mt-3 grid gap-2 text-sm">
-        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="font-semibold text-success">Solved</span>
+      <dl className="mt-3 grid grid-cols-[minmax(0,6rem)_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+        <dt className="font-semibold text-success">Solved</dt>
+        <dd className="min-w-0">
           {solved.length === 0 ? (
-            <span className="text-muted-foreground">nothing this time</span>
+            <span className="text-muted-foreground">Nothing this time</span>
           ) : (
-            solved.map((p, i) => (
-              <span key={p.position} className="inline-flex items-baseline gap-1.5">
-                <span className="text-foreground">
-                  {solvedProblemLabel(p)}
-                  {i < solved.length - 1 ? "," : ""}
-                </span>
-                <DifficultyBadge difficulty={p.difficulty} variant="text" className="text-xs" />
-              </span>
-            ))
+            <ProblemItems problems={solved} label={solvedProblemLabel} />
           )}
-        </p>
+        </dd>
         {unsolved.length > 0 && (
-          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="font-semibold text-foreground-secondary">Not solved</span>
-            {unsolved.map((p, i) => (
-              <span key={p.position} className="inline-flex items-baseline gap-1.5">
-                <span className="text-foreground-secondary">
-                  {p.title}
-                  {p.attempts > 0 ? ` (${p.attempts} ${p.attempts === 1 ? "try" : "tries"})` : ""}
-                  {i < unsolved.length - 1 ? "," : ""}
-                </span>
-                <DifficultyBadge difficulty={p.difficulty} variant="text" className="text-xs" />
-              </span>
-            ))}
-          </p>
+          <>
+            <dt className="font-semibold text-foreground-secondary">Not solved</dt>
+            <dd className="min-w-0 text-foreground-secondary">
+              <ProblemItems
+                problems={unsolved}
+                label={(p) => `${p.title}${p.attempts > 0 ? ` (${p.attempts} ${p.attempts === 1 ? "try" : "tries"})` : ""}`}
+              />
+            </dd>
+          </>
         )}
-      </div>
+      </dl>
     </li>
+  );
+}
+
+function ProblemItems({
+  problems,
+  label,
+}: {
+  problems: TimelineSession["problems"];
+  label: (p: TimelineSession["problems"][number]) => string;
+}) {
+  return (
+    <ul className="flex flex-wrap gap-x-4 gap-y-1">
+      {problems.map((p) => (
+        <li key={p.position} className="inline-flex items-baseline gap-1.5">
+          <span>{label(p)}</span>
+          <DifficultyBadge difficulty={p.difficulty} variant="text" className="text-xs" />
+        </li>
+      ))}
+    </ul>
   );
 }

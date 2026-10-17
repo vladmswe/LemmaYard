@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: PageProps<"/rooms/[roomId]">)
 
 /**
  * Room home (spec §7.4). Members only; anyone else gets the global 404.
- * R3–R5 plug in through the slots: children of RoomOpenSessionRegion and the
- * `sessions` / `leaderboard` props of RoomTabs (see room-page-slots.tsx).
+ * R3/R4 plug in through RoomOpenSessionRegion; R5 fills the
+ * `sessions` / `leaderboard` panels of RoomTabs (see room-page-slots.tsx).
  */
 export default async function RoomPage({ params, searchParams }: PageProps<"/rooms/[roomId]">) {
   const { roomId } = await params;
