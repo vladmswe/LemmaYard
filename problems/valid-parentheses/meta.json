@@ -1,0 +1,27 @@
+{
+  "number": 2,
+  "slug": "valid-parentheses",
+  "title": "Valid Parentheses",
+  "difficulty": "easy",
+  "tags": [
+    "string",
+    "stack"
+  ],
+  "signature": {
+    "name": "isValid",
+    "params": [
+      {
+        "name": "s",
+        "type": "string"
+      }
+    ],
+    "returns": "bool"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}

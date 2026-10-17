@@ -1,0 +1,31 @@
+{
+  "number": 6,
+  "slug": "binary-search",
+  "title": "Binary Search",
+  "difficulty": "easy",
+  "tags": [
+    "array",
+    "binary-search"
+  ],
+  "signature": {
+    "name": "search",
+    "params": [
+      {
+        "name": "nums",
+        "type": "int[]"
+      },
+      {
+        "name": "target",
+        "type": "int"
+      }
+    ],
+    "returns": "int"
+  },
+  "compare": {
+    "mode": "exact"
+  },
+  "limits": {
+    "timeMs": 2000,
+    "memoryMb": 256
+  }
+}
