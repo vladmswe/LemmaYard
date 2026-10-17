@@ -50,7 +50,8 @@ function BreadcrumbLink({
     props: mergeProps<"a">(
       {
         className: cn(
-          "rounded-sm underline-offset-4 transition-colors duration-120 hover:text-link hover:underline",
+          // after: = invisible 40px-tall hit area (DESIGN.md §12), no visual change.
+          "relative rounded-sm underline-offset-4 transition-colors duration-120 after:absolute after:-inset-x-1.5 after:-inset-y-2.5 hover:text-link hover:underline",
           className
         ),
       },

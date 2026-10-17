@@ -461,7 +461,7 @@ Do not wrap elements that update often (console output, polling results) in `Rev
 - Icon-only buttons need `aria-label` and a Tooltip. Decorative icons get `aria-hidden`.
 - No emoji anywhere in the UI. No icon-in-colored-circle feature grids.
 - Brand mark: a 28×28 rounded square (`rx 6`) in `#2457C5`, white `< >` chevrons, a 1.8px old-gold dot in the center, and the wordmark "LemmaYard" in Source Serif 4 600. Inline SVG: `src/components/brand/logo.tsx` (`Logo`, `LogoMark`).
-- Landing imagery uses CSS/SVG only. (1) A "graph paper" grid (32px, `--border` lines) masked to fade in from the right side of the hero. (2) Stacked paper "sheets", real mini components (problem card, code card, verdict card) layered with `--shadow-lg`. (3) Serif numerals (`01 02 03`) and numbered step dots joined by a 2px rule. No stock photos, no blobs, no gradients other than the masthead rule.
+- Landing imagery uses CSS/SVG only. (1) A "graph paper" grid (32px, `--border` lines) masked to fade in from the right side of the hero. (2) Staggered paper "sheets", real mini components (problem card, code card, verdict card) with `--shadow-lg`: offset left/right/left with a 16px gap, never overlapping. The code card sizes to its longest line and never clips it (a product that teaches code shows complete code); below 400px the sample drops to 11px so it fits a 360px screen. The first previews cropped the `return` line at 1024–1440px; they are superseded. (3) Serif numerals (`01 02 03`) and numbered step dots joined by a 2px rule. No stock photos, no blobs, no gradients other than the masthead rule.
 
 ---
 
@@ -555,11 +555,11 @@ Row `flex justify-between items-center`: left "Showing 21–40 of 45" (`text-sm 
 - Brand: logo mark plus the serif wordmark `text-[1.3rem] font-semibold`.
 - Nav links: `h-10 px-3 rounded-md text-[0.9375rem] font-medium text-header-muted hover:text-header-foreground hover:bg-white/8`. Active: `text-header-foreground shadow-[inset_0_-2px_0_var(--gold)] rounded-none` + `aria-current="page"`. Items: Problems, Submissions (Submissions only for signed-in users).
 - Right side: ThemeToggle (`icon` ghost, on-dark variant `hover:bg-white/10`). Guest: "Log in" (ghost on-dark) + "Sign up" (light mode: `bg-white text-blue-800`; dark mode: `bg-primary text-primary-foreground`). Signed in: account menu trigger = Avatar + username + `ChevronDown`.
-- Below `md`: nav collapses into a `Menu` icon button that opens a `Sheet` from the right (`ui/sheet.tsx`, add) with nav links, then Log in / Sign up or the account items. At <640px the username label is hidden (avatar only).
+- Below `md`: nav collapses into a `Menu` icon button that opens a `Sheet` from the right (`ui/sheet.tsx`, add) with nav links, then Log in / Sign up or the account items (avatar + username, Profile, Log out; Submissions only once, in the nav block). The account menu trigger is hidden below `md`, so there is one menu per width. The sheet closes itself when the viewport grows to `md`. The guest "Sign up" button stays in the bar at every width.
 - Copy note: the current UI says "Login"/"Register". Change the visible labels to **"Log in" / "Sign up"**. Page routes stay `/login` and `/register`.
 
 ### 8.19 Account menu (`components/user-menu.tsx`, change)
-Trigger as above. Content (align end, `w-56`): header block `px-2 py-2` with username `font-semibold` and "View profile" muted; separator; items `User` Profile → `/u/[username]`, `History` Submissions → `/submissions`; separator; `LogOut` Log out (shows `LoaderCircle` while pending). Keyboard: Base UI defaults.
+Trigger as above. Content (align end, `w-56`): header block `px-2 py-2` with username `font-semibold` and "Signed in" muted (not "View profile": the block is not a link, the Profile item is); separator; items `User` Profile → `/u/[username]`, `History` Submissions → `/submissions`; separator; `LogOut` Log out (shows `LoaderCircle` while pending). Keyboard: Base UI defaults.
 
 ### 8.20 Footer (`components/site-footer.tsx`, add)
 `bg-surface-sunken border-t py-14`. Grid `md:grid-cols-[2fr_1fr_1fr]` (mobile: 2 cols): brand + one-line description; Practice (Problems, Submissions for users); Account (Log in, Sign up or Profile). A Project column (About, Source) is added once the project has a public URL; no placeholder links. Bottom row `mt-10 pt-5 border-t text-sm text-muted-foreground`: "© 2026 LemmaYard. Problem statements are original." Show it on all pages **except** the problem page (full-height workspace).
@@ -597,11 +597,13 @@ General: every page has `<title>` in the form "Problems · LemmaYard" and one `h
 ├─ gold│blue 3px rule ──────────────────────────────────────────────────────────┤
 │ HERO  bg-sunken + graph-paper (right half)                                    │
 │  ── (gold 48px rule)                                                          │
-│  EYEBROW  Coding practice, at your own pace                ┌ Problem card ┐   │
-│  Display: Learn to solve problems,                          │ Two Sum Easy │   │
-│           one step at a time.                                 ┌ code card ──┐ │
-│  Lead (34rem)                                                 │ solution.py │ │
-│  [Start practicing →] [Browse problems]                 ┌ Accepted ┐──────┘ │
+│  EYEBROW  Coding practice, at your own pace            ┌ Problem card ──┐     │
+│  Display: Learn to solve problems,                      │ Two Sum   Easy │     │
+│           one step at a time.                           └────────────────┘     │
+│  Lead (34rem)                                              ┌ code card ─────┐  │
+│                                                            │ solution.py    │  │
+│  [Start practicing →] [Browse problems]                    └────────────────┘  │
+│                                                          ┌ Accepted ┐          │
 │  📖 45 original problems  </> Python 3 & JS  ⛨ Isolated sandbox  (lucide)    │
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ WHY  (2 cols 1fr | 1.25fr)   "A calmer way to practice"  | 01 ─ 02 ─ 03 list  │
@@ -614,7 +616,7 @@ General: every page has `<title>` in the form "Problems · LemmaYard" and one `h
 │ PROGRESS PREVIEW  text + CTA  |  card: 18/45 · 64 · 57%  + 3 difficulty bars  │
 ├ footer ───────────────────────────────────────────────────────────────────────┤
 ```
-Rules: hero CTA goes to `/problems` for signed-in users ("Continue practicing") and to `/register` for guests ("Start practicing"). The featured list is the 4 lowest-numbered published problems spanning easy, medium and hard (server query). The progress preview card uses the real stats for signed-in users and the static example (marked `aria-hidden`, with the caption "Example profile") for guests. The trust row counts real published problems. Mobile: single column, the illustration becomes three stacked static cards, the steps list goes vertical with dots on the left, and the featured table hides the Topics and Acceptance columns.
+Rules: hero CTA goes to `/problems` for signed-in users ("Continue practicing") and to `/register` for guests ("Start practicing"). The featured list is a curated starter set that spans easy, medium and hard (`FEATURED_SLUGS` in `src/server/landing.ts`; unpublished or missing slugs are skipped), because the lowest numbers are all easy. The progress preview card uses the real stats for signed-in users and the static example (marked `aria-hidden`, with the caption "Example profile") for guests. The trust row counts real published problems. Mobile: single column, the illustration becomes three stacked static cards, the steps list goes vertical with dots on the left, and the featured table hides the Topics and Acceptance columns.
 
 ### 9.2 Login / Register `/login`, `/register`
 ```
@@ -862,7 +864,7 @@ Notes:
 | `ui/tabs`, `ui/dropdown-menu`, `ui/tooltip` (+ `Kbd`), `ui/dialog`, `ui/alert-dialog`, `ui/sheet`, `ui/sonner` (mounted in the root layout), `ui/alert`, `ui/avatar` (initials), `ui/progress` (server component), `ui/skeleton`, `ui/separator`, `ui/breadcrumb`, `ui/resizable` | §8 |
 | `page-head`, `empty-state`, `pagination` (links; `hrefFor(page)`), `page-skeleton` | pages |
 
-Loading states: don't add a route-level `loading.tsx` to a page that calls `requireUser()` or `notFound()`; once the loading shell streams, the redirect/404 can no longer set the HTTP status. Use `<Suspense fallback={<PageSkeleton />}>` inside the page after the checks instead.
+Loading states: don't add a route-level `loading.tsx` to a page that calls `requireUser()` or `notFound()`; once the loading shell streams, the redirect/404 can no longer set the HTTP status. Use `<Suspense fallback={<PageSkeleton />}>` inside the page after the checks instead. The same holds for errors: on a route with `loading.tsx` (the `/problems` catalog), a failing query streams the error boundary under an HTTP 200 that is already sent, so uptime checks must probe `/api/health` (or match the page body), not the catalog's status code. We accept this for the catalog, because the instant skeleton is worth more there than a 500 status.
 
 Folder convention: `src/components/ui/` = shadcn primitives only (generated, then themed; no app logic). `src/components/<domain>/` = app components grouped by domain (`brand`, `judge`, `problems`, `problem`, `submissions`, `profile`). Cross-domain shared pieces (`site-header`, `site-footer`, `page-head`, `empty-state`, `pagination`) sit at `src/components/` root. Color and label maps are TypeScript constants (`judge/verdict.ts`, `problems/difficulty.ts`) that export Tailwind class strings. Never build class names dynamically (`text-verdict-${x}`), because Tailwind can't see them.
 

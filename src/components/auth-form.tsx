@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldHelp } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PASSWORD_MIN, type AuthErrorBody } from "@/lib/auth/schemas";
+import { PASSWORD_HINT, USERNAME_RULE, type AuthErrorBody } from "@/lib/auth/schemas";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 
 type Mode = "login" | "register";
@@ -40,14 +40,14 @@ const FIELDS: Record<Mode, FieldConfig[]> = {
       label: "Username",
       type: "text",
       autoComplete: "username",
-      hint: "3–20 characters: lowercase letters, digits or underscore.",
+      hint: USERNAME_RULE,
     },
     {
       name: "password",
       label: "Password",
       type: "password",
       autoComplete: "new-password",
-      hint: `At least ${PASSWORD_MIN} characters.`,
+      hint: PASSWORD_HINT,
     },
   ],
 };

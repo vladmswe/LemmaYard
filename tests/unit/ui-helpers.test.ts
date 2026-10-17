@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { isActivePath } from "@/components/nav-links";
-import { formatMonthYear, formatPercent } from "@/lib/format";
+import { themeButtonLabel } from "@/components/theme-toggle";
+import { formatMonthYear, formatPercent, formatTagLabel } from "@/lib/format";
 import { initials } from "@/lib/initials";
 import {
   lemmayardDark,
@@ -113,4 +114,29 @@ describe("Monaco themes", () => {
     expect(lemmayardLight.colors["editor.background"]).toBe("#FBFCFE");
     expect(lemmayardDark.colors["editor.background"]).toBe("#0F1A2E");
   });
+});
+
+describe("themeButtonLabel", () => {
+  it("names the current theme once hydrated", () => {
+    expect(themeButtonLabel("dark", true)).toBe("Theme: Dark");
+    expect(themeButtonLabel("light", true)).toBe("Theme: Light");
+    expect(themeButtonLabel(undefined, true)).toBe("Theme: System");
+  });
+
+  it("is plain 'Theme' before hydration and for unknown values", () => {
+    expect(themeButtonLabel("dark", false)).toBe("Theme");
+    expect(themeButtonLabel("sepia", true)).toBe("Theme");
+  });
+});
+
+describe("formatTagLabel", () => {
+  it.each([
+    ["Hash Table", "Hash table"],
+    ["Dynamic Programming", "Dynamic programming"],
+    ["Two Pointers", "Two pointers"],
+    ["Array", "Array"],
+    ["array", "Array"],
+    ["Graph BFS", "Graph BFS"],
+    ["  Prefix   Sum ", "Prefix sum"],
+  ])("%s -> %s", (input, expected) => expect(formatTagLabel(input)).toBe(expected));
 });

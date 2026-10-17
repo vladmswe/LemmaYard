@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
+import { NOT_FOUND_TITLE } from "@/components/not-found-content";
 import { PageHead } from "@/components/page-head";
 import { Avatar } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,7 +16,9 @@ export async function generateMetadata({
   params,
 }: PageProps<"/u/[username]">): Promise<Metadata> {
   const { username } = await params;
-  return { title: `${username} · LemmaYard` };
+  const user = await findUserByUsername(username);
+  // Same title as the not-found page the page itself renders for unknown names.
+  return { title: user ? `${user.username} · LemmaYard` : NOT_FOUND_TITLE };
 }
 
 // Placeholder until the profile lands in M6: page head is final, stat cards

@@ -1,9 +1,9 @@
 "use client";
 
-import { HistoryIcon, LogInIcon, LogOutIcon, MenuIcon, UserIcon, UserPlusIcon } from "lucide-react";
+import { LogInIcon, LogOutIcon, MenuIcon, UserIcon, UserPlusIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "cn";
 
 import { Logo } from "@/components/brand/logo";
@@ -16,12 +16,31 @@ import { useLogout } from "@/components/user-menu";
 const itemClasses =
   "flex h-11 items-center gap-3 rounded-md px-3 text-[0.9375rem] font-medium text-foreground-secondary transition-colors duration-120 hover:bg-accent hover:text-accent-foreground";
 
-/** Below `md`: the nav and account links in a sheet from the right. */
+/** Tailwind `md` (DESIGN.md §6.4): from here the header shows the full nav. */
+const DESKTOP_QUERY = "(min-width: 768px)";
+
+/**
+ * Below `md`: the nav links, then the account items (Profile, Log out) or
+ * Log in / Sign up, in a sheet from the right. Submissions appears once, in
+ * the nav block; the header hides the account menu below `md`.
+ */
 export function MobileMenu({ username }: { username: string | null }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { logout, pending } = useLogout();
   const close = () => setOpen(false);
+
+  // The trigger is `md:hidden`: once the viewport reaches `md` the sheet
+  // would stay open over the desktop header with no visible way to close it.
+  useEffect(() => {
+    if (!open) return;
+    const query = window.matchMedia(DESKTOP_QUERY);
+    const onChange = () => {
+      if (query.matches) setOpen(false);
+    };
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, [open]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -66,10 +85,6 @@ export function MobileMenu({ username }: { username: string | null }) {
               <Link href={`/u/${username}`} onClick={close} className={itemClasses}>
                 <UserIcon aria-hidden className="size-4 text-muted-foreground" />
                 Profile
-              </Link>
-              <Link href="/submissions" onClick={close} className={itemClasses}>
-                <HistoryIcon aria-hidden className="size-4 text-muted-foreground" />
-                Submissions
               </Link>
               <button
                 type="button"

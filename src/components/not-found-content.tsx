@@ -3,6 +3,9 @@ import Link from "next/link";
 import { Reveal } from "@/components/motion/reveal";
 import { buttonVariants } from "@/components/ui/button";
 
+/** Tab title of every 404 (not-found pages and `generateMetadata` of dynamic routes). */
+export const NOT_FOUND_TITLE = "Page not found · LemmaYard";
+
 /** 404 body (DESIGN.md §9.8), shared by the root and route-group not-found. */
 export function NotFoundContent() {
   return (

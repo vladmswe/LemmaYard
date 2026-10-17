@@ -42,7 +42,10 @@ export async function SiteHeader({ compact = false }: { compact?: boolean }) {
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <ThemeToggle />
           {user ? (
-            <UserMenu username={user.username} />
+            // Below `md` the account items live in the mobile menu instead.
+            <div className="hidden md:block">
+              <UserMenu username={user.username} />
+            </div>
           ) : (
             <>
               <Link
