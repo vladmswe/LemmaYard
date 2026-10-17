@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { NOT_FOUND_TITLE } from "@/components/not-found-content";
 import { PageHead } from "@/components/page-head";
 import { memberCountLabel } from "@/components/rooms/room-card";
+import { OpenSessionCard } from "@/components/rooms/live/open-session-card";
 import { RoomMembersTab } from "@/components/rooms/room-members-tab";
 import { RoomHistoryPanel } from "@/components/rooms/room-history";
 import { RoomLeaderboardPanel } from "@/components/rooms/room-leaderboard";
@@ -17,6 +18,7 @@ import { getDb } from "@/server/db";
 import { requireRoomMember } from "@/server/rooms/access";
 import { getRoomHistory, getRoomLeaderboard } from "@/server/rooms/history";
 import { getRoomDetail } from "@/server/rooms/queries";
+import { getOpenSessionSummary } from "@/server/rooms/session-page";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +43,7 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
   const { tab, page, range } = await searchParams;
   const historyPage = parsePageParam(page);
   const leaderboardRange = parseLeaderboardRange(range);
+  const openSession = await getOpenSessionSummary(getDb(), roomId, user.id);
   const isOwner = detail.viewer.role === "owner";
 
   return (
@@ -54,7 +57,9 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
         subtitle={`${memberCountLabel(detail.members.length)}${isOwner ? " · You are the owner" : ""}`}
       />
       <div className="container-page flex flex-col gap-8 py-8">
-        <RoomOpenSessionRegion />
+        <RoomOpenSessionRegion>
+          <OpenSessionCard roomId={roomId} session={openSession} />
+        </RoomOpenSessionRegion>
         <RoomTabs
           initialTab={parseRoomTab(tab)}
           sessions={

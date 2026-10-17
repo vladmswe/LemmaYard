@@ -44,15 +44,14 @@ export function UserMenu({ username }: { username: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button
-            variant="header"
-            className="gap-2 px-1.5 sm:px-2"
-            aria-label={`Account menu for ${username}`}
-          />
+          <Button variant="header" className="gap-2 px-1.5 sm:px-2" />
         }
       >
         <Avatar name={username} />
-        <span className="hidden max-w-32 truncate sm:inline">{username}</span>
+        {/* The name comes from the content (axe label-content-name-mismatch):
+            the visible username, then "account menu" for screen readers. */}
+        <span className="sr-only sm:not-sr-only sm:max-w-32 sm:truncate">{username}</span>
+        <span className="sr-only">, account menu</span>
         <ChevronDownIcon
           aria-hidden
           className="hidden size-3.5! transition-transform duration-180 ease-out group-aria-expanded/button:rotate-180 sm:block"

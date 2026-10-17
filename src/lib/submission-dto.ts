@@ -110,7 +110,12 @@ export type RunRequest = {
 };
 
 /** `POST /api/problems/:slug/submit` body. */
-export type SubmitRequest = { language: Language; code: string };
+export type SubmitRequest = {
+  language: Language;
+  code: string;
+  /** Rooms: count this Submit for a live session (docs/specs/rooms.md §3.4). Never on Run. */
+  roomSessionId?: string;
+};
 
 /** `202` body of run/submit. */
 export type CreatedSubmission = { id: string };

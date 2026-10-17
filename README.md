@@ -228,6 +228,23 @@ author has not opted out (authors always see their own). Reads are in
 `src/server/rooms/{history,results}.ts`, pure helpers in
 `src/lib/rooms/history.ts`. E2E: `pnpm exec playwright test tests/e2e/rooms`.
 
+Live UI (R4): the session screen `/rooms/[roomId]/sessions/[sessionId]` shows
+the lobby (host settings, calibration panel, draw/re-roll/pin, join, start),
+the live screen (server-synced countdown, problem cards, scoreboard, Activity
+feed) and the finished/cancelled states; the room page shows the open session
+card. On a problem page a session banner appears for `?session=<id>` (or,
+automatically, for a live session the viewer has joined that contains the
+problem); while it is shown, Submit (never Run) sends `roomSessionId` and the
+console says the submission counts. Other people's events toast there;
+notification prefs (pop-ups, sound, failed attempts, browser notifications
+opted in by a click) live in `localStorage` under
+`lemmayard:room-notifications:v1`. Notifications work only while the tab is
+open; on iPhone/iPad system notifications need the site added to the Home
+Screen. Data reads: `src/server/rooms/session-page.ts`. The e2e
+`tests/e2e/rooms/live-session.spec.ts` judges submissions with the test-only
+stub `tests/helpers/stub-judge.ts` (the worker's `finalize()`), so it needs no
+Docker but must not run while a real worker uses the same database.
+
 Known, accepted property: user code can read the **inputs** of hidden tests inside
 the container (never the expected outputs). The per-run frame nonce only stops
 accidental or naive forging; code in the same process can find it, which is harmless

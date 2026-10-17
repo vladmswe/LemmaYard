@@ -175,16 +175,35 @@ export async function getSessionState(request: Request, roomId: string, sessionI
   if (!limited.ok) return tooMany("Too many updates requested; slowing down", STATE_RETRY_AFTER_SEC);
 
   const params = new URL(request.url).searchParams;
-  const after = decodeCursor(params.get("after"));
-  const wantSnapshot = params.get("snapshot") === "1";
+  const body = await computeSessionState(getDb(), roomId, sessionId, user.id, {
+    after: params.get("after"),
+    snapshot: params.get("snapshot") === "1",
+  });
+  return body ? json(body) : sessionNotFound();
+}
 
-  const db = getDb();
-  let gate = await loadGate(db, roomId, sessionId, user.id);
-  if (!gate) return sessionNotFound();
+/**
+ * The state response for a member, or null (404: non-member, unknown or
+ * cross-room session). Also used by the session page and the problem-page
+ * banner to render the first frame on the server (no cursor → snapshot).
+ */
+export async function computeSessionState(
+  db: Db,
+  roomId: string,
+  sessionId: string,
+  userId: string,
+  options: { after?: string | null; snapshot?: boolean } = {},
+): Promise<SessionStateResponse | null> {
+  if (!idSchema.safeParse(roomId).success || !idSchema.safeParse(sessionId).success) return null;
+  const after = decodeCursor(options.after ?? null);
+  const wantSnapshot = options.snapshot === true;
+
+  let gate = await loadGate(db, roomId, sessionId, userId);
+  if (!gate) return null;
   if (dueAction(gate, gate.now)) {
     await closeIfDueNow(db, sessionId);
-    gate = await loadGate(db, roomId, sessionId, user.id);
-    if (!gate) return sessionNotFound();
+    gate = await loadGate(db, roomId, sessionId, userId);
+    if (!gate) return null;
   }
 
   const latest = gate.latest === null ? BigInt(0) : BigInt(gate.latest);
@@ -203,7 +222,7 @@ export async function getSessionState(request: Request, roomId: string, sessionI
     events = page.map(toRoomEvent).filter((e): e is RoomEvent => e !== null);
   }
 
-  const canManage = canManageSession({ userId: user.id, role: gate.role }, { hostId: gate.hostId });
+  const canManage = canManageSession({ userId, role: gate.role }, { hostId: gate.hostId });
   const body: SessionStateResponse = {
     serverNow: gate.now.toISOString(),
     status: gate.status,
@@ -217,5 +236,5 @@ export async function getSessionState(request: Request, roomId: string, sessionI
   if (!valid || fetched > 0 || wantSnapshot) {
     body.snapshot = await loadSnapshot(db, sessionId, gate, canManage || gate.startedAt !== null);
   }
-  return json(body);
+  return body;
 }

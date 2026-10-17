@@ -30,12 +30,20 @@ export type StartResult =
       fieldErrors?: Partial<Record<string, string>>;
       /** From `Retry-After` on 429. */
       retryAfterSec?: number;
+      /** Machine-readable reason when the server sends one (room sessions: `join_first`, `session_ended`, …). */
+      code?: string;
     };
 
-async function readError(res: Response): Promise<ApiError> {
+async function readError(res: Response): Promise<ApiError & { code?: string }> {
   try {
-    const body = (await res.json()) as Partial<ApiError>;
-    if (typeof body.error === "string") return { error: body.error, fieldErrors: body.fieldErrors };
+    const body = (await res.json()) as Partial<ApiError> & { code?: unknown };
+    if (typeof body.error === "string") {
+      return {
+        error: body.error,
+        fieldErrors: body.fieldErrors,
+        ...(typeof body.code === "string" ? { code: body.code } : {}),
+      };
+    }
   } catch {
     // Not JSON.
   }
@@ -65,13 +73,14 @@ async function start(
     const { id } = (await res.json()) as { id: string };
     return { ok: true, id };
   }
-  const { error, fieldErrors } = await readError(res);
+  const { error, fieldErrors, code } = await readError(res);
   const retryAfter = Number(res.headers.get("retry-after"));
   return {
     ok: false,
     status: res.status,
     error,
     ...(fieldErrors && { fieldErrors }),
+    ...(code && { code }),
     ...(res.status === 429 && Number.isFinite(retryAfter) && retryAfter > 0 && { retryAfterSec: retryAfter }),
   };
 }
