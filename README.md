@@ -215,6 +215,19 @@ the session's advisory lock, so every executor must finalize through it. The
 live UI polls `GET …/sessions/[sessionId]/state?after=<cursor>` through
 `createPollingEventSource()` (`src/lib/rooms/event-source.ts`).
 
+History (R5): the room page's Sessions tab lists finished and cancelled
+sessions (`?page=`, 20 per page) and the Leaderboard tab ranks members over
+`?range=4w|3m|all` with the room's difficulty profile. Results of a finished
+session are at `/rooms/[roomId]/sessions/[sessionId]/results` (lobby/live
+redirect to the session screen), accepted code at
+`…/solutions/[username]/[position]` (and
+`GET /api/rooms/[roomId]/sessions/[sessionId]/solutions/[userId]/[position]`),
+a member's timeline at `/rooms/[roomId]/members/[username]`. Code is shown only
+after the session finished, to members, when the room shares solutions and the
+author has not opted out (authors always see their own). Reads are in
+`src/server/rooms/{history,results}.ts`, pure helpers in
+`src/lib/rooms/history.ts`. E2E: `pnpm exec playwright test tests/e2e/rooms`.
+
 Known, accepted property: user code can read the **inputs** of hidden tests inside
 the container (never the expected outputs). The per-run frame nonce only stops
 accidental or naive forging; code in the same process can find it, which is harmless

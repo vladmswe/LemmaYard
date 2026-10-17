@@ -57,8 +57,8 @@ async function expectedUserIds(tx: Tx, roomId: string, sessionId: string): Promi
   );
 }
 
-/** Q4: (active participant, problem) pairs of the last 6 finished sessions. */
-export async function loadCalibration(tx: Tx, roomId: string): Promise<Calibration> {
+/** Q4: (active participant, problem) pairs of the last 6 finished sessions. Also read by the Leaderboard tab (R5). */
+export async function loadCalibration(tx: Pick<Tx, "execute">, roomId: string): Promise<Calibration> {
   const { rows } = await tx.execute<{ difficulty: Difficulty; pairs: number; solved: number; sessions: number }>(sql`
     WITH recent AS (
       SELECT id FROM room_sessions
