@@ -166,8 +166,16 @@ Private friend rooms with timed sessions, spec `docs/specs/rooms.md`. Tables
 `room_session_participants`, `room_session_results`, `room_events` and the
 nullable `submissions.room_session_id` come from migration `0003_rooms`. The
 selection, scoring, invite, state-machine and event logic is pure TypeScript in
-`src/lib/rooms/`; the membership gate is `src/server/rooms/access.ts`. No routes
-or UI yet.
+`src/lib/rooms/`; the membership gate is `src/server/rooms/access.ts`.
+
+Rooms, invites and membership (R2): pages `/rooms`, `/rooms/[roomId]` and
+`/rooms/join`, API under `/api/rooms/**` (handlers in
+`src/server/rooms/membership.ts`). Invite links are `/rooms/join#<token>`: the
+token lives in the URL fragment, is sent only in POST bodies, and only its
+sha256 is stored; it is shown to the owner once. Join and rotation limits are
+in-process (`src/server/http/rate-limit.ts`, per instance), room creation is
+counted in the DB. E2E: `pnpm exec playwright test tests/e2e/rooms` (users
+`*@example.test`). Sessions, live updates and history are not built yet.
 
 Known, accepted property: user code can read the **inputs** of hidden tests inside
 the container (never the expected outputs). The per-run frame nonce only stops
