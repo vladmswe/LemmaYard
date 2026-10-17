@@ -1,0 +1,114 @@
+/*
+ * Visualization tokens of the Data Structures guide (/learn).
+ * Every --viz-* maps to a design-system token with a fallback to today's
+ * shadcn token, so the guide works before and after the design system lands.
+ * Colours that are not guaranteed to reach 3:1 on both node and figure
+ * backgrounds in both themes are mixed 25% toward the node text colour
+ * (darker in light mode, lighter in dark mode), which only raises contrast.
+ * Dark mode needs no extra rules: the base tokens swap under .dark.
+ */
+[data-player],
+.viz {
+  --viz-bg: var(--surface-sunken, var(--muted));
+  --viz-node-bg: var(--card);
+  --viz-node-fg: var(--card-foreground, var(--foreground));
+  --viz-node-border: var(--muted-foreground);
+  --viz-edge: var(--muted-foreground);
+  --viz-label: color-mix(in oklch, var(--muted-foreground) 80%, var(--viz-node-fg));
+  --viz-current: var(--primary);
+  --viz-compared: color-mix(in oklch, var(--warning, oklch(0.62 0.15 70)) 75%, var(--viz-node-fg));
+  --viz-changed: color-mix(in oklch, var(--success, oklch(0.55 0.14 150)) 75%, var(--viz-node-fg));
+  --viz-changed-fill: color-mix(in oklch, var(--viz-changed) 14%, var(--viz-node-bg));
+  --viz-new: var(--info, var(--primary));
+  --viz-removed: var(--danger, var(--destructive));
+  --viz-visited: var(--muted-foreground);
+  --viz-visited-fill: color-mix(in oklch, var(--viz-visited) 22%, var(--viz-node-bg));
+  --viz-frontier: color-mix(in oklch, var(--gold, oklch(0.68 0.13 80)) 75%, var(--viz-node-fg));
+  --viz-done: color-mix(in oklch, var(--success, oklch(0.55 0.14 150)) 75%, var(--viz-node-fg));
+  --viz-done-fill: var(--success-bg, color-mix(in oklch, var(--viz-done) 16%, var(--viz-node-bg)));
+  --viz-path: var(--primary);
+  --viz-muted: var(--faint-foreground, var(--muted-foreground));
+  --viz-error: var(--danger, var(--destructive));
+  --viz-code-active: var(--accent);
+  --viz-code-active-bar: var(--primary);
+}
+
+/* Duration lives on the player only (nested .viz must not reset it); static figures don't animate. */
+[data-player] {
+  --viz-duration: 240ms;
+}
+
+/* Speed scales the transition (240 ms / speed, min 120 ms); motion off = 0. */
+[data-player][data-speed="0.5"] {
+  --viz-duration: 480ms;
+}
+[data-player][data-speed="2"] {
+  --viz-duration: 120ms;
+}
+[data-player][data-motion="off"] {
+  --viz-duration: 0ms;
+}
+/* Width-only re-layouts (and the first one after hydration) apply instantly. */
+[data-player][data-relayout="true"] {
+  --viz-duration: 0ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-player]:not([data-motion="on"]) {
+    --viz-duration: 0ms;
+  }
+}
+
+/* Moving groups: keyed by element id, so a moved element glides. */
+.viz-g {
+  transition:
+    transform var(--viz-duration, 0ms) ease-out,
+    opacity var(--viz-duration, 0ms) ease-out;
+}
+
+.viz-figure-bg {
+  background: var(--viz-bg);
+}
+
+.viz-text {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 14px;
+  fill: var(--viz-node-fg);
+}
+.viz-label {
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: 12px;
+  fill: var(--viz-label);
+}
+.viz-pointer {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--viz-current);
+}
+
+/* Code panel: active line. */
+[data-player-code] .line[data-active="true"] {
+  background: var(--viz-code-active);
+  box-shadow: inset 3px 0 0 var(--viz-code-active-bar);
+}
+/* Grid drops the whitespace-only "\n" text between line spans, so each line is one row. */
+[data-player-code] pre code {
+  display: grid;
+  min-width: max-content;
+}
+[data-player-code] .line {
+  display: block;
+  padding-inline: 0.75rem;
+}
+
+/* Counter that changed in this frame: same role grammar as the figure. */
+[data-player-counters] [data-changed="true"] {
+  outline: 2px solid var(--viz-changed);
+  outline-offset: 1px;
+}
+
+/* Swatches in the legend. */
+.viz-swatch {
+  display: inline-block;
+  vertical-align: middle;
+}

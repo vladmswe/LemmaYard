@@ -43,6 +43,8 @@ export const envSchema = z.object({
   MAX_CODE_BYTES: int(65536),
   PAGE_SIZE: int(20),
   QUEUED_TIMEOUT_MS: int(60000),
+  // Guide (/learn): "1" enables the /learn/dev-fixtures pages used by Playwright.
+  GUIDE_FIXTURES: z.enum(["0", "1"]).default("0"),
 });
 
 export type Env = z.infer<typeof envSchema>;
