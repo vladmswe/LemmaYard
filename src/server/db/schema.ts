@@ -1,4 +1,7 @@
-// Database schema (PLAN.md section 4). All schema changes happen in M1 only.
+// Database schema (PLAN.md section 4). All schema changes happen in M1 only,
+// except migration 0002 (deploy phase): row level security on every table,
+// without policies. The app connects as the table owner and bypasses RLS;
+// other roles (e.g. Supabase's REST API roles) are denied by default.
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -48,7 +51,7 @@ export const users = pgTable(
     check("users_email_lowercase", sql`${t.email} = lower(${t.email})`),
     check("users_username_format", sql`${t.username} ~ '^[a-z0-9_]{3,20}$'`),
   ],
-);
+).enableRLS();
 
 export const problems = pgTable(
   "problems",
@@ -77,13 +80,13 @@ export const problems = pgTable(
     check("problems_time_limit_positive", sql`${t.timeLimitMs} > 0`),
     check("problems_memory_limit_positive", sql`${t.memoryLimitMb} > 0`),
   ],
-);
+).enableRLS();
 
 export const tags = pgTable("tags", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
-});
+}).enableRLS();
 
 export const problemTags = pgTable(
   "problem_tags",
@@ -99,7 +102,7 @@ export const problemTags = pgTable(
     primaryKey({ columns: [t.problemId, t.tagId] }),
     index("problem_tags_tag_idx").on(t.tagId),
   ],
-);
+).enableRLS();
 
 export const testCases = pgTable(
   "test_cases",
@@ -117,7 +120,7 @@ export const testCases = pgTable(
     unique("test_cases_problem_position_unique").on(t.problemId, t.position),
     check("test_cases_position_nonnegative", sql`${t.position} >= 0`),
   ],
-);
+).enableRLS();
 
 /** `{input, expected, actual}` of the first failing test of a submit. */
 export type FailedCase = { input: unknown; expected: unknown; actual: unknown };
@@ -223,4 +226,4 @@ export const submissions = pgTable(
       sql`${t.failedTestIndex} IS NULL OR (${t.failedTestIndex} >= 0 AND ${t.failedTestIndex} < ${t.totalCount})`,
     ),
   ],
-);
+).enableRLS();
