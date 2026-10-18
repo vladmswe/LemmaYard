@@ -5,7 +5,7 @@
 // "poke" that triggers the same state request) can replace it without UI
 // changes. Pure module: timers, fetch, visibility and online events are
 // injectable (fake timers in tests); no React, no server imports.
-import type { RoomEventBatch, StateResponse } from "./events";
+import type { PendingCell, RoomEventBatch, StateResponse } from "./events";
 import type { RoomSessionStatus } from "./types";
 
 export type RoomEventStatus = "connected" | "reconnecting" | "gone" | "unauthenticated";
@@ -16,6 +16,8 @@ export type PollBatch = RoomEventBatch & {
   status: RoomSessionStatus;
   endsAt: string | null;
   pendingJudging: number;
+  /** v2: (participant, problem) pairs being judged now ([] when the server sent none). */
+  pending: PendingCell[];
   hasMore: boolean;
   viewer?: { isParticipant: boolean; canManage: boolean };
 };
@@ -40,6 +42,8 @@ type Interval = { visible: number; hidden: number };
 export type PollSchedule = {
   lobby: Interval;
   live: Interval;
+  /** v2 §9.2: live while somebody's session submit is queued or running. */
+  liveJudging: Interval;
   /** Finished, while session submissions are still being judged. */
   finishedPending: Interval;
   /** Delays after consecutive failures (network error / 5xx); the last one repeats. */
@@ -54,10 +58,11 @@ export type PollSchedule = {
   dedupeWindow: number;
 };
 
-/** Spec §3.2 polling table. */
+/** Spec §3.2 polling table (+ v2 §9.2: 1.5 s while judging). */
 export const DEFAULT_POLL_SCHEDULE: PollSchedule = {
   lobby: { visible: 5000, hidden: 15_000 },
   live: { visible: 3000, hidden: 10_000 },
+  liveJudging: { visible: 1500, hidden: 10_000 },
   finishedPending: { visible: 3000, hidden: 10_000 },
   backoffMs: [3000, 6000, 12_000, 30_000],
   reconnectingAfter: 2,
@@ -66,11 +71,16 @@ export const DEFAULT_POLL_SCHEDULE: PollSchedule = {
   dedupeWindow: 200,
 };
 
-export type PollPhase = "lobby" | "live" | "finishedPending" | "done";
+export type PollPhase = "lobby" | "live" | "liveJudging" | "finishedPending" | "done";
 
-export function pollPhase(status: RoomSessionStatus, pendingJudging: number): PollPhase {
+/**
+ * `pendingJudging` = session submits queued or running (the state response's
+ * count); `pendingCells` = the v2 `pending` list length. Either one makes a
+ * live session poll faster.
+ */
+export function pollPhase(status: RoomSessionStatus, pendingJudging: number, pendingCells = 0): PollPhase {
   if (status === "lobby") return "lobby";
-  if (status === "live") return "live";
+  if (status === "live") return pendingJudging > 0 || pendingCells > 0 ? "liveJudging" : "live";
   if (status === "finished" && pendingJudging > 0) return "finishedPending";
   return "done";
 }
@@ -159,7 +169,8 @@ type StateBody = StateResponse & { viewer?: PollBatch["viewer"] };
 
 /**
  * The v1 transport (§3.2): 5 s lobby, 3 s live and while finished results are
- * still judging (10–15 s in hidden tabs), stop when over; immediate poll on
+ * still judging, 1.5 s while live with a submit being judged (v2 §9.2; 10–15 s
+ * in hidden tabs), stop when over; immediate poll on
  * becoming visible, on `online` and on `refresh()`; `hasMore` → poll again at
  * once; backoff 3 → 6 → 12 → 30 s on errors ("reconnecting" after 2); 429 waits
  * Retry-After; 404 → "gone", 401 → "unauthenticated" (both stop).
@@ -274,7 +285,8 @@ export function createPollingEventSource(options: PollingOptions): PollingEventS
         report("connected");
         cursor = body.cursor;
         const events = body.events.filter((e) => dedupe.add(e.id));
-        phase = pollPhase(body.status, body.pendingJudging);
+        const pending = Array.isArray(body.pending) ? body.pending : [];
+        phase = pollPhase(body.status, body.pendingJudging, pending.length);
         onBatch({
           cursor: body.cursor,
           events,
@@ -283,6 +295,7 @@ export function createPollingEventSource(options: PollingOptions): PollingEventS
           status: body.status,
           endsAt: body.endsAt,
           pendingJudging: body.pendingJudging,
+          pending,
           hasMore: body.hasMore,
           ...(body.viewer ? { viewer: body.viewer } : {}),
         });

@@ -11,7 +11,9 @@ import {
   feedLine,
   isHistoryEvent,
   loadNotificationPrefs,
+  migrateNotificationPrefsV1,
   NOTIFICATION_PREFS_KEY,
+  NOTIFICATION_PREFS_KEY_V1,
   parseNotificationPrefs,
   saveNotificationPrefs,
   shouldPlaySound,
@@ -55,10 +57,15 @@ describe("toast copy (spec §3.5)", () => {
     expect(eventNotice(solved("4", {}, { userId: "me", username: "me" }), ctx, true)).toBeNull();
   });
 
-  it("failed attempts only with the opt-in, without verdicts", () => {
+  it("failed attempts follow the switch (v2 default on), without verdicts", () => {
     const e: RoomEvent = { id: "5", type: "attempt_failed", at: "", actor: { userId: "b", username: "bob" }, payload: { position: 3, attempts: 1 } };
     expect(eventNotice(e, ctx, true)).toBeNull();
-    expect(eventNotice(e, { ...ctx, showAttempts: true }, true)?.title).toBe("bob made an attempt on Problem 3");
+    const notice = eventNotice(e, { ...ctx, showAttempts: true }, true);
+    expect(notice?.title).toBe("bob's attempt on Problem 3 was not accepted");
+    expect(JSON.stringify(notice)).not.toMatch(/wrong answer|time limit|runtime|memory/i);
+    // Own failed attempts are never toasted.
+    expect(eventNotice({ ...e, actor: { userId: "me", username: "me" } }, { ...ctx, showAttempts: true }, true)).toBeNull();
+    expect(feedLine(e, ctx, null)?.text).toBe("bob's attempt on Problem 3 was not accepted");
   });
 
   it("joins only while live; start and end", () => {
@@ -118,15 +125,29 @@ describe("preferences", () => {
     return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v), data };
   }
 
-  it("defaults: toasts on, sound and browser off", () => {
-    expect(DEFAULT_NOTIFICATION_PREFS).toEqual({ toasts: true, sound: false, browser: false, showAttempts: false });
+  it("defaults: toasts on, failed attempts on (v2), sound and browser off", () => {
+    expect(DEFAULT_NOTIFICATION_PREFS).toEqual({ toasts: true, sound: false, browser: false, showAttempts: true });
     expect(loadNotificationPrefs(null)).toEqual(DEFAULT_NOTIFICATION_PREFS);
+    expect(loadNotificationPrefs(memory())).toEqual(DEFAULT_NOTIFICATION_PREFS);
+  });
+
+  it("AC-V2-LIVE-3: a v1 stored object keeps sound/browser/toasts and gets showAttempts = true; muting persists", () => {
+    const s = memory({ [NOTIFICATION_PREFS_KEY_V1]: JSON.stringify({ toasts: false, sound: true, browser: true, showAttempts: false }) });
+    const migrated = loadNotificationPrefs(s);
+    expect(migrated).toEqual({ toasts: false, sound: true, browser: true, showAttempts: true });
+    // Stored under v2 right away, so the next read does not migrate again.
+    expect(JSON.parse(s.data.get(NOTIFICATION_PREFS_KEY)!)).toEqual(migrated);
+    // The person mutes failed attempts: it sticks (the v2 key wins over v1).
+    saveNotificationPrefs(s, { ...migrated, showAttempts: false });
+    expect(loadNotificationPrefs(s).showAttempts).toBe(false);
+    expect(migrateNotificationPrefsV1("{garbage")).toEqual(DEFAULT_NOTIFICATION_PREFS);
   });
 
   it("round-trips under a versioned key and survives garbage", () => {
     const s = memory();
     expect(saveNotificationPrefs(s, { ...DEFAULT_NOTIFICATION_PREFS, sound: true })).toBe(true);
-    expect(NOTIFICATION_PREFS_KEY).toMatch(/:v1$/);
+    expect(NOTIFICATION_PREFS_KEY).toMatch(/:v2$/);
+    expect(NOTIFICATION_PREFS_KEY_V1).toMatch(/:v1$/);
     expect(loadNotificationPrefs(s).sound).toBe(true);
     expect(parseNotificationPrefs("{not json")).toEqual(DEFAULT_NOTIFICATION_PREFS);
     expect(parseNotificationPrefs('{"sound":"yes","toasts":false}')).toEqual({ ...DEFAULT_NOTIFICATION_PREFS, toasts: false });
