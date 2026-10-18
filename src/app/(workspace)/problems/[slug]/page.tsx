@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache, Suspense } from "react";
 
+import { NOT_FOUND_TITLE } from "@/components/not-found-content";
 import { ProblemDescription } from "@/components/problem/problem-description";
 import { SolveWorkspace } from "@/components/problem/solve-workspace";
 import { SubmitContextProvider } from "@/components/problem/submit-context";
@@ -22,7 +23,12 @@ const loadProblem = cache(async (slug: string) => {
 
 export async function generateMetadata({ params }: PageProps<"/problems/[slug]">): Promise<Metadata> {
   const problem = await loadProblem((await params).slug);
-  return { title: problem ? `${problem.number}. ${problem.title} · LemmaYard` : "Page not found · LemmaYard" };
+  if (!problem) return { title: NOT_FOUND_TITLE };
+  const topics = problem.tags.map((t) => t.name).join(", ");
+  return {
+    title: `${problem.number}. ${problem.title} · LemmaYard`,
+    description: `${problem.title}: a${problem.difficulty === "easy" ? "n" : ""} ${problem.difficulty} problem${topics ? ` on ${topics}` : ""}. Solve it in Python or JavaScript and let the sandboxed judge check every test.`,
+  };
 }
 
 export default async function ProblemPage({ params, searchParams }: PageProps<"/problems/[slug]">) {

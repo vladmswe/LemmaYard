@@ -14,7 +14,10 @@ import { getCurrentUser } from "@/server/auth/session";
 import { getCatalogPage } from "@/server/catalog";
 import { getEnv } from "@/server/env";
 
-export const metadata: Metadata = { title: "Problems · LemmaYard" };
+export const metadata: Metadata = {
+  title: "Problems · LemmaYard",
+  description: "Original algorithm problems with worked examples and hidden tests. Filter by difficulty, topic and status.",
+};
 
 // Catalog (AC-M3-1..3, AC-M3-7; DESIGN.md §13.3). Filters and the page live
 // in the URL; the route-level loading.tsx is the Suspense fallback on first

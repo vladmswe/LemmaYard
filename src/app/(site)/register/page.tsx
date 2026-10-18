@@ -8,7 +8,10 @@ import { AuthForm } from "@/components/auth-form";
 import { DEFAULT_REDIRECT, safeRedirectPath } from "@/lib/safe-redirect";
 import { getCurrentUser } from "@/server/auth/session";
 
-export const metadata: Metadata = { title: "Sign up · LemmaYard" };
+export const metadata: Metadata = {
+  title: "Sign up · LemmaYard",
+  description: "Create a free LemmaYard account to track solved problems, keep every submission and join rooms.",
+};
 
 export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
   const { next: rawNext } = await searchParams;
