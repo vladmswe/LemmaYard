@@ -91,12 +91,12 @@ Open http://localhost:3000, sign up and solve a problem.
 
 ```mermaid
 flowchart LR
-  B[Browser] -- pages, JSON API --> W[Next.js web app<br/>pages + route handlers]
-  W -- Drizzle / pg --> DB[(Postgres<br/>submissions = queue)]
-  K[Judge worker<br/>pnpm worker, on the host] -- claim queued,<br/>write verdict --> DB
-  K -- docker create / start -a -i<br/>stdin: inputs only --> S[Sandbox container<br/>harness.py / harness.js]
-  S -- stdout frames<br/>@@nonce@@json --> K
-  B -. polls GET /api/submissions/:id<br/>and room state .-> W
+  B["Browser"] -- "pages, JSON API" --> W["Next.js web app<br/>pages + route handlers"]
+  W -- "Drizzle / pg" --> DB[("Postgres<br/>submissions = queue")]
+  K["Judge worker<br/>pnpm worker, on the host"] -- "claim queued,<br/>write verdict" --> DB
+  K -- "docker create, start -a -i<br/>stdin: inputs only" --> S["Sandbox container<br/>harness.py / harness.js"]
+  S -- "stdout frames<br/>@@nonce@@json" --> K
+  B -. "polls GET /api/submissions/:id<br/>and room state" .-> W
 ```
 
 **Web app** (`src/app`, `src/server`). Next.js App Router on the Node runtime.
@@ -510,7 +510,7 @@ environment variables, region, `/api/health` and troubleshooting.
 ## Naming, status and license
 
 **Naming.** The project was renamed from its working title to LemmaYard. The
-Postgres user, password and database (`leetcopy` in `docker-compose.yml` and
+Postgres user, password and database (`leetcopy` in `docker-compose.yml` and <!-- brand-rename: keep -->
 `.env.example`) and the test database prefixes (`leetcopy_test_<suffix>`,
 `leetcopy_e2e_<suffix>`) keep the old internal name so existing local volumes
 keep working; they can be renamed together with a fresh Postgres volume.
