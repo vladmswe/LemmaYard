@@ -53,6 +53,19 @@ describe("isJudgeEnabled", () => {
     expect(isJudgeEnabled(parseEnv({ ...required, JUDGE_ENABLED: "" }))).toBe(true);
     expect(() => parseEnv({ ...required, JUDGE_ENABLED: "false" })).toThrow(/JUDGE_ENABLED/);
   });
+
+  it("JUDGE_EXECUTOR: docker by default; vercel-sandbox turns the judge on on Vercel unless JUDGE_ENABLED=0", () => {
+    expect(parseEnv(required).JUDGE_EXECUTOR).toBe("docker");
+    expect(() => parseEnv({ ...required, JUDGE_EXECUTOR: "vercel" })).toThrow(/JUDGE_EXECUTOR/);
+    const sandbox = { ...required, VERCEL: "1", JUDGE_EXECUTOR: "vercel-sandbox" };
+    expect(isJudgeEnabled(parseEnv(sandbox))).toBe(true);
+    expect(isJudgeEnabled(parseEnv({ ...sandbox, JUDGE_ENABLED: "0" }))).toBe(false);
+    expect(isJudgeEnabled(parseEnv({ ...required, VERCEL: "1", JUDGE_EXECUTOR: "docker" }))).toBe(false);
+    expect(parseEnv(sandbox)).toMatchObject({
+      VERCEL_SANDBOX_IMAGE_PYTHON: "vercel/sandbox/python:3.14",
+      VERCEL_SANDBOX_IMAGE_NODE: "vercel/sandbox/node:22",
+    });
+  });
 });
 
 describe("AUTH_SECRET in production", () => {
