@@ -38,9 +38,14 @@ function sandboxExecutor(): Executor {
   const env = getEnv();
   executor ??= createVercelSandboxExecutor(
     {
-      images: { python: env.VERCEL_SANDBOX_IMAGE_PYTHON, javascript: env.VERCEL_SANDBOX_IMAGE_NODE },
+      images: {
+        python: env.VERCEL_SANDBOX_IMAGE_PYTHON,
+        javascript: env.VERCEL_SANDBOX_IMAGE_NODE,
+        java: env.VERCEL_SANDBOX_IMAGE_JAVA,
+      },
       timeMultPython: env.LANG_TIME_MULT_PY,
       timeMultJs: env.LANG_TIME_MULT_JS,
+      timeMultJava: env.LANG_TIME_MULT_JAVA,
       wallCapMs: env.WALL_CAP_MS,
     },
     vercelSandboxClient(),

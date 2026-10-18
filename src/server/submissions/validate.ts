@@ -11,7 +11,7 @@ export const MAX_BODY_BYTES = 70 * 1024;
 /** Serialized JSON of `customInput` (step 4). */
 export const MAX_CUSTOM_INPUT_BYTES = 16 * 1024;
 
-const language = z.enum(LANGUAGES, { error: "Language must be python or javascript" });
+const language = z.enum(LANGUAGES, { error: "Language must be python, javascript or java" });
 const code = z.string({ error: "Code must be a string" }).min(1, "Code is required");
 
 /** Rooms (docs/specs/rooms.md §3.4): the session this submit should count for. */

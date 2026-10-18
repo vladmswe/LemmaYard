@@ -1,15 +1,21 @@
 // `pnpm problems:verify [--dir <path>] [--only <slug>] [--concurrency <n>]`
-// Quality gate for problem data (AC-M4-7): runs each problem's solution.py and
-// solution.js through the real DockerExecutor on ALL its tests (no stop on the
-// first failure, the problem's own limits) and requires `accepted`.
-// No database needed.
+// Quality gate for problem data (AC-M4-7): runs each problem's reference
+// solutions (solution.py and solution.js, plus solution.java where present:
+// `problems.languages`) through the real DockerExecutor on ALL its tests (no
+// stop on the first failure, the problem's own limits) and requires
+// `accepted`. No database needed.
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
 import { ratingBandWarning } from "@/lib/problems/schema";
-import { loadProblems, ProblemValidationError, type LoadedProblem } from "@/server/problems/importer";
+import {
+  loadProblems,
+  ProblemValidationError,
+  SOLUTION_FILES,
+  type LoadedProblem,
+} from "@/server/problems/importer";
 import { getEnv } from "@/server/env";
 
 import {
@@ -19,11 +25,6 @@ import {
   SandboxSetupError,
 } from "../worker/docker-executor";
 import type { ExecJob, ExecResult, Executor, Language } from "../worker/types";
-
-const LANGUAGES: { language: Language; file: string }[] = [
-  { language: "python", file: "solution.py" },
-  { language: "javascript", file: "solution.js" },
-];
 
 type Row = { slug: string; language: Language; result: ExecResult; elapsedMs: number };
 
@@ -135,12 +136,22 @@ async function main(): Promise<number> {
   await prepareSandbox(config, { removeOrphans: false });
   const executor = createDockerExecutor(config);
 
-  console.log(`Verifying ${problems.length} problem(s) × 2 languages from ${values.dir} (concurrency ${concurrency})\n`);
+  const runs = problems.flatMap((p) => p.languages.map((language) => ({ problem: p, language })));
+  const counts = new Map<Language, number>();
+  for (const { language } of runs) counts.set(language, (counts.get(language) ?? 0) + 1);
+  const perLanguage = [...counts].map(([language, n]) => `${language} ${n}`).join(", ");
+  console.log(
+    `Verifying ${problems.length} problem(s), ${runs.length} reference solutions (${perLanguage}) from ${values.dir} (concurrency ${concurrency})\n`,
+  );
   const rows = await pool(
-    problems.flatMap((p) => LANGUAGES.map(({ language, file }) => () => verifyOne(executor, p, language, file))),
+    runs.map(({ problem, language }) => () => verifyOne(executor, problem, language, SOLUTION_FILES[language])),
     concurrency,
   );
   printTable(rows);
+  const missing = problems.filter((p) => !p.languages.includes("java")).map((p) => p.meta.slug);
+  if (missing.length > 0) {
+    console.log(`\nNo solution.java yet (Java not offered): ${missing.join(", ")}`);
+  }
 
   const failures = rows.filter((r) => r.result.status !== "accepted");
   if (failures.length > 0) {

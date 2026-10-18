@@ -171,4 +171,4 @@ export const MONACO_EDITOR_OPTIONS = {
   "bracketPairColorization.enabled": false,
 } as const;
 
-export const MONACO_TAB_SIZE = { python: 4, javascript: 2 } as const;
+export const MONACO_TAB_SIZE = { python: 4, javascript: 2, java: 4 } as const;

@@ -40,7 +40,7 @@ INSERT INTO "tags" ("slug", "name") VALUES
 ON CONFLICT ("slug") DO NOTHING;
 
 -- ---- trapping-rain-water ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (18, $ly$trapping-rain-water$ly$, $ly$Trapping Rain Water$ly$, $ly$hard$ly$, $ly$Picture a row of vertical columns standing side by side, each one unit wide. The array `height` lists their heights from left to right. After a heavy rain, water settles in the dips between columns; anything that would flow past the leftmost or rightmost column is lost.
 
 Return the total number of unit squares of water that stay on top of the columns.
@@ -57,7 +57,7 @@ Above a given column, water can rise only up to the lower of the two tallest col
 - An empty array, a single column, or any arrangement without a dip holds no water at all.
 - The answer for the largest inputs can be close to `2 * 10^9`, which still fits in a regular integer.
 - A linear-time solution is expected; recomputing the tallest column on each side for every index is too slow.
-$ly$, $ly${"name":"trap","params":[{"name":"height","type":"int[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1950)
+$ly$, $ly${"name":"trap","params":[{"name":"height","type":"int[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1950, $ly${"python","javascript","java"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -70,6 +70,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$trapping-rain-water$ly$);
@@ -99,7 +101,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$trapping-rain-water$ly$),
 ORDER BY v."position";
 
 -- ---- two-sum ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (1, $ly$two-sum$ly$, $ly$Two Sum$ly$, $ly$easy$ly$, $ly$You get an integer array `nums` and an integer `target`. Exactly two different
 positions in the array hold values that add up to `target`. Find those two
 positions and return their indices.
@@ -118,7 +120,7 @@ but the two values may be equal. The indices can be returned in either order.
 
 Checking every pair works, but takes quadratic time. Try to find the pair in a
 single pass over the array.
-$ly$, $ly${"name":"twoSum","params":[{"name":"nums","type":"int[]"},{"name":"target","type":"int"}],"returns":"int[]"}$ly$::jsonb, $ly${"mode":"unordered"}$ly$::jsonb, 2000, 256, TRUE, 1180)
+$ly$, $ly${"name":"twoSum","params":[{"name":"nums","type":"int[]"},{"name":"target","type":"int"}],"returns":"int[]"}$ly$::jsonb, $ly${"mode":"unordered"}$ly$::jsonb, 2000, 256, TRUE, 1180, $ly${"python","javascript","java"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -131,6 +133,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$two-sum$ly$);
@@ -157,7 +161,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$two-sum$ly$), v.* FROM (V
 ORDER BY v."position";
 
 -- ---- valid-anagram ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (4, $ly$valid-anagram$ly$, $ly$Valid Anagram$ly$, $ly$easy$ly$, $ly$Two words are anagrams of each other when one can be turned into the other just
 by reordering its letters: both use the same letters, each the same number of
 times.
@@ -170,7 +174,7 @@ Given two strings `s` and `t`, return `true` if `t` is an anagram of `s`, and
 - `1 <= s.length, t.length <= 10^4`
 - `s` and `t` contain only lowercase English letters `a`-`z`.
 - The two strings may have different lengths.
-$ly$, $ly${"name":"isAnagram","params":[{"name":"s","type":"string"},{"name":"t","type":"string"}],"returns":"bool"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1150)
+$ly$, $ly${"name":"isAnagram","params":[{"name":"s","type":"string"},{"name":"t","type":"string"}],"returns":"bool"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1150, $ly${"python","javascript","java"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -183,6 +187,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$valid-anagram$ly$);
@@ -208,7 +214,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$valid-anagram$ly$), v.* F
 ORDER BY v."position";
 
 -- ---- valid-parentheses ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (2, $ly$valid-parentheses$ly$, $ly$Valid Parentheses$ly$, $ly$easy$ly$, $ly$A string `s` is made only of the bracket characters `(`, `)`, `[`, `]`, `{` and
 `}`. Decide whether the brackets in it are balanced, and return `true` if they
 are, `false` otherwise.
@@ -226,7 +232,7 @@ The empty string counts as balanced.
 
 - `0 <= s.length <= 10^4`
 - `s` contains only the characters `()[]{}`.
-$ly$, $ly${"name":"isValid","params":[{"name":"s","type":"string"}],"returns":"bool"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1270)
+$ly$, $ly${"name":"isValid","params":[{"name":"s","type":"string"}],"returns":"bool"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1270, $ly${"python","javascript","java"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -239,6 +245,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$valid-parentheses$ly$);

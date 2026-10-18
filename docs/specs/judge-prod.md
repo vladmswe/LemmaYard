@@ -116,6 +116,11 @@ executor   = VercelSandboxExecutor: create microVM (image per language) → uplo
 ## Adding a language
 
 What exists per language today, and what a new one (example: Java) needs.
+Java has since been added along these steps (README "How to add a language"
+and "Java specifics"); in the Vercel executor its `VM_LANGUAGES` entry runs
+`sandbox/Harness.java` in single-file source mode on the VCR image built
+from `sandbox/Dockerfile.java` (`VERCEL_SANDBOX_IMAGE_JAVA`), with an 8 s
+compile allowance and `-Xmx` as the memory bound.
 The wire protocol does not change: one JSON line on stdin
 (`{language, code, signature, tests: [{input}], timeLimitMs, stopOnError,
 nonce}`), `@@<nonce>@@{frame}` lines on stdout (`compile_error`, `fatal`,

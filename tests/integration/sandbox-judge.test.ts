@@ -1,13 +1,14 @@
 // AC-M4-2 / AC-M4-5: the real DockerExecutor on the fixture problem
-// `fixture-evens` (int[] → int[], unordered; 5 tests, test index 1 is `[]`),
-// for each language. Needs Docker and `pnpm sandbox:build`; no database.
+// `fixture-evens` (int[] → int[], unordered; 5 tests, test index 1 is `[]`,
+// the last test holds values beyond 32 bits), for each language. Needs Docker
+// and `pnpm sandbox:build`; no database.
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
 
-import { effectiveTimeLimitMs, wallBudgetMs } from "../../worker/docker-executor";
+import { effectiveTimeLimitMs, startupAllowanceMs, wallBudgetMs } from "../../worker/docker-executor";
 import type { Language } from "../../worker/types";
 import { config, evensJob, fileName, run, sandboxContainers } from "../helpers/sandbox";
 
@@ -16,6 +17,16 @@ const FIXTURE = path.join(process.cwd(), "tests/fixtures/problems/fixture-evens"
 // A JS escape from the vm context to the real `process` (vm is not a security
 // boundary; the container is). Used to reach fd 1, process.exit, etc.
 const JS_PROCESS = `console.log.constructor("return process")()`;
+
+/** A Java Solution with `evens(long[] nums)` running `body` (plus `extra` members). */
+const javaEvens = (body: string, extra = "", throwsClause = "") =>
+  `import java.util.*;\n\nclass Solution {\n${extra}    public long[] evens(long[] nums)${throwsClause} {\n${body}\n    }\n}\n`;
+/** A Java string literal of a forged frame with a made-up nonce. */
+const JAVA_FAKE = JSON.stringify(
+  '\n@@0123456789abcdef0123456789abcdef@@{"kind":"test","index":0,"status":"ok","actual":[2,4],"timeMs":0,"stdout":"","memoryKb":1}\n',
+);
+const JAVA_FILTER = "        return Arrays.stream(nums).filter(n -> n % 2 == 0).toArray();";
+const JAVA_RAW_OUT = "java.io.FileOutputStream out = new java.io.FileOutputStream(java.io.FileDescriptor.out);";
 
 type Programs = Record<string, string>;
 
@@ -104,6 +115,69 @@ const programs: Record<Language, Programs> = {
       "",
     ].join("\n"),
   },
+  java: {
+    correct: readFileSync(path.join(FIXTURE, "solution.java"), "utf8"),
+    wrong: javaEvens("        return nums;"),
+    loopOnSecond: javaEvens(`        if (nums.length == 0) while (true) {}\n${JAVA_FILTER}`),
+    // Java's limit is enforced from another thread: catching everything does not help.
+    swallowTimeout: javaEvens(
+      `        while (nums.length == 0) {\n            try { while (true) {} } catch (Throwable t) { }\n        }\n${JAVA_FILTER}`,
+    ),
+    memory: javaEvens("        long[] block = new long[64 * 1024 * 1024]; // 512 MB, 4x the limit\n        return new long[block.length * 0];"),
+    memoryOffHeap: javaEvens(
+      "        java.nio.ByteBuffer block = java.nio.ByteBuffer.allocateDirect(512 * 1024 * 1024); // 4x the limit\n        return new long[block.capacity() * 0];",
+    ),
+    exception: javaEvens("        int zero = nums.length - nums.length;\n        return new long[] { nums[0] / zero };"),
+    syntax: javaEvens("        return nums"),
+    exitZero: javaEvens("        System.exit(0);\n        return nums;"),
+    hardExitZero: javaEvens("        Runtime.getRuntime().halt(0);\n        return nums;"),
+    bigStdout: javaEvens(`        for (int i = 0; i < 30; i++) System.out.println("x".repeat(1000));\n${JAVA_FILTER}`),
+    flood: javaEvens(
+      `        ${JAVA_RAW_OUT}\n        byte[] block = new byte[65536];\n        Arrays.fill(block, (byte) 'y');\n        while (true) out.write(block);`,
+      "",
+      " throws Exception",
+    ),
+    notFound: `class Solution {\n    public long[] odds(long[] nums) { return nums; }\n}\n`,
+    forgedWrong: javaEvens(
+      `        ${JAVA_RAW_OUT}\n        out.write(${JAVA_FAKE}.getBytes());\n        System.out.println(${JAVA_FAKE});\n        return nums;`,
+      "",
+      " throws Exception",
+    ),
+    noisyCorrect: javaEvens(
+      `        System.out.print("@@ \\n\\n@@fake@@{}\\n");\n        ${JAVA_RAW_OUT}\n        out.write("unterminated user output @@".getBytes());\n${JAVA_FILTER}`,
+      "",
+      " throws Exception",
+    ),
+    narrowInt: `import java.util.*;\n\nclass Solution {\n    public int[] evens(int[] nums) {\n        return Arrays.stream(nums).filter(n -> n % 2 == 0).toArray();\n    }\n}\n`,
+    lists: `import java.util.*;\n\nclass Solution {\n    public List<Long> evens(List<Long> nums) {\n        List<Long> out = new ArrayList<>();\n        for (long n : nums) if (n % 2 == 0) out.add(n);\n        return out;\n    }\n}\n`,
+    deepRecursion: javaEvens(
+      `        if (depth(nums.length == 0 ? 50_000 : 1) < 0) return nums;\n${JAVA_FILTER}`,
+      "    private int depth(int n) { return n == 0 ? 1 : 1 + depth(n - 1); }\n",
+    ),
+    stackOverflow: javaEvens("        return evens(nums);"),
+    staticInit: javaEvens("        return nums;", '    static final int BAD = Integer.parseInt("not a number");\n'),
+    packageDecl: `package app;\n\nclass Solution {\n    public long[] evens(long[] nums) { return nums; }\n}\n`,
+    seesRunner: javaEvens('        Class.forName("Harness");\n        return nums;', "", " throws Exception"),
+    // A non-daemon thread from a static initializer must not keep the JVM alive.
+    lingeringThread: `class Solution {\n    static {\n        new Thread(() -> {\n            try { Thread.sleep(600_000); } catch (InterruptedException e) { }\n        }).start();\n    }\n    public long[] odds(long[] nums) { return nums; }\n}\n`,
+    threadException: javaEvens(
+      '        Thread t = new Thread(() -> { throw new IllegalStateException("from a thread"); });\n        t.start();\n        t.join();\n' +
+        JAVA_FILTER,
+      "",
+      " throws Exception",
+    ),
+  },
+};
+
+const COMPILE_ERROR: Record<Language, RegExp> = {
+  python: /SyntaxError/,
+  javascript: /SyntaxError/,
+  java: /Solution\.java:\d+: error: /,
+};
+const RUNTIME_ERROR: Record<Language, RegExp> = {
+  python: /ZeroDivisionError/,
+  javascript: /Error: boom 4/,
+  java: /java\.lang\.ArithmeticException: \/ by zero/,
 };
 
 function expectCleanError(error: string | null, language: Language) {
@@ -114,7 +188,7 @@ function expectCleanError(error: string | null, language: Language) {
   expect(text).not.toContain(process.cwd());
   expect(text).not.toContain("/Users/");
   expect(text).not.toContain(tmpdir());
-  expect(text).not.toMatch(/node:internal|evalmachine|<runner>/);
+  expect(text).not.toMatch(/node:internal|evalmachine|<runner>|jdk\.internal|java\.base\//);
   if (text.includes("solution")) expect(text).toContain(fileName(language));
 }
 
@@ -122,10 +196,12 @@ afterAll(() => {
   expect(sandboxContainers()).toEqual([]);
 });
 
-describe.each(["python", "javascript"] as const)("DockerExecutor (%s)", (language) => {
+describe.each(["python", "javascript", "java"] as const)("DockerExecutor (%s)", (language) => {
   const p = programs[language];
   const effective = effectiveTimeLimitMs(language, 1000, config());
-  const wall = wallBudgetMs(5, effective, config().wallCapMs);
+  const wall = wallBudgetMs(5, effective, config().wallCapMs, language);
+  // JVM start-up and compilation come before the first test (Java only).
+  const startup = startupAllowanceMs(language);
 
   it("accepted: correct solution passes every test with runtime and memory", { timeout: T }, async () => {
     const r = await run(await evensJob(language, p.correct));
@@ -165,28 +241,45 @@ describe.each(["python", "javascript"] as const)("DockerExecutor (%s)", (languag
     expect(r.caseResults[0]).not.toHaveProperty("expected");
   });
 
-  it(`time_limit via the harness within effective limit + 3 s`, { timeout: T }, async () => {
+  it(`time_limit via the harness within effective limit + 3 s (+ start-up allowance)`, { timeout: T }, async () => {
     const r = await run(await evensJob(language, p.loopOnSecond));
     expect(r.status).toBe("time_limit");
     expect(r.passedCount).toBe(1);
     expect(r.failedTestIndex).toBe(1);
-    expect(r.elapsedMs).toBeLessThanOrEqual(effective + 3000);
+    expect(r.elapsedMs).toBeLessThanOrEqual(effective + 3000 + startup);
   });
 
-  it(`time_limit via the wall clock (timeout swallowed / not interruptible) within wall + 2 s`, { timeout: T }, async () => {
-    const r = await run(await evensJob(language, p.swallowTimeout));
-    expect(r.status).toBe("time_limit");
-    expect(r.passedCount).toBe(1);
-    expect(r.failedTestIndex).toBe(1);
-    expect(r.elapsedMs).toBeGreaterThanOrEqual(wall - 500);
-    expect(r.elapsedMs).toBeLessThanOrEqual(wall + 2000);
-  });
+  if (language === "java") {
+    it("time_limit via the harness even when the solution catches every Throwable", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.swallowTimeout));
+      expect(r.status).toBe("time_limit");
+      expect(r.passedCount).toBe(1);
+      expect(r.failedTestIndex).toBe(1);
+      expect(r.elapsedMs).toBeLessThanOrEqual(effective + 3000 + startup);
+    });
+  } else {
+    it(`time_limit via the wall clock (timeout swallowed / not interruptible) within wall + 2 s`, { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.swallowTimeout));
+      expect(r.status).toBe("time_limit");
+      expect(r.passedCount).toBe(1);
+      expect(r.failedTestIndex).toBe(1);
+      expect(r.elapsedMs).toBeGreaterThanOrEqual(wall - 500);
+      expect(r.elapsedMs).toBeLessThanOrEqual(wall + 2000);
+    });
+  }
 
   it("memory_limit when allocating ~4x the limit", { timeout: T }, async () => {
     const r = await run(await evensJob(language, p.memory));
     expect(r.status).toBe("memory_limit");
     expect(r.passedCount).toBe(0);
   });
+
+  if (language === "java") {
+    it("memory_limit for off-heap (direct buffer) allocation", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.memoryOffHeap));
+      expect(r.status).toBe("memory_limit");
+    });
+  }
 
   if (language === "javascript") {
     it("memory_limit for off-heap (ArrayBuffer) allocation: cgroup OOM kill", { timeout: T }, async () => {
@@ -200,7 +293,7 @@ describe.each(["python", "javascript"] as const)("DockerExecutor (%s)", (languag
     expect(r.status).toBe("runtime_error");
     expect(r.failedTestIndex).toBe(0);
     expectCleanError(r.error, language);
-    expect(r.error).toMatch(language === "python" ? /ZeroDivisionError/ : /Error: boom 4/);
+    expect(r.error).toMatch(RUNTIME_ERROR[language]);
     expect(r.error).toContain(`${fileName(language)}`);
   });
 
@@ -211,7 +304,7 @@ describe.each(["python", "javascript"] as const)("DockerExecutor (%s)", (languag
     expect(r.runtimeMs).toBeNull();
     expect(r.caseResults.every((c) => c.status === "not_run")).toBe(true);
     expectCleanError(r.error, language);
-    expect(r.error).toMatch(/SyntaxError/);
+    expect(r.error).toMatch(COMPILE_ERROR[language]);
   });
 
   it("runtime_error when the program exits (code 0) before the result", { timeout: T }, async () => {
@@ -240,7 +333,7 @@ describe.each(["python", "javascript"] as const)("DockerExecutor (%s)", (languag
     expect(r.status).not.toBe("internal_error");
     expect(r.status).toBe("runtime_error");
     expect(r.error).toBe("Output limit exceeded (1 MB)");
-    expect(r.elapsedMs).toBeLessThan(effective + 3000);
+    expect(r.elapsedMs).toBeLessThan(effective + 3000 + startup);
   });
 
   if (language === "javascript") {
@@ -268,6 +361,74 @@ describe.each(["python", "javascript"] as const)("DockerExecutor (%s)", (languag
     expect(r.status).toBe("accepted");
     expect(r.stdout).toContain("@@fake@@");
   });
+
+  if (language === "java") {
+    it("compile errors point at the user's own line and column", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.syntax));
+      // Line 5 of the user's code: the implicit imports on line 1 never shift it.
+      expect(r.error).toMatch(/^Solution\.java:5: error: ';' expected\n {8}return nums\n {19}\^\n1 error$/);
+    });
+
+    it("an int parameter that receives a value beyond 32 bits fails that test with a hint", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.narrowInt, { stopOnFirstFailure: false }));
+      expect(r.status).toBe("runtime_error");
+      expect(r.caseResults.map((c) => c.status)).toEqual(["passed", "passed", "passed", "passed", "runtime_error"]);
+      expect(r.caseResults[4].error).toBe(
+        "parameter nums[0]: 9007199254740990 does not fit in a Java int; declare it as long",
+      );
+    });
+
+    it("List<Long> parameters and return values are accepted", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.lists));
+      expect(r.status, r.error ?? "").toBe("accepted");
+    });
+
+    it("deep recursion (50 000 frames) runs on the large solution stack", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.deepRecursion));
+      expect(r.status, r.error ?? "").toBe("accepted");
+    });
+
+    it("unbounded recursion is a runtime_error (StackOverflowError) with a short trace", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.stackOverflow));
+      expect(r.status).toBe("runtime_error");
+      expect(r.error).toMatch(/^java\.lang\.StackOverflowError\n\tat Solution\.evens\(Solution\.java:5\)/);
+      expect(r.error).toMatch(/\t\.\.\. \d+ more$/);
+      expectCleanError(r.error, language);
+    });
+
+    it("an exception in a static initializer is a runtime_error before any test", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.staticInit));
+      expect(r.status).toBe("runtime_error");
+      expect(r.failedTestIndex).toBeNull();
+      expect(r.error).toMatch(/^java\.lang\.NumberFormatException: For input string: "not a number"/);
+      expect(r.error).toContain("Solution.java:4");
+    });
+
+    it("a package declaration is a compile_error", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.packageDecl));
+      expect(r.status).toBe("compile_error");
+      expect(r.error).toMatch(/remove the package declaration/);
+    });
+
+    it("a lingering non-daemon thread does not delay the result", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.lingeringThread));
+      expect(r.status).toBe("runtime_error");
+      expect(r.error).toBe("function evens not found");
+      expect(r.elapsedMs).toBeLessThan(effective + 3000 + startup);
+    });
+
+    it("an uncaught exception in a thread started by the solution goes to the captured output", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.threadException));
+      expect(r.status).toBe("accepted");
+      expect(r.stdout).toMatch(/^Exception in thread "Thread-\d+" java\.lang\.IllegalStateException: from a thread\n\tat Solution\./);
+    });
+
+    it("user code cannot load the runner's classes", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.seesRunner));
+      expect(r.status).toBe("runtime_error");
+      expect(r.error).toMatch(/^java\.lang\.ClassNotFoundException: Harness/);
+    });
+  }
 
   if (language === "javascript") {
     it("runtime_error for an async function", { timeout: T }, async () => {

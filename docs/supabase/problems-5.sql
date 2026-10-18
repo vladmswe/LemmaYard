@@ -46,7 +46,7 @@ INSERT INTO "tags" ("slug", "name") VALUES
 ON CONFLICT ("slug") DO NOTHING;
 
 -- ---- rating-upsets ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (44, $ly$rating-upsets$ly$, $ly$Rating Upsets$ly$, $ly$hard$ly$, $ly$A chess club lists its members in the order they joined, together with their
 current ratings: `ratings[i]` belongs to the member who joined `i`-th. The
 club secretary calls two members an **upset pair** when the member who joined
@@ -69,7 +69,7 @@ Return the number of upset pairs.
   `ratings[i] >= ratings[j]` counts.
 - Checking every pair takes quadratic time. For each member, count the
   matching members on one side with a sorted view of the values seen so far.
-$ly$, $ly${"name":"countUpsets","params":[{"name":"ratings","type":"int[]"},{"name":"gap","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1900)
+$ly$, $ly${"name":"countUpsets","params":[{"name":"ratings","type":"int[]"},{"name":"gap","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1900, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -82,6 +82,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$rating-upsets$ly$);
@@ -315,7 +317,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$rating-upsets$ly$), v.* F
 ORDER BY v."position";
 
 -- ---- reverse-string ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (7, $ly$reverse-string$ly$, $ly$Reverse String$ly$, $ly$easy$ly$, $ly$Return the string `s` written backwards: the last character first, the first
 character last. Every character is kept, spaces and punctuation included; only
 the order changes.
@@ -330,7 +332,7 @@ the order changes.
 
 Try doing it with two indices that start at both ends and move toward the
 middle, swapping characters as they go.
-$ly$, $ly${"name":"reverseString","params":[{"name":"s","type":"string"}],"returns":"string"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1080)
+$ly$, $ly${"name":"reverseString","params":[{"name":"s","type":"string"}],"returns":"string"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1080, $ly${"python","javascript","java"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -343,6 +345,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$reverse-string$ly$);
@@ -369,7 +373,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$reverse-string$ly$), v.* 
 ORDER BY v."position";
 
 -- ---- reversed-twins ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (25, $ly$reversed-twins$ly$, $ly$Reversed Twins$ly$, $ly$easy$ly$, $ly$A puzzle magazine collects code words from its readers in the list `words`.
 Two entries form a pair of **reversed twins** when one of them, read
 backwards, is exactly the other one. For example `"stressed"` and
@@ -389,7 +393,7 @@ written backwards.
 The same word may appear several times; every pair of positions counts
 separately. A palindrome forms a pair with each other copy of itself, but
 never with its own position.
-$ly$, $ly${"name":"countTwinPairs","params":[{"name":"words","type":"string[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1230)
+$ly$, $ly${"name":"countTwinPairs","params":[{"name":"words","type":"string[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1230, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -402,6 +406,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$reversed-twins$ly$);
@@ -648,7 +654,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$reversed-twins$ly$), v.* 
 ORDER BY v."position";
 
 -- ---- sensor-spikes ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (21, $ly$sensor-spikes$ly$, $ly$Sensor Spikes$ly$, $ly$easy$ly$, $ly$A vibration sensor writes one integer reading per second into `readings`. A
 reading counts as a **spike** when it sticks out above both of its immediate
 neighbours by more than `margin`: reading `i` is a spike when
@@ -669,7 +675,7 @@ spikes. Return the number of spikes.
 
 With `margin = 0` a spike is simply a reading strictly larger than both
 neighbours; a flat top such as `1, 5, 5, 1` has no spike.
-$ly$, $ly${"name":"countSpikes","params":[{"name":"readings","type":"int[]"},{"name":"margin","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1060)
+$ly$, $ly${"name":"countSpikes","params":[{"name":"readings","type":"int[]"},{"name":"margin","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1060, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -682,6 +688,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$sensor-spikes$ly$);
@@ -877,7 +885,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$sensor-spikes$ly$), v.* F
 ORDER BY v."position";
 
 -- ---- shortest-full-playlist ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (40, $ly$shortest-full-playlist$ly$, $ly$Shortest Full-Genre Playlist$ly$, $ly$medium$ly$, $ly$A radio station's archive is one long recording of songs played back to back.
 `genres[i]` is the genre code of the `i`-th song. The station wants to cut a
 sampler from the archive: a run of consecutive songs that features every
@@ -890,7 +898,7 @@ return `0`.
 
 - `0 <= genres.length <= 10^5`
 - `1 <= genres[i] <= 10^9`
-$ly$, $ly${"name":"shortestFullSegment","params":[{"name":"genres","type":"int[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1730)
+$ly$, $ly${"name":"shortestFullSegment","params":[{"name":"genres","type":"int[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1730, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -903,6 +911,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$shortest-full-playlist$ly$);
@@ -1120,7 +1130,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$shortest-full-playlist$ly
 ORDER BY v."position";
 
 -- ---- smallest-task-order ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (43, $ly$smallest-task-order$ly$, $ly$Smallest Task Order$ly$, $ly$hard$ly$, $ly$A film crew has `n` setup jobs numbered `0` to `n - 1`. Some jobs depend on
 others: a rule `[a, b]` in `rules` says that job `a` has to be finished
 before job `b` is started. Jobs are done one at a time, and every job is done
@@ -1147,7 +1157,7 @@ array.
 
 Always starting the smallest job that is already allowed gives the answer;
 keep the allowed jobs in a structure that hands out the smallest one quickly.
-$ly$, $ly${"name":"taskOrder","params":[{"name":"n","type":"int"},{"name":"rules","type":"int[][]"}],"returns":"int[]"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1850)
+$ly$, $ly${"name":"taskOrder","params":[{"name":"n","type":"int"},{"name":"rules","type":"int[][]"}],"returns":"int[]"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1850, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -1160,6 +1170,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$smallest-task-order$ly$);
@@ -1416,7 +1428,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$smallest-task-order$ly$),
 ORDER BY v."position";
 
 -- ---- spaced-harvest ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (35, $ly$spaced-harvest$ly$, $ly$Spaced Harvest$ly$, $ly$medium$ly$, $ly$An orchard has one row of trees. Picking tree `i` gives `yields[i]` units of
 profit; a value can be negative when a tree costs more to pick than its fruit
 is worth. A picking machine needs room to turn, so after it picks tree `i` it
@@ -1435,7 +1447,7 @@ return that total. Picking no trees at all is allowed and gives `0`.
 ## Notes
 
 With `gap = 0` any set of trees may be picked.
-$ly$, $ly${"name":"spacedHarvest","params":[{"name":"yields","type":"int[]"},{"name":"gap","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1570)
+$ly$, $ly${"name":"spacedHarvest","params":[{"name":"yields","type":"int[]"},{"name":"gap","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1570, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -1448,6 +1460,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$spaced-harvest$ly$);
@@ -1676,7 +1690,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$spaced-harvest$ly$), v.* 
 ORDER BY v."position";
 
 -- ---- squeeze-repeats ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (24, $ly$squeeze-repeats$ly$, $ly$Squeeze Repeats$ly$, $ly$easy$ly$, $ly$A telemetry link is slow, so before sending a log line made of lowercase
 letters the device tries to shorten it. It cuts `text` into maximal blocks of
 equal neighbouring letters. A block of length `L >= 2` is replaced by its
@@ -1691,7 +1705,7 @@ unchanged.
 
 - `0 <= text.length <= 10^5`
 - `text` contains only lowercase English letters.
-$ly$, $ly${"name":"squeeze","params":[{"name":"text","type":"string"}],"returns":"string"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1180)
+$ly$, $ly${"name":"squeeze","params":[{"name":"text","type":"string"}],"returns":"string"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1180, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -1704,6 +1718,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$squeeze-repeats$ly$);
@@ -1954,7 +1970,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$squeeze-repeats$ly$), v.*
 ORDER BY v."position";
 
 -- ---- toll-free-passes ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (48, $ly$toll-free-passes$ly$, $ly$Toll-Free Passes$ly$, $ly$hard$ly$, $ly$A courier drives between `n` depots numbered `0` to `n - 1`. Each entry
 `[u, v, toll]` of `roads` is a two-way road between depots `u` and `v` that
 charges `toll` coins every time it is driven, in either direction. There can
@@ -1982,7 +1998,7 @@ Return the smallest total toll the courier has to pay to get from depot
 Where the courier is is not enough to describe the trip so far: how many
 passes are left matters too. A shortest-path search over pairs (depot, passes
 used) handles both.
-$ly$, $ly${"name":"cheapestRoute","params":[{"name":"n","type":"int"},{"name":"roads","type":"int[][]"},{"name":"passes","type":"int"},{"name":"source","type":"int"},{"name":"target","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 2040)
+$ly$, $ly${"name":"cheapestRoute","params":[{"name":"n","type":"int"},{"name":"roads","type":"int[][]"},{"name":"passes","type":"int"},{"name":"source","type":"int"},{"name":"target","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 2040, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -1995,6 +2011,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$toll-free-passes$ly$);

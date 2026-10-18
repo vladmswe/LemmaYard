@@ -1,7 +1,7 @@
 // Per-language code buffers of the editor (AC-M5-1, AC-M5-2). Switching the
 // language never touches the other language's code; Reset restores only the
 // current language's starter template.
-import type { Language } from "@/lib/submission-dto";
+import { LANGUAGES, type Language } from "@/lib/submission-dto";
 
 export type Buffers = Record<Language, string>;
 
@@ -22,19 +22,22 @@ export const DEFAULT_LANGUAGE: Language = "python";
 
 /**
  * Initial state: each language starts from its saved draft, else from its
- * template; the language is the remembered one, else Python.
+ * template; the language is the remembered one when the problem offers it
+ * (`available`), else Python.
  */
 export function initBuffers(
   templates: Buffers,
   drafts: Partial<Record<Language, string | null>>,
   language: Language | null,
+  available: readonly Language[] = LANGUAGES,
 ): BufferState {
   return {
-    language: language ?? DEFAULT_LANGUAGE,
+    language: language !== null && available.includes(language) ? language : DEFAULT_LANGUAGE,
     templates,
     buffers: {
       python: drafts.python ?? templates.python,
       javascript: drafts.javascript ?? templates.javascript,
+      java: drafts.java ?? templates.java,
     },
   };
 }

@@ -13,6 +13,7 @@ import path from "node:path";
 import {
   buildSandboxPayload,
   effectiveTimeLimitMs,
+  jvmLimitFlags,
   nodeHeapMb,
   OUTPUT_LIMIT_BYTES,
   wallBudgetMs,
@@ -69,6 +70,7 @@ export type VercelSandboxConfig = {
   images: Record<Language, string>;
   timeMultPython: number;
   timeMultJs: number;
+  timeMultJava: number;
   wallCapMs: number;
   /** Harness sources; defaults to the `sandbox/` files of `VM_LANGUAGES`. */
   harness?: Record<Language, Buffer>;
@@ -149,6 +151,20 @@ export const VM_LANGUAGES: Record<Language, VmLanguage> = {
     command: (memoryMb, payloadPath, harnessPath) => ({
       cmd: "node",
       args: ["-e", NODE_LAUNCHER, String(nodeHeapMb(memoryMb)), payloadPath, harnessPath],
+    }),
+  },
+  // No launcher: the JVM runs Harness.java in single-file source mode (the VCR
+  // image built from sandbox/Dockerfile.java has the compiler module), the
+  // harness reads the payload file named by -Druntime.payload and deletes it,
+  // and -Xmx plus the solution stack size bound its memory (the VM has no
+  // per-job cgroup). The allowance covers JVM start-up and compiling the
+  // harness and the solution without the Docker image's AOT cache.
+  java: {
+    harnessFile: "Harness.java",
+    compileAllowanceMs: 8000,
+    command: (memoryMb, payloadPath, harnessPath) => ({
+      cmd: "java",
+      args: [...jvmLimitFlags(memoryMb), `-Druntime.payload=${payloadPath}`, harnessPath],
     }),
   },
 };
@@ -264,7 +280,8 @@ export function createVercelSandboxExecutor(config: VercelSandboxConfig, client:
       ]);
       const attached = await attach(vm, job, payload.nonce, wallMs);
       // No container runtime reports OOM here: the memory limit is enforced
-      // in-process (RLIMIT_AS for Python, the V8 heap flag for Node).
+      // in-process (RLIMIT_AS for Python, the V8 heap flag for Node, -Xmx for
+      // Java, whose runner exits with code 3 on an OOM outside a test).
       return decideVerdict(job, { ...attached, oomKilled: false });
     } catch (error) {
       const reason = error instanceof Error ? error.message.split("\n")[0]!.slice(0, 300) : String(error).slice(0, 300);

@@ -79,6 +79,7 @@ the `AUTH_URL` note):
 | `JUDGE_EXECUTOR` | no | `vercel-sandbox` | Who runs user code. `docker` (default) = a `pnpm worker` process with Docker; `vercel-sandbox` = the app judges in Vercel Sandbox microVMs (section 7). |
 | `JUDGE_ENABLED` | no | `0` | Code execution (Run, Submit, room session start). Unset: on, **except on Vercel with `JUDGE_EXECUTOR` unset/`docker`** (no worker there). `0` switches it off anywhere, `1` forces it on (only with a judge that serves this database). Only `0` and `1` are accepted. |
 | `VERCEL_SANDBOX_IMAGE_PYTHON`, `VERCEL_SANDBOX_IMAGE_NODE` | no | `vercel/sandbox/python:3.14`, `vercel/sandbox/node:22` | Sandbox images for `JUDGE_EXECUTOR=vercel-sandbox`. Leave unset (the defaults). |
+| `VERCEL_SANDBOX_IMAGE_JAVA` | no | `lemmayard-java:1` | Java image for `JUDGE_EXECUTOR=vercel-sandbox`: there is no managed one, so it is `sandbox/Dockerfile.java` pushed to the team's registry once (section 7, step 6). Until it is pushed, Java submissions end as Internal Error; Python and JavaScript are unaffected. |
 
 Do **not** set `DATABASE_URL_DIRECT` on Vercel; the web app never uses it.
 Do not set `NODE_ENV` or `PORT` either; Vercel manages them. Do not set
@@ -274,6 +275,12 @@ the verdict. No server, Docker or worker to run. Why this and not a VPS:
    (the first run after a deploy can take a little longer).
 5. Optional: Vercel → team **Settings → Billing / Usage → Sandbox** shows the
    sandbox creations; each Run or Submit is one.
+6. Java (once): build and push the Java image from your machine,
+   `vercel vcr build docker sandbox lemmayard-java:1 --push -- -f sandbox/Dockerfile.java --platform linux/amd64 sandbox`
+   (the tag must equal `VERCEL_SANDBOX_IMAGE_JAVA`, default `lemmayard-java:1`;
+   bump the tag after any change in `sandbox/Harness.java`). Then Submit Two
+   Sum in Java: Accepted within about 10 s (the JVM compiles the runner and
+   the solution on every job).
 
 To switch the judge off again: set `JUDGE_ENABLED=0` (or remove
 `JUDGE_EXECUTOR`) and redeploy.
@@ -320,7 +327,8 @@ database:
    least 32 characters (the worker does not use it, but the env schema
    requires it).
 3. Run `pnpm worker` under a process manager (systemd, pm2, ...). At start it
-   checks Docker and both images and logs `worker started`.
+   checks Docker and the three sandbox images (Python, Node, Java) and logs
+   `worker started`.
 4. On Vercel leave `JUDGE_EXECUTOR` unset (`docker`), set `JUDGE_ENABLED=1`
    and redeploy; `/api/health` then reports `"judge":"enabled"`.
 

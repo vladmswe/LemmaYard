@@ -69,9 +69,16 @@ const programs: Record<Language, { ret: string; print: string; raise: string; wr
     raise: `var probe = function (x) {\n  throw new Error("bad\\u0000msg");\n};\n`,
     wrong: `var probe = function (x) {\n  return "n\\u0000";\n};\n`,
   },
+  // (char) casts: a \u0000 escape in Java source is decoded before lexing.
+  java: {
+    ret: `class Solution {\n    public String probe(int x) {\n        return "a" + (char) 0 + "b" + (char) 0xD800;\n    }\n}\n`,
+    print: `class Solution {\n    public String probe(int x) {\n        System.out.println("x" + (char) 0 + "y");\n        return "ok";\n    }\n}\n`,
+    raise: `class Solution {\n    public String probe(int x) {\n        throw new IllegalArgumentException("bad" + (char) 0 + "msg");\n    }\n}\n`,
+    wrong: `class Solution {\n    public String probe(int x) {\n        return "n" + (char) 0;\n    }\n}\n`,
+  },
 };
 
-describe.each(["python", "javascript"] as const)("%s", (language) => {
+describe.each(["python", "javascript", "java"] as const)("%s", (language) => {
   const p = programs[language];
 
   it("returned NUL / lone surrogate (custom-input Run) → accepted, case_results stored", { timeout: T }, async () => {

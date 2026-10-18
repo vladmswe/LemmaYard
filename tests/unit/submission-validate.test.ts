@@ -1,6 +1,8 @@
 // Run/Submit request validation (PLAN.md section 6, steps 3–4; AC-M5-4/7).
 import { describe, expect, it } from "vitest";
 
+import { BASE_LANGUAGES, isLanguage, LANGUAGES } from "@/lib/submission-dto";
+import { LANGUAGE_LABELS, languageList, MONACO_LANGUAGE } from "@/lib/workspace/languages";
 import {
   byteLength,
   checkCustomInput,
@@ -133,5 +135,34 @@ describe("checkCustomInput", () => {
   it("rejects non-objects", () => {
     expect(checkCustomInput([1, 2], twoSum)?.error).toBe("Invalid custom input: expected an object, got array");
     expect(checkCustomInput("x", twoSum)?.status).toBe(400);
+  });
+});
+
+describe("languages", () => {
+  it("accepts python, javascript and java, nothing else", () => {
+    for (const language of ["python", "javascript", "java"]) {
+      expect(submitBodySchema.safeParse({ language, code: "x" }).success).toBe(true);
+      expect(runBodySchema.safeParse({ language, code: "x" }).success).toBe(true);
+    }
+    for (const language of ["Java", "kotlin", "", 1, null]) {
+      const r = submitBodySchema.safeParse({ language, code: "x" });
+      expect(r.success).toBe(false);
+      expect(r.error?.issues[0]?.message).toBe("Language must be python, javascript or java");
+    }
+  });
+
+  it("isLanguage guards stored values; Python and JavaScript are the base languages", () => {
+    expect(LANGUAGES).toEqual(["python", "javascript", "java"]);
+    expect(BASE_LANGUAGES).toEqual(["python", "javascript"]);
+    expect(["python", "javascript", "java"].every(isLanguage)).toBe(true);
+    expect([undefined, "JAVA", "c++", 3].some(isLanguage)).toBe(false);
+  });
+
+  it("names languages in running text", () => {
+    expect(languageList(["python", "javascript", "java"], "or")).toBe("Python, JavaScript or Java");
+    expect(languageList(["python", "javascript"], "and")).toBe("Python and JavaScript");
+    expect(languageList(["java"], "or")).toBe("Java");
+    expect(LANGUAGE_LABELS.java).toBe("Java");
+    expect(MONACO_LANGUAGE.java).toEqual({ id: "java", file: "Solution.java" });
   });
 });

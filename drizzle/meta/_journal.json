@@ -43,6 +43,13 @@
       "when": 1792340260175,
       "tag": "0005_rooms_external_problems",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792346143315,
+      "tag": "0006_lang_java",
+      "breakpoints": true
     }
   ]
 }

@@ -4,7 +4,14 @@
 import { expect, test } from "@playwright/test";
 
 import { JUDGE_TAG, requireJudge } from "../../e2e-support/judge";
-import { openProblem, pasteCode, registerViaUi, selectLanguage, uniqueUsername } from "../../e2e-support/workspace";
+import {
+  openProblem,
+  pasteCode,
+  problemCount,
+  registerViaUi,
+  selectLanguage,
+  uniqueUsername,
+} from "../../e2e-support/workspace";
 
 const JUDGED_MS = 60_000;
 
@@ -41,7 +48,7 @@ test.describe("verdicts", { tag: JUDGE_TAG }, () => {
 
     // Profile: still 0 solved.
     await page.goto(`/u/${username}`);
-    await expect(page.getByRole("main").getByTestId("profile-stats")).toContainText(/Solved\s*0\s*\/\s*20/);
+    await expect(page.getByRole("main").getByTestId("profile-stats")).toContainText(new RegExp(`Solved\\s*0\\s*/\\s*${problemCount()}`));
     await expect(page.getByRole("main").getByTestId("recent-solved")).toHaveCount(0);
   });
 

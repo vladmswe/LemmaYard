@@ -15,17 +15,24 @@ import {
   VM_PAYLOAD_PATH,
   vmCommand,
   vmHarnessPath,
+  VM_LANGUAGES,
   type SandboxClient,
   type SandboxCreateOptions,
   type SandboxRunOptions,
 } from "../../worker/vercel-sandbox-executor";
 import type { ExecJob, Language } from "../../worker/types";
 
-const harness = { python: Buffer.from("# py harness"), javascript: Buffer.from("// js harness") };
+const harness = {
+  python: Buffer.from("# py harness"),
+  javascript: Buffer.from("// js harness"),
+  java: Buffer.from("// java harness"),
+};
+const IMAGES = { python: "img/python", javascript: "img/node", java: "img/java" } as const;
 const config = {
-  images: { python: "img/python", javascript: "img/node" },
+  images: { ...IMAGES },
   timeMultPython: 2,
   timeMultJs: 1,
+  timeMultJava: 2,
   wallCapMs: 30_000,
   harness,
 };
@@ -125,14 +132,14 @@ afterEach(() => {
 });
 
 describe("VercelSandboxExecutor", () => {
-  it.each(["python", "javascript"] as const)("accepted (%s): uploads harness + payload, stops the VM", async (language) => {
+  it.each(["python", "javascript", "java"] as const)("accepted (%s): uploads harness + payload, stops the VM", async (language) => {
     const { client, calls } = fakeClient(correct);
     const r = await createVercelSandboxExecutor(config, client)(job(language));
     expect(r.status).toBe("accepted");
     expect(r.passedCount).toBe(4);
     expect(r.totalCount).toBe(4);
     expect(calls.created).toEqual([
-      { image: language === "python" ? "img/python" : "img/node", timeoutMs: expect.any(Number) as number },
+      { image: IMAGES[language], timeoutMs: expect.any(Number) as number },
     ]);
     expect(calls.files.map((f) => f.path)).toEqual([vmHarnessPath(language), VM_PAYLOAD_PATH]);
     expect(calls.files[0]!.content).toBe(harness[language]);
@@ -251,6 +258,36 @@ describe("VM command and SDK options", () => {
     expect(js.cmd).toBe("node");
     expect(js.args).toEqual(["-e", NODE_LAUNCHER, "192", VM_PAYLOAD_PATH, vmHarnessPath("javascript")]);
     for (const c of [py, js]) expect(["sh", "bash"]).not.toContain(c.cmd);
+  });
+
+  it("Java: the JVM runs Harness.java in source mode with the payload file and memory flags", () => {
+    const java = vmCommand("java", 256);
+    expect(java.cmd).toBe("java");
+    expect(vmHarnessPath("java")).toBe("/vercel/sandbox/Harness.java");
+    expect(java.args).toEqual([
+      "-XX:+UseSerialGC",
+      "-Xmx128m",
+      "-XX:MaxDirectMemorySize=128m",
+      "-XX:-UsePerfData",
+      "-XX:+DisableAttachMechanism",
+      "-Xlog:disable",
+      "-Xlog:all=error:stderr",
+      "-Dsolution.stackMb=32",
+      `-Druntime.payload=${VM_PAYLOAD_PATH}`,
+      vmHarnessPath("java"),
+    ]);
+    // The Docker image's AOT cache path does not exist in another image.
+    expect(java.args.some((a) => a.includes("AOTCache"))).toBe(false);
+  });
+
+  it("Java: the wall budget adds the compile allowance and the Java multiplier", async () => {
+    const { client, calls } = fakeClient(correct);
+    await createVercelSandboxExecutor(config, client)(job("java"));
+    const py = fakeClient(correct);
+    await createVercelSandboxExecutor(config, py.client)(job("python"));
+    // Same multiplier (2) for both: the difference is the compile allowance.
+    expect(calls.created[0]!.timeoutMs - py.calls.created[0]!.timeoutMs).toBe(VM_LANGUAGES.java.compileAllowanceMs);
+    expect(VM_LANGUAGES.java.compileAllowanceMs).toBeGreaterThan(0);
   });
 
   it("creates every VM with egress denied, 1 vCPU, no env and no persistence", () => {

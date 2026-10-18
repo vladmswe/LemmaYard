@@ -7,6 +7,7 @@ import { JUDGE_TAG, requireJudge } from "../../e2e-support/judge";
 import {
   openProblem,
   pasteCode,
+  problemCount,
   referenceSolution,
   registerViaUi,
   selectLanguage,
@@ -15,6 +16,7 @@ import {
 } from "../../e2e-support/workspace";
 
 const JUDGED_MS = 60_000;
+const PROBLEM_COUNT = problemCount();
 
 test.describe("solve Two Sum", { tag: JUDGE_TAG }, () => {
   requireJudge();
@@ -23,11 +25,13 @@ test.describe("solve Two Sum", { tag: JUDGE_TAG }, () => {
   const cases: { language: Language; marker: string }[] = [
     { language: "python", marker: "def twoSum" },
     { language: "javascript", marker: "var twoSum = function" },
+    { language: "java", marker: "public int[] twoSum(int[] nums, int target)" },
   ];
+  const prefixes: Record<Language, string> = { python: "fpy", javascript: "fjs", java: "fjv" };
 
   for (const { language, marker } of cases) {
     test(`${language}: register → Run → Submit → Accepted → solved on the profile`, async ({ page }) => {
-      const username = uniqueUsername(language === "python" ? "fpy" : "fjs");
+      const username = uniqueUsername(prefixes[language]);
       await registerViaUi(page, username);
 
       await openProblem(page, "two-sum");
@@ -46,7 +50,7 @@ test.describe("solve Two Sum", { tag: JUDGE_TAG }, () => {
 
       await page.goto(`/u/${username}`);
       const stats = page.getByRole("main").getByTestId("profile-stats");
-      await expect(stats).toContainText(/Solved\s*1\s*\/\s*20/);
+      await expect(stats).toContainText(new RegExp(`Solved\\s*1\\s*/\\s*${PROBLEM_COUNT}`));
       const recent = page.getByRole("main").getByTestId("recent-solved");
       await expect(recent.getByRole("listitem")).toHaveCount(1);
       await expect(recent.getByRole("link", { name: /Two Sum/ })).toBeVisible();

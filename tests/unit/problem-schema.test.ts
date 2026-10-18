@@ -106,6 +106,10 @@ describe("identifierProblem", () => {
     "rejects reserved %s",
     (name) => expect(identifierProblem(name)).toMatch(/reserved word/),
   );
+  it.each(["_", "long", "char", "boolean", "final", "synchronized", "throws", "goto"])(
+    "rejects Java-only reserved %s",
+    (name) => expect(identifierProblem(name)).toBe(`"${name}" is a reserved word in Java`),
+  );
   it.each(["__init__", "__proto__", "__x", "__"])("rejects dunder-prefixed %s", (name) =>
     expect(identifierProblem(name)).toMatch(/starts with "__"/),
   );

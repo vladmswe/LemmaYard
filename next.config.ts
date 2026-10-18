@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   // (src/server/judge-runner.ts) upload the harness files into each microVM.
   outputFileTracingIncludes: {
     "/learn/**": ["./src/content/learn/**/code/*", "./problems/*/meta.json"],
-    "/api/**": ["./sandbox/harness.*"],
+    "/api/**": ["./sandbox/harness.*", "./sandbox/Harness.java"],
   },
   // Security headers + CSP on every route, `Referrer-Policy: no-referrer` on
   // /rooms/join (src/server/http/security-headers.ts, README "Security").

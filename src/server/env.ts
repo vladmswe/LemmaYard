@@ -35,6 +35,7 @@ export const envSchema = z.object({
   WALL_CAP_MS: int(30000),
   SANDBOX_IMAGE_PYTHON: z.string().min(1).default("lemmayard-sandbox-python:latest"),
   SANDBOX_IMAGE_NODE: z.string().min(1).default("lemmayard-sandbox-node:latest"),
+  SANDBOX_IMAGE_JAVA: z.string().min(1).default("lemmayard-sandbox-java:latest"),
   // Label lemmayard.ns=<value> on every sandbox container; the worker's
   // start-up cleanup only removes containers of its own namespace. Unset: the
   // checkout's directory name + a path hash (worker/docker-executor.ts).
@@ -44,6 +45,9 @@ export const envSchema = z.object({
     .optional(),
   LANG_TIME_MULT_PY: z.coerce.number().positive().default(2),
   LANG_TIME_MULT_JS: z.coerce.number().positive().default(1),
+  // Java: per-test time excludes JVM start-up and compilation (they get a
+  // separate wall-clock allowance), but includes JIT warm-up of the first calls.
+  LANG_TIME_MULT_JAVA: z.coerce.number().positive().default(2),
   RUN_RATE_PER_MIN: int(10),
   SUBMIT_RATE_PER_MIN: int(5),
   MAX_ACTIVE_PER_USER: int(2),
@@ -62,6 +66,9 @@ export const envSchema = z.object({
   // Vercel Sandbox images for JUDGE_EXECUTOR=vercel-sandbox (managed images).
   VERCEL_SANDBOX_IMAGE_PYTHON: z.string().min(1).default("vercel/sandbox/python:3.14"),
   VERCEL_SANDBOX_IMAGE_NODE: z.string().min(1).default("vercel/sandbox/node:22"),
+  // Java has no managed image: the owner pushes sandbox/Dockerfile.java to the
+  // team's registry once (docs/specs/judge-prod.md, "Adding a language").
+  VERCEL_SANDBOX_IMAGE_JAVA: z.string().min(1).default("lemmayard-java:1"),
   // Login/register rate limits (src/server/auth/rate-limit.ts). "0" only for
   // local Playwright runs, which register many users from one address;
   // rejected on Vercel.

@@ -44,7 +44,7 @@ INSERT INTO "tags" ("slug", "name") VALUES
 ON CONFLICT ("slug") DO NOTHING;
 
 -- ---- maximum-subarray ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (11, $ly$maximum-subarray$ly$, $ly$Maximum Subarray$ly$, $ly$easy$ly$, $ly$You are given a non-empty integer array `nums`. Pick a contiguous block of it that contains at least one element and add up its values. Return the largest total any such block can have.
 
 When every value is negative, the best block is the single largest element, since the block may not be empty.
@@ -57,7 +57,7 @@ When every value is negative, the best block is the single largest element, sinc
 ## Notes
 
 - Checking every possible block works for small inputs; a single pass over the array is enough to handle the largest ones comfortably.
-$ly$, $ly${"name":"maxSubArray","params":[{"name":"nums","type":"int[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1420)
+$ly$, $ly${"name":"maxSubArray","params":[{"name":"nums","type":"int[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1420, $ly${"python","javascript","java"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -70,6 +70,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$maximum-subarray$ly$);
@@ -98,7 +100,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$maximum-subarray$ly$), v.
 ORDER BY v."position";
 
 -- ---- merge-intervals ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (12, $ly$merge-intervals$ly$, $ly$Merge Intervals$ly$, $ly$medium$ly$, $ly$Each element of `intervals` is a pair `[start, end]` describing the closed range of numbers from `start` to `end`. The pairs can appear in any order, and some of them may overlap or repeat.
 
 Combine every group of ranges that share at least one point into a single range covering all of them, and return the resulting list of ranges that no longer overlap. Ranges that only touch at an endpoint, such as `[1, 4]` and `[4, 5]`, share the point `4` and must be combined into `[1, 5]`.
@@ -115,7 +117,7 @@ The returned list must be sorted by `start` in increasing order, and every input
 
 - A range may be a single point, for example `[3, 3]`.
 - Ranges that are separated by a gap, such as `[1, 2]` and `[3, 4]`, stay separate.
-$ly$, $ly${"name":"merge","params":[{"name":"intervals","type":"int[][]"}],"returns":"int[][]"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1580)
+$ly$, $ly${"name":"merge","params":[{"name":"intervals","type":"int[][]"}],"returns":"int[][]"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1580, $ly${"python","javascript","java"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -128,6 +130,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$merge-intervals$ly$);
@@ -154,7 +158,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$merge-intervals$ly$), v.*
 ORDER BY v."position";
 
 -- ---- ore-pile-merging ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (47, $ly$ore-pile-merging$ly$, $ly$Ore Pile Merging$ly$, $ly$hard$ly$, $ly$At a mine, freshly dug ore lies in a single row of piles along a conveyor;
 `piles[i]` is the weight of the `i`-th pile from the left. A loader can only
 push two piles that are **next to each other** in the row into one pile, which
@@ -174,7 +178,7 @@ cost of doing so. A row with zero or one pile needs no merges and costs `0`.
 Always merging the lightest neighbouring pair is not optimal. Think about the
 last merge: it joins a pile made from some left part of the row with a pile
 made from the rest, and its cost is the total weight of the whole row.
-$ly$, $ly${"name":"mergeCost","params":[{"name":"piles","type":"int[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1990)
+$ly$, $ly${"name":"mergeCost","params":[{"name":"piles","type":"int[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1990, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -187,6 +191,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$ore-pile-merging$ly$);
@@ -409,7 +415,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$ore-pile-merging$ly$), v.
 ORDER BY v."position";
 
 -- ---- pair-sum-under-cap ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (30, $ly$pair-sum-under-cap$ly$, $ly$Pair Sum Under a Cap$ly$, $ly$easy$ly$, $ly$A gift shop lists the prices of its items in `prices`. A customer wants to buy
 exactly **two different items** (two different positions of the list; the two
 prices may be equal) and has a gift card worth `cap`.
@@ -428,7 +434,7 @@ than two items), return `-1`.
 
 Trying every pair is quadratic; sorting the prices first allows a much faster
 search.
-$ly$, $ly${"name":"bestPairSum","params":[{"name":"prices","type":"int[]"},{"name":"cap","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1400)
+$ly$, $ly${"name":"bestPairSum","params":[{"name":"prices","type":"int[]"},{"name":"cap","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1400, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -441,6 +447,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$pair-sum-under-cap$ly$);
@@ -689,7 +697,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$pair-sum-under-cap$ly$), 
 ORDER BY v."position";
 
 -- ---- palindrome-number ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (9, $ly$palindrome-number$ly$, $ly$Palindrome Number$ly$, $ly$easy$ly$, $ly$Decide whether the integer `x` looks the same when its decimal digits are written in reverse order. Return `true` if it does and `false` otherwise.
 
 A negative number never counts: its leading minus sign has no matching sign at the other end. A number that ends in `0` (other than `0` itself) cannot qualify either, because a written integer never starts with a zero.
@@ -701,7 +709,7 @@ A negative number never counts: its leading minus sign has no matching sign at t
 ## Notes
 
 - Converting the number to a string is allowed. As an extra challenge, try solving it using arithmetic on the digits only.
-$ly$, $ly${"name":"isPalindrome","params":[{"name":"x","type":"int"}],"returns":"bool"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1150)
+$ly$, $ly${"name":"isPalindrome","params":[{"name":"x","type":"int"}],"returns":"bool"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1150, $ly${"python","javascript","java"}$ly$, $ly${"x"}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -714,6 +722,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$palindrome-number$ly$);
@@ -747,7 +757,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$palindrome-number$ly$), v
 ORDER BY v."position";
 
 -- ---- prefix-favorites ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (42, $ly$prefix-favorites$ly$, $ly$Prefix Favorites$ly$, $ly$medium$ly$, $ly$A library catalogue keeps a log of everything visitors typed into its search
 box: `searches` holds one lowercase query per entry, and the same query can
 appear many times. The catalogue wants to suggest a single completion while a
@@ -773,7 +783,7 @@ Return the suggestions in the same order as `prefixes`. The empty prefix
 Scanning the whole log for every prefix is too slow for the largest inputs.
 Preparing the answer for every possible prefix once lets each lookup take
 time proportional to the prefix length.
-$ly$, $ly${"name":"favorites","params":[{"name":"searches","type":"string[]"},{"name":"prefixes","type":"string[]"}],"returns":"string[]"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1820)
+$ly$, $ly${"name":"favorites","params":[{"name":"searches","type":"string[]"},{"name":"prefixes","type":"string[]"}],"returns":"string[]"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1820, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -786,6 +796,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$prefix-favorites$ly$);
@@ -1020,7 +1032,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$prefix-favorites$ly$), v.
 ORDER BY v."position";
 
 -- ---- product-of-array-except-self ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (16, $ly$product-of-array-except-self$ly$, $ly$Product of Array Except Self$ly$, $ly$medium$ly$, $ly$You are given an integer array `nums` of length `n`. Build and return a new array `answer` of the same length, where `answer[i]` is the product of all elements of `nums` except the one at position `i`.
 
 For example, the value at position `0` is the product of `nums[1]`, `nums[2]`, ..., `nums[n - 1]`. Zeros are allowed in the input and must be handled like any other value.
@@ -1035,7 +1047,7 @@ For example, the value at position `0` is the product of `nums[1]`, `nums[2]`, .
 
 - Aim for `O(n)` time. Multiplying the other `n - 1` values separately for every index is too slow for the largest inputs.
 - Follow-up: can you do it without using division?
-$ly$, $ly${"name":"productExceptSelf","params":[{"name":"nums","type":"int[]"}],"returns":"int[]"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1560)
+$ly$, $ly${"name":"productExceptSelf","params":[{"name":"nums","type":"int[]"}],"returns":"int[]"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1560, $ly${"python","javascript","java"}$ly$, $ly${"return"}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -1048,6 +1060,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$product-of-array-except-self$ly$);
@@ -1074,7 +1088,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$product-of-array-except-s
 ORDER BY v."position";
 
 -- ---- range-count-queries ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (28, $ly$range-count-queries$ly$, $ly$Range Count Queries$ly$, $ly$easy$ly$, $ly$A weather station archived one temperature reading per hour in `values`, in
 no particular order. Analysts then send a batch of questions in `queries`;
 query `[lo, hi]` asks how many archived readings `v` satisfy
@@ -1094,7 +1108,7 @@ given. A query with `lo > hi` describes an empty range, so its answer is `0`.
 
 Answering each query by scanning the whole archive is too slow for the
 largest inputs.
-$ly$, $ly${"name":"countInRanges","params":[{"name":"values","type":"int[]"},{"name":"queries","type":"int[][]"}],"returns":"int[]"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1340)
+$ly$, $ly${"name":"countInRanges","params":[{"name":"values","type":"int[]"},{"name":"queries","type":"int[][]"}],"returns":"int[]"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1340, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -1107,6 +1121,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$range-count-queries$ly$);

@@ -43,7 +43,7 @@ INSERT INTO "tags" ("slug", "name") VALUES
 ON CONFLICT ("slug") DO NOTHING;
 
 -- ---- knight-through-walls ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (37, $ly$knight-through-walls$ly$, $ly$Knight Through Walls$ly$, $ly$medium$ly$, $ly$A puzzle board is given as `board`, a list of equally long strings. Each
 character is one square:
 
@@ -66,7 +66,7 @@ Return the smallest number of moves that takes the knight from `'S'` to
 - `1 <= board[i].length <= 150`, and all rows have the same length
 - `board` contains exactly one `'S'` and exactly one `'T'`; every other
   character is `'.'` or `'#'`
-$ly$, $ly${"name":"knightMoves","params":[{"name":"board","type":"string[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1640)
+$ly$, $ly${"name":"knightMoves","params":[{"name":"board","type":"string[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1640, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -79,6 +79,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$knight-through-walls$ly$);
@@ -276,7 +278,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$knight-through-walls$ly$)
 ORDER BY v."position";
 
 -- ---- ladder-word-routes ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (46, $ly$ladder-word-routes$ly$, $ly$Ladder Word Routes$ly$, $ly$hard$ly$, $ly$In a word game you turn the word `start` into the word `goal` one step at a
 time. A step replaces exactly one letter of the current word by a different
 letter, and the word you get must appear in the dictionary `words`. The
@@ -304,7 +306,7 @@ Return that count modulo `1000000007`. If `start` equals `goal` the answer is
 The number of shortest routes can grow exponentially, so listing them is
 hopeless. Explore the words level by level from `start` and, for every word,
 add up the number of shortest routes that reach it.
-$ly$, $ly${"name":"countShortestLadders","params":[{"name":"start","type":"string"},{"name":"goal","type":"string"},{"name":"words","type":"string[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1960)
+$ly$, $ly${"name":"countShortestLadders","params":[{"name":"start","type":"string"},{"name":"goal","type":"string"},{"name":"words","type":"string[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1960, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -317,6 +319,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$ladder-word-routes$ly$);
@@ -539,7 +543,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$ladder-word-routes$ly$), 
 ORDER BY v."position";
 
 -- ---- largest-island-coastline ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (34, $ly$largest-island-coastline$ly$, $ly$Largest Island Coastline$ly$, $ly$medium$ly$, $ly$A survey map is given as `grid`, a list of equally long strings. Character
 `'#'` is a square of land and `'.'` is a square of water. Land squares that
 share a side (up, down, left or right, not diagonally) belong to the same
@@ -558,7 +562,7 @@ the map has no land, return `0`.
 - `1 <= grid.length <= 150`
 - `1 <= grid[i].length <= 150`, and all rows have the same length
 - `grid[i][j]` is `'#'` or `'.'`
-$ly$, $ly${"name":"coastline","params":[{"name":"grid","type":"string[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1540)
+$ly$, $ly${"name":"coastline","params":[{"name":"grid","type":"string[]"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1540, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -571,6 +575,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$largest-island-coastline$ly$);
@@ -765,7 +771,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$largest-island-coastline$
 ORDER BY v."position";
 
 -- ---- longest-common-subsequence ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (17, $ly$longest-common-subsequence$ly$, $ly$Longest Common Subsequence$ly$, $ly$medium$ly$, $ly$Given two strings `text1` and `text2`, find the length of the longest string that is a subsequence of both of them. If they share no characters at all, the answer is `0`.
 
 A subsequence of a string is what remains after deleting any number of its characters (possibly none) without changing the order of the characters that are kept. For instance, `"ape"` is a subsequence of `"apple"`, while `"pea"` is not, because the order differs. Unlike a substring, the kept characters do not need to be adjacent.
@@ -779,7 +785,7 @@ A subsequence of a string is what remains after deleting any number of its chara
 
 - Only the length is required, not the subsequence itself.
 - Trying every subsequence of one string is exponential; look for a solution that runs in about `text1.length * text2.length` steps.
-$ly$, $ly${"name":"longestCommonSubsequence","params":[{"name":"text1","type":"string"},{"name":"text2","type":"string"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1720)
+$ly$, $ly${"name":"longestCommonSubsequence","params":[{"name":"text1","type":"string"},{"name":"text2","type":"string"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1720, $ly${"python","javascript","java"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -792,6 +798,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$longest-common-subsequence$ly$);
@@ -818,7 +826,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$longest-common-subsequenc
 ORDER BY v."position";
 
 -- ---- longest-substring-without-repeating-characters ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (15, $ly$longest-substring-without-repeating-characters$ly$, $ly$Longest Substring Without Repeating Characters$ly$, $ly$medium$ly$, $ly$You are given a string `s`. Look at every contiguous piece of it (a substring) in which no character occurs more than once, and return the length of the longest such piece.
 
 A substring must consist of adjacent characters: picking characters from different places of `s` and joining them does not count. The space character is a character like any other, so two spaces in a window count as a repeat.
@@ -834,7 +842,7 @@ If `s` is empty, the answer is `0`.
 
 - Letter case matters: `'a'` and `'A'` are different characters.
 - An approach that inspects each character a constant number of times is enough for the largest inputs.
-$ly$, $ly${"name":"lengthOfLongestSubstring","params":[{"name":"s","type":"string"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1620)
+$ly$, $ly${"name":"lengthOfLongestSubstring","params":[{"name":"s","type":"string"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1620, $ly${"python","javascript","java"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -847,6 +855,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$longest-substring-without-repeating-characters$ly$);
@@ -873,7 +883,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$longest-substring-without
 ORDER BY v."position";
 
 -- ---- longest-valid-parentheses ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (20, $ly$longest-valid-parentheses$ly$, $ly$Longest Valid Parentheses$ly$, $ly$hard$ly$, $ly$You are given a string `s` made up only of the characters `'('` and `')'`. Find the longest contiguous substring of `s` that forms a correctly matched bracket sequence, and return its length.
 
 A bracket sequence is correctly matched when every `'('` is closed by a later `')'`, every `')'` closes an earlier unmatched `'('`, and nothing is left open at the end. For instance, `"(())()"` is correctly matched, while `"())"` and `")("` are not.
@@ -889,7 +899,7 @@ If no such non-empty substring exists (including when `s` is empty), return `0`.
 
 - The answer is always even.
 - Checking every substring separately is far too slow for the largest inputs; a linear-time approach exists.
-$ly$, $ly${"name":"longestValidParentheses","params":[{"name":"s","type":"string"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 2150)
+$ly$, $ly${"name":"longestValidParentheses","params":[{"name":"s","type":"string"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 2150, $ly${"python","javascript","java"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -902,6 +912,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$longest-valid-parentheses$ly$);
@@ -929,7 +941,7 @@ SELECT (SELECT "id" FROM "problems" WHERE "slug" = $ly$longest-valid-parentheses
 ORDER BY v."position";
 
 -- ---- lucky-digit-sums ----
-INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating")
+INSERT INTO "problems" ("number", "slug", "title", "difficulty", "description_md", "signature", "compare", "time_limit_ms", "memory_limit_mb", "published", "author_rating", "languages", "wide_ints")
 VALUES (22, $ly$lucky-digit-sums$ly$, $ly$Lucky Digit Sums$ly$, $ly$easy$ly$, $ly$A raffle office prints one ticket for every integer from `lo` to `hi`
 (inclusive). A ticket is **lucky** when the sum of the decimal digits of its
 number is divisible by `k`. For example, with `k = 5` the ticket `2021` is
@@ -946,7 +958,7 @@ Return how many lucky tickets the office prints.
 ## Notes
 
 The digit sum of `0` is `0`, which is divisible by every `k`.
-$ly$, $ly${"name":"countLucky","params":[{"name":"lo","type":"int"},{"name":"hi","type":"int"},{"name":"k","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1090)
+$ly$, $ly${"name":"countLucky","params":[{"name":"lo","type":"int"},{"name":"hi","type":"int"},{"name":"k","type":"int"}],"returns":"int"}$ly$::jsonb, $ly${"mode":"exact"}$ly$::jsonb, 2000, 256, TRUE, 1090, $ly${"python","javascript"}$ly$, $ly${}$ly$)
 ON CONFLICT ("slug") DO UPDATE SET
   "number" = EXCLUDED."number",
   "slug" = EXCLUDED."slug",
@@ -959,6 +971,8 @@ ON CONFLICT ("slug") DO UPDATE SET
   "memory_limit_mb" = EXCLUDED."memory_limit_mb",
   "published" = EXCLUDED."published",
   "author_rating" = EXCLUDED."author_rating",
+  "languages" = EXCLUDED."languages",
+  "wide_ints" = EXCLUDED."wide_ints",
   "updated_at" = now();
 
 DELETE FROM "problem_tags" WHERE "problem_id" = (SELECT "id" FROM "problems" WHERE "slug" = $ly$lucky-digit-sums$ly$);

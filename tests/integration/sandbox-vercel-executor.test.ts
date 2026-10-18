@@ -3,8 +3,8 @@
 // of the sandbox images (user code never runs on the host; real Vercel calls
 // need the owner's credentials). The container has 1 GB, more than any
 // problem limit, like the 2 GB microVM: the memory verdicts below come from
-// the launchers (RLIMIT_AS for Python, the V8 heap flag for Node), not from
-// Docker. Needs Docker and `pnpm sandbox:build`; no database.
+// the launchers (RLIMIT_AS for Python, the V8 heap flag for Node, -Xmx for
+// Java), not from Docker. Needs Docker and `pnpm sandbox:build`; no database.
 import { execFile, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -25,10 +25,18 @@ import { config, evensJob, sandboxContainers } from "../helpers/sandbox";
 const T = 60_000;
 const FIXTURE = path.join(process.cwd(), "tests/fixtures/problems/fixture-evens");
 
+const BAKED_HARNESS: Record<Language, string> = {
+  python: "/sandbox/harness.py",
+  javascript: "/sandbox/harness.js",
+  // The Java image carries the source as well, for exactly this source-mode run.
+  java: "/sandbox/Harness.java",
+};
+
 /** Paths inside the stand-in container: the payload arrives on stdin, the harness is baked into the image. */
 function mapArg(arg: string, language: Language): string {
   if (arg === VM_PAYLOAD_PATH) return "/dev/stdin";
-  if (arg === vmHarnessPath(language)) return language === "python" ? "/sandbox/harness.py" : "/sandbox/harness.js";
+  if (arg === `-Druntime.payload=${VM_PAYLOAD_PATH}`) return "-Druntime.payload=/dev/stdin";
+  if (arg === vmHarnessPath(language)) return BAKED_HARNESS[language];
   return arg;
 }
 
@@ -36,7 +44,8 @@ function dockerBackedClient(): SandboxClient {
   const cfg = config();
   return {
     async create({ image }) {
-      const language: Language = image === cfg.imagePython ? "python" : "javascript";
+      const language: Language =
+        image === cfg.imagePython ? "python" : image === cfg.imageJava ? "java" : "javascript";
       const name = `lemmayard-vstest-${randomBytes(4).toString("hex")}`;
       let payload: Buffer = Buffer.alloc(0);
       const remove = () =>
@@ -75,9 +84,10 @@ function dockerBackedClient(): SandboxClient {
 
 const executor = createVercelSandboxExecutor(
   {
-    images: { python: config().imagePython, javascript: config().imageNode },
+    images: { python: config().imagePython, javascript: config().imageNode, java: config().imageJava },
     timeMultPython: config().timeMultPython,
     timeMultJs: config().timeMultJs,
+    timeMultJava: config().timeMultJava,
     wallCapMs: config().wallCapMs,
   },
   dockerBackedClient(),
@@ -98,13 +108,20 @@ const programs: Record<Language, Record<string, string>> = {
     memory: `var evens = function (nums) {\n  const keep = [];\n  while (true) keep.push(new Array(1e5).fill(1.5));\n};\n`,
     exception: `var evens = function (nums) {\n  throw new Error("boom " + nums.length);\n};\n`,
   },
+  java: {
+    correct: readFileSync(path.join(FIXTURE, "solution.java"), "utf8"),
+    wrong: `class Solution {\n    public long[] evens(long[] nums) { return nums; }\n}\n`,
+    loop: `class Solution {\n    public long[] evens(long[] nums) { while (true) { } }\n}\n`,
+    memory: `class Solution {\n    public long[] evens(long[] nums) {\n        long[] block = new long[64 * 1024 * 1024]; // 512 MB, 4x the limit\n        return new long[block.length * 0];\n    }\n}\n`,
+    exception: `class Solution {\n    public long[] evens(long[] nums) { return new long[] { nums[0] / (nums.length - nums.length) }; }\n}\n`,
+  },
 };
 
 afterAll(() => {
   expect(sandboxContainers()).toEqual([]);
 });
 
-describe.each(["python", "javascript"] as const)("VercelSandboxExecutor launcher + harness (%s)", (language) => {
+describe.each(["python", "javascript", "java"] as const)("VercelSandboxExecutor launcher + harness (%s)", (language) => {
   const p = programs[language];
 
   it("accepted", { timeout: T }, async () => {

@@ -5,6 +5,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 
 import type { CatalogDifficulty, CatalogStatus } from "@/lib/catalog/filters";
 import type { Signature } from "@/lib/problems/schema";
+import type { Language } from "@/lib/submission-dto";
 import { PROBLEM_ID } from "@/server/catalog";
 import { type Db, getDb } from "@/server/db";
 import { problems, problemTags, submissions, tags, testCases } from "@/server/db/schema";
@@ -18,6 +19,10 @@ export type ProblemPageData = {
   difficulty: CatalogDifficulty;
   descriptionMd: string;
   signature: Signature;
+  /** Languages with a verified reference solution (`problems.languages`). */
+  languages: Language[];
+  /** `problems.wide_ints`: int positions the Java template declares `long`. */
+  wideInts: string[];
   tags: { slug: string; name: string }[];
   /** Sample tests only (`is_sample`), in file order. */
   samples: SampleTest[];
@@ -43,6 +48,8 @@ export async function getProblemPageData(
       difficulty: problems.difficulty,
       descriptionMd: problems.descriptionMd,
       signature: problems.signature,
+      languages: problems.languages,
+      wideInts: problems.wideInts,
       tags: sql<{ slug: string; name: string }[] | null>`(
         select json_agg(json_build_object('slug', t.slug, 'name', t.name) order by t.name)
         from ${problemTags} pt inner join ${tags} t on t.id = pt.tag_id
@@ -87,6 +94,8 @@ export async function getProblemPageData(
     difficulty: problem.difficulty,
     descriptionMd: problem.descriptionMd,
     signature: problem.signature,
+    languages: problem.languages,
+    wideInts: problem.wideInts,
     tags: problem.tags ?? [],
     samples: samples.map((s) => ({ input: s.input, expected: s.expected })),
     status,

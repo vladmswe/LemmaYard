@@ -40,8 +40,8 @@ describe("landing ledger", () => {
     expect(data.stats?.total).toBe(2);
   });
 
-  it("knows both languages", () => {
-    expect(LANGUAGE_COUNT).toBe(2);
+  it("knows all three languages", () => {
+    expect(LANGUAGE_COUNT).toBe(3);
   });
 });
 

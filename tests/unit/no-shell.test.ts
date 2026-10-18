@@ -5,7 +5,13 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { buildCreateArgs, sandboxCommand, wallBudgetMs } from "../../worker/docker-executor";
+import {
+  buildCreateArgs,
+  JAVA_STARTUP_ALLOWANCE_MS,
+  javaFlags,
+  sandboxCommand,
+  wallBudgetMs,
+} from "../../worker/docker-executor";
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -67,5 +73,39 @@ describe("docker create arguments", () => {
   it("uses the wall-clock formula 3000 + min(n × limit, cap)", () => {
     expect(wallBudgetMs(5, 2000, 30_000)).toBe(13_000);
     expect(wallBudgetMs(100, 2000, 30_000)).toBe(33_000);
+    expect(wallBudgetMs(5, 2000, 30_000, "python")).toBe(13_000);
+  });
+
+  it("adds the Java start-up allowance to the wall clock", () => {
+    expect(wallBudgetMs(5, 2000, 30_000, "java")).toBe(13_000 + JAVA_STARTUP_ALLOWANCE_MS);
+    expect(wallBudgetMs(100, 2000, 30_000, "java")).toBe(33_000 + JAVA_STARTUP_ALLOWANCE_MS);
+  });
+
+  it("Java: same hardening flags, the JVM gets flags derived from the memory limit", () => {
+    const java = buildCreateArgs("img:java", 256, sandboxCommand("java", 256), "ns-test");
+    const joined = java.join(" ");
+    expect(joined).toContain("--network none --read-only --cap-drop ALL");
+    expect(joined).toContain("--pids-limit 64 --cpus 1 --memory 256m --memory-swap 256m --user 65534:65534");
+    expect(java.slice(java.indexOf("img:java"))).toEqual([
+      "img:java",
+      "java",
+      "-XX:AOTCache=/sandbox/harness.aot",
+      "-XX:+UseSerialGC",
+      "-Xmx128m",
+      "-XX:MaxDirectMemorySize=128m",
+      "-XX:-UsePerfData",
+      "-XX:+DisableAttachMechanism",
+      "-Xlog:disable",
+      "-Xlog:all=error:stderr",
+      "-Dsolution.stackMb=32",
+      "-cp",
+      "/sandbox/harness.jar",
+      "Harness",
+    ]);
+  });
+
+  it("Java heap and solution stack scale with the limit within bounds", () => {
+    expect(javaFlags(64)).toEqual(expect.arrayContaining(["-Xmx32m", "-Dsolution.stackMb=8"]));
+    expect(javaFlags(1024)).toEqual(expect.arrayContaining(["-Xmx512m", "-Dsolution.stackMb=64"]));
   });
 });

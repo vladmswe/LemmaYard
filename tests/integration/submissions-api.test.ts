@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Db } from "@/server/db";
-import { submissions } from "@/server/db/schema";
+import { problems, submissions } from "@/server/db/schema";
 
 const state = vi.hoisted(() => ({
   db: undefined as Db | undefined,
@@ -154,6 +154,15 @@ describe("rejections create no rows (AC-M5-7)", () => {
     ["array body", [1, 2]],
   ])("submit: %s → 400", async (_name, body) => {
     await expectRejected(await call("submit", "two-sum", body), 400);
+  });
+
+  it.each<Kind>(["run", "submit"])("%s: a language the problem does not offer → 400 with a clear message", async (kind) => {
+    // Problems offer Python and JavaScript by default; Java only with a verified solution.java.
+    const body = await expectRejected(await call(kind, "two-sum", { language: "java", code: "class Solution {}" }), 400);
+    expect(body).toEqual({
+      error: "Java is not available for this problem yet",
+      fieldErrors: { language: "Java is not available for this problem yet" },
+    });
   });
 
   it("submit does not accept customInput (400)", async () => {
@@ -342,6 +351,21 @@ describe("happy paths create exactly one queued row", () => {
       finishedAt: null,
       workerId: null,
     });
+  });
+
+  it("Java submit and run on a problem that offers Java", async () => {
+    await getTestDb()
+      .update(problems)
+      .set({ languages: ["python", "javascript", "java"] })
+      .where(eq(problems.id, problem.id));
+    const code = "class Solution { public int[] twoSum(int[] nums, int target) { return new int[] {0, 1}; } }";
+    expect((await call("submit", "two-sum", { language: "java", code })).status).toBe(202);
+    expect((await call("run", "two-sum", { language: "java", code })).status).toBe(202);
+    const rows = await getTestDb().select().from(submissions);
+    expect(rows.map((r) => [r.kind, r.language, r.status]).sort()).toEqual([
+      ["run", "java", "queued"],
+      ["submit", "java", "queued"],
+    ]);
   });
 
   it("run with the samples", async () => {

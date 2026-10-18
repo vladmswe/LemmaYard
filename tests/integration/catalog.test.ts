@@ -375,9 +375,24 @@ describe("problem page data (AC-M3-4, hidden tests)", () => {
         { slug: "dp", name: "dp" },
       ],
       status: null,
+      // Column defaults: no solution.java imported, no wide ints.
+      languages: ["python", "javascript"],
+      wideInts: [],
     });
     expect(Object.keys(data!).sort()).toEqual(
-      ["descriptionMd", "difficulty", "number", "samples", "signature", "slug", "status", "tags", "title"].sort(),
+      [
+        "descriptionMd",
+        "difficulty",
+        "languages",
+        "number",
+        "samples",
+        "signature",
+        "slug",
+        "status",
+        "tags",
+        "title",
+        "wideInts",
+      ].sort(),
     );
   });
 

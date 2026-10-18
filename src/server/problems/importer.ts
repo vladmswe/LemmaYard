@@ -15,7 +15,14 @@ import {
   type ProblemMeta,
   type ProblemTest,
 } from "@/lib/problems/schema";
-import { findUnsafeNumberLiterals, parseType, validateInput, validateValue } from "@/lib/types";
+import { LANGUAGES, type Language } from "@/lib/submission-dto";
+import {
+  findUnsafeNumberLiterals,
+  parseType,
+  validateInput,
+  validateValue,
+  wideIntPositions,
+} from "@/lib/types";
 import type { Db } from "@/server/db";
 import { problems, problemTags, tags, testCases } from "@/server/db/schema";
 
@@ -27,11 +34,31 @@ export const REQUIRED_FILES = [
   "solution.js",
 ] as const;
 
+/** Reference solution file of each language in a problem directory. */
+export const SOLUTION_FILES: Record<Language, string> = {
+  python: "solution.py",
+  javascript: "solution.js",
+  java: "solution.java",
+};
+
+/**
+ * The languages a problem supports: those whose reference solution is in its
+ * directory (Python and JavaScript are required, the others optional).
+ * `pnpm problems:verify` runs each of them in the sandbox.
+ */
+export function languagesInDir(dir: string): Language[] {
+  return LANGUAGES.filter((language) => existsSync(path.join(dir, SOLUTION_FILES[language])));
+}
+
 export type LoadedProblem = {
   dir: string;
   meta: ProblemMeta;
   descriptionMd: string;
   tests: ProblemTest[];
+  /** `languagesInDir(dir)`, in `LANGUAGES` order. */
+  languages: Language[];
+  /** `wideIntPositions(meta.signature, tests)`. */
+  wideInts: string[];
 };
 
 export class ProblemValidationError extends Error {
@@ -131,7 +158,17 @@ async function loadProblem(
   if (descriptionMd.trim() === "") errors.push(`${display(dir)}: description.md is empty`);
 
   if (errors.length > before || !meta || !tests) return { meta, problem: null };
-  return { meta, problem: { dir, meta, descriptionMd, tests } };
+  return {
+    meta,
+    problem: {
+      dir,
+      meta,
+      descriptionMd,
+      tests,
+      languages: languagesInDir(dir),
+      wideInts: wideIntPositions(meta.signature, tests),
+    },
+  };
 }
 
 /**
@@ -206,7 +243,7 @@ export function collectTagSlugs(loaded: LoadedProblem[]): string[] {
  * The `problems` row an import writes for one problem (shared with
  * `pnpm problems:export-sql`, so both write the same values).
  */
-export function problemRow({ meta, descriptionMd }: LoadedProblem) {
+export function problemRow({ meta, descriptionMd, languages, wideInts }: LoadedProblem) {
   return {
     number: meta.number,
     slug: meta.slug,
@@ -220,6 +257,8 @@ export function problemRow({ meta, descriptionMd }: LoadedProblem) {
     published: true,
     // Rooms v2: the author rating only; `rating_adjust` (observed drift) is never written here.
     authorRating: meta.rating ?? null,
+    languages,
+    wideInts,
   };
 }
 

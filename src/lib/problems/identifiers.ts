@@ -1,5 +1,5 @@
-// Function and parameter names must be valid identifiers in BOTH Python and
-// JavaScript, must not be reserved words in either language and must not
+// Function and parameter names must be valid identifiers in Python,
+// JavaScript and Java, must not be reserved words in any of them and must not
 // shadow globals/builtins that the harness or typical user code relies on.
 
 const PYTHON_KEYWORDS = [
@@ -20,10 +20,20 @@ const JS_RESERVED = [
   "arguments", "eval", "undefined", "NaN", "Infinity",
 ];
 
+// Java keywords and literals that are not reserved in Python or JavaScript
+// (the shared ones are already in the lists above). `_` is a keyword since
+// Java 9; `yield` is in JS_RESERVED.
+const JAVA_ONLY_RESERVED = [
+  "_", "abstract", "assert", "boolean", "byte", "char", "double", "final",
+  "float", "goto", "int", "long", "native", "short", "strictfp",
+  "synchronized", "throws", "transient", "volatile",
+];
+
 // `self` is the method receiver in the generated Python template.
 const TEMPLATE_RESERVED = ["self"];
 
 const RESERVED = new Set([...PYTHON_KEYWORDS, ...JS_RESERVED, ...TEMPLATE_RESERVED]);
+const JAVA_RESERVED = new Set(JAVA_ONLY_RESERVED);
 
 // A parameter or function with one of these names would shadow a global the
 // solution (or harness) is likely to use.
@@ -57,6 +67,9 @@ export function identifierProblem(name: string): string | null {
   }
   if (SHADOWING.has(name)) {
     return `"${name}" would shadow a JavaScript global or Python builtin`;
+  }
+  if (JAVA_RESERVED.has(name)) {
+    return `"${name}" is a reserved word in Java`;
   }
   return null;
 }
