@@ -515,11 +515,13 @@ Postgres user, password and database (`leetcopy` in `docker-compose.yml` and
 `leetcopy_e2e_<suffix>`) keep the old internal name so existing local volumes
 keep working; they can be renamed together with a fresh Postgres volume.
 
-**Status.** Milestones M0–M7 of [PLAN.md](PLAN.md) are done: problems and
-judge, editor, history and profile, rooms (R1–R5), the guide (5 of 15 lessons
-published), judge-disabled mode, security hardening, design v2 (dark only),
-Playwright e2e and CI. Next: a production judge, guide lessons 6–15 and the
-post-MVP features in [`docs/specs/features-f1-f5.md`](docs/specs/features-f1-f5.md).
+**Status.** Shipped ([PLAN.md](PLAN.md) has the milestones): problems and
+judge, editor, history and profile (M0–M6), rooms (R1–R5), the guide (5 of 15
+lessons published), judge-disabled mode, security hardening, design v2 (dark
+only), Playwright e2e with the real judge, and CI. Open: performance
+measurements (AC-M7-5), console-error checks in the main e2e flows, a
+production judge, guide lessons 6–15 and the post-MVP features in
+[`docs/specs/features-f1-f5.md`](docs/specs/features-f1-f5.md).
 Design rules: [DESIGN.md](DESIGN.md); contributor and agent conventions:
 [CLAUDE.md](CLAUDE.md); all docs: [docs/README.md](docs/README.md).
 

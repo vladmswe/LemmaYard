@@ -8,15 +8,25 @@ Pet-проект, запускается локально (docker-compose для
 
 ### Статус (2026-10-18, ветка `integration`)
 - **M0–M6: готовы** (все АС закрыты, слиты в `integration`).
-- **M7: в работе.** e2e (`pnpm test:e2e`, AC-M7-1) подключается: изолированная e2e-БД, web + worker из Playwright; пока `test:e2e` — заглушка, есть только частичные спеки (`test:e2e:guide`, `tests/e2e/**`). Error boundaries есть (`(site)`, `(workspace)`, корневой `global-error.tsx`); не закрыты: проверка ошибок консоли в e2e основных сценариев (AC-M7-2), axe на `/login`, `/problems`, `/problems/two-sum` (AC-M7-3), замеры AC-M7-5, README (AC-M7-6). CI (GitHub Actions: lint, typecheck, unit, build, DB-интеграционные тесты) — `.github/workflows/ci.yml`; Docker-тесты и e2e в CI пока нет.
+- **M7: почти готов.**
+  - AC-M7-1 готов (WP-2): `pnpm test:e2e` сам создаёт изолированную `leetcopy_e2e_<suffix>`, собирает и поднимает web + worker; судимые сценарии Python/JS, Wrong Answer, история, live-сессия комнаты. Очистка контейнеров по namespace (`lemmayard.ns`).
+  - AC-M7-2 частично: error boundaries (`(site)`, `(workspace)`, `global-error.tsx`), empty/loading есть; проверка ошибок консоли есть только в спеках гайда и комнат, не в основных flows.
+  - AC-M7-3 готов: axe на `/login`, `/problems`, `/problems/two-sum` (`tests/e2e/site/design-v2*.spec.ts`, тёмная тема — единственная показываемая), Tab до Run/Submit.
+  - AC-M7-4 готов (WP-3): тест логов web + worker с маркерами, audit-исключения в README.
+  - AC-M7-5 не сделан: замеров p95 нет.
+  - AC-M7-6 готов (WP-4): README — запуск с нуля, архитектура, пример задачи, контракт языка, тесты, принятые свойства.
+  - AC-M7-7 частично: чистый клон проверен для `install --frozen-lockfile`, `lint`, `typecheck`, `test`, `test:integration`, `build`, `db:migrate`, `problems:import`, `problems:verify --only two-sum`, `start` + `/api/health`; `docker compose up`/`pnpm run setup` и e2e на чистом клоне не прогонялись.
+  - CI (`.github/workflows/ci.yml`, WP-7): lint, typecheck, unit, build, DB-интеграционные тесты; Docker-тесты, `problems:verify` и e2e в CI нет.
 - **Сделано сверх плана:**
   - Rooms R1–R5 (спека `docs/specs/rooms.md`, миграция `0003_rooms`): комнаты, инвайты, сессии с жеребьёвкой задач, live-события, итоги, лидерборд, история.
   - Гайд `/learn` (G0–G2, G4): плеер визуализаций, контент-пайплайн; опубликовано 5 уроков из 15 (complexity basics, arrays, dynamic arrays, stacks, queues and deques), остальные — черновики.
-  - Design v2 «Proof» (`DESIGN.md`): фаза 1 (токены, компоненты, лендинг, auth) слита; сайт пока только тёмный (`THEME_TOGGLE_ENABLED = false` в `src/lib/theme-config.ts`, обе темы остаются рабочими). Фазы 2A/2B в работе.
+  - Design v2 «Proof» (`DESIGN.md`): фазы 1, 2A, 2B слиты; сайт пока только тёмный (`THEME_TOGGLE_ENABLED = false` в `src/lib/theme-config.ts`, обе темы остаются рабочими).
   - Деплой-готовность (Vercel + Supabase, `docs/DEPLOY.md`): pooler/TLS, RLS на всех 13 таблицах, `/api/health`, `docs/supabase/schema.sql`.
-  - Режим без судьи (`JUDGE_ENABLED`, по умолчанию выключен на Vercel): Run/Submit/старт сессии отвечают понятной ошибкой, а не висят в очереди.
-  - Security hardening: security headers + CSP, rate limit на login/register, отказ от placeholder-`AUTH_SECRET` в продакшене.
+  - Режим без судьи (WP-1, `JUDGE_ENABLED`, по умолчанию выключен на Vercel): Run/Submit/старт сессии отвечают 503 `judge_disabled` без записи в БД.
+  - Security hardening (WP-3): security headers + CSP, rate limit на login/register, отказ от placeholder-`AUTH_SECRET` в продакшене.
+  - Tech debt (WP-7): CI, мелкие исправления.
   - Переименование в LemmaYard (пакет, образы `lemmayard-sandbox-*`, cookie `lemmayard_session`, label `lemmayard.sandbox`).
+- **Осталось:** судья в продакшене (`VercelSandboxExecutor` или worker на VPS, см. §13 и `docs/DEPLOY.md` §7); уроки гайда 6–15; фичи F1–F5 (`docs/specs/features-f1-f5.md`); QA/perf follow-ups (AC-M7-5, проверка консоли в flows, AC-M7-7 целиком); выбор LICENSE (владелец); CSP с nonce без `'unsafe-inline'`; rate limits в БД (между инстансами).
 - Схема: кроме M1 добавлены `0002_enable_rls` (деплой) и `0003_rooms` (Rooms) — по исключению для фич (см. `CLAUDE.md`).
 
 ---
