@@ -111,6 +111,8 @@ export type CellView = {
   judgingAttempt: number | null;
   firstSolver: boolean;
   solvedBefore: boolean;
+  /** A LeetCode slot: a solve here was marked by the participant, not judged (rooms-external-problems §5). */
+  selfReported: boolean;
   /** 0..1 on the session's time track (solved cells with a known duration). */
   track: number | null;
   /** Screen-reader sentence (§3.2). */
@@ -123,14 +125,22 @@ export type CellOptions = {
   /** Seconds since this person's previous solve (null: this is their first). */
   splitSeconds?: number | null;
   durationSec?: number | null;
+  /** The column is a LeetCode slot (self-reported solves). */
+  selfReported?: boolean;
 };
 
 /** §3.2 sr-only sentences. */
-export function cellSrText(view: Pick<CellView, "position" | "state" | "solveSeconds" | "splitSeconds" | "wrong" | "attempts" | "firstSolver" | "solvedBefore">): string {
+export function cellSrText(
+  view: Pick<
+    CellView,
+    "position" | "state" | "solveSeconds" | "splitSeconds" | "wrong" | "attempts" | "firstSolver" | "solvedBefore" | "selfReported"
+  >,
+): string {
   const label = problemLabel(view.position);
   switch (view.state) {
     case "solved": {
-      const parts = [`${label}: solved ${durationWords(view.solveSeconds ?? 0)} after the start`];
+      const verb = view.selfReported ? "marked solved (self-reported)" : "solved";
+      const parts = [`${label}: ${verb} ${durationWords(view.solveSeconds ?? 0)} after the start`];
       if (view.splitSeconds !== null) parts.push(`${durationWords(view.splitSeconds)} after their previous solve`);
       if (view.wrong > 0) parts.push(`after ${plural(view.wrong, "wrong attempt")}`);
       if (view.firstSolver) parts.push("first to solve it");
@@ -142,7 +152,7 @@ export function cellSrText(view: Pick<CellView, "position" | "state" | "solveSec
     case "attempted":
       return `${label}: ${plural(view.attempts, "attempt")}, not solved yet`;
     case "untouched":
-      return `${label}: not attempted`;
+      return view.selfReported ? `${label}: not marked solved` : `${label}: not attempted`;
   }
 }
 
@@ -170,6 +180,7 @@ export function cellView(cell: MatrixCellInput | undefined, position: number, op
     judgingAttempt: state === "judging" ? attempts + 1 : null,
     firstSolver: solved && (cell?.firstSolver ?? false),
     solvedBefore: cell?.solvedBefore ?? false,
+    selfReported: options.selfReported ?? false,
     track: solved && durationSec ? trackFraction(solveSeconds!, durationSec) : null,
   };
   return { ...base, srText: cellSrText(base) };
@@ -236,6 +247,8 @@ export type MatrixOptions = {
   /** v2 `pending` of the latest state response. */
   pending?: readonly PendingCell[];
   durationSec?: number | null;
+  /** Positions of LeetCode slots (their solves are self-reported). */
+  selfReported?: ReadonlySet<number>;
 };
 
 /** Pending submit counts by "userId:position". */
@@ -273,10 +286,21 @@ export function matrixRows(
           pending: pending.get(`${p.userId}:${pos}`) ?? 0,
           splitSeconds: splits.get(pos) ?? null,
           durationSec: options.durationSec ?? null,
+          selfReported: options.selfReported?.has(pos) ?? false,
         }),
       ),
     };
   });
+}
+
+/** Positions of LeetCode slots: their solves are self-reported (rooms-external-problems §5). */
+export function selfReportedPositions(problems: readonly { position: number; external?: unknown }[]): Set<number> {
+  return new Set(problems.filter((p) => p.external).map((p) => p.position));
+}
+
+/** True when a session has at least one LeetCode slot ("Includes self-reported LeetCode problems"). */
+export function hasExternalProblems(problems: readonly { external?: unknown }[]): boolean {
+  return problems.some((p) => p.external);
 }
 
 /** Rows of a state snapshot (its order: rank, then username). */
@@ -288,7 +312,7 @@ export function scoreboardRows(
   return matrixRows(
     snapshot.participants,
     snapshot.problems.map((p) => p.position),
-    { viewerId, pending, durationSec: snapshot.session.durationMin * 60 },
+    { viewerId, pending, durationSec: snapshot.session.durationMin * 60, selfReported: selfReportedPositions(snapshot.problems) },
   );
 }
 
@@ -298,8 +322,12 @@ export type MatrixProblem = {
   position: number;
   /** Absent while titles are hidden. */
   title?: string;
-  slug?: string;
-  difficulty: Difficulty;
+  /** Our problem (absent for a LeetCode slot and while titles are hidden). */
+  slug?: string | null;
+  /** Null only for a LeetCode slot without a difficulty. */
+  difficulty: Difficulty | null;
+  /** A LeetCode slot; `slug` is absent while titles are hidden. */
+  external?: { slug?: string; rating?: number | null };
 };
 
 export type ColumnStats = {
@@ -387,6 +415,13 @@ export function myProblemStatus(
   const me = snapshot.participants.find((p) => p.userId === viewerId);
   const count = pendingIndex(pending).get(`${viewerId}:${position}`) ?? 0;
   const view = cellView(me?.cells.find((c) => c.position === position), position, { pending: count });
+  const external = snapshot.problems.some((p) => p.position === position && p.external);
+  if (external) {
+    // LeetCode slot: honor system, no judging or attempts (rooms-external-problems §5).
+    return view.state === "solved"
+      ? { state: "solved", text: `Marked solved ${view.time} (self-reported)` }
+      : { state: "untouched", text: "Not marked solved" };
+  }
   if (view.state === "solved") return { state: "solved", text: `Solved ${view.time}` };
   if (view.state === "judging") return { state: "judging", text: "Judging…" };
   if (view.state === "attempted") return { state: "attempted", text: "Attempted" };

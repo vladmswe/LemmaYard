@@ -9,6 +9,7 @@ const APP_TABLES = [
   "problem_tags",
   "problems",
   "room_events",
+  "room_external_problems",
   "room_members",
   "room_session_participants",
   "room_session_problems",

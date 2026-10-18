@@ -52,8 +52,10 @@ import { requireRoomMember, requireSessionInRoom, type RoomAccess, type RoomSess
 import {
   buildLobbyView,
   drawAndSave,
+  drawnCount,
   findPublishedProblem,
   loadDrawContext,
+  loadExternalSlots,
   loadSlots,
   toSlot,
   unknownTags,
@@ -76,6 +78,7 @@ import { sessionRng } from "./rng";
 
 export const SLOT_NOT_FOUND = "Slot not found";
 export const NOT_IN_LOBBY = "The session has already started";
+export const EXTERNAL_SLOT = "This is a LeetCode problem: remove it or pick another LeetCode problem instead";
 
 /** 404 with one body for unknown room, non-member, unknown or cross-room session (AC-S-SEC-1). */
 export function sessionNotFound(): NextResponse {
@@ -149,7 +152,7 @@ async function reload(tx: Tx, session: RoomSessionRow): Promise<RoomSessionRow> 
   return (await requireSessionInRoom(tx, session.roomId, session.id))!;
 }
 
-async function lobbyUpdated(tx: Tx, sessionId: string): Promise<void> {
+export async function lobbyUpdated(tx: Tx, sessionId: string): Promise<void> {
   const [s] = await tx
     .select({ problemCount: roomSessions.problemCount, durationMin: roomSessions.durationMin })
     .from(roomSessions)
@@ -157,21 +160,21 @@ async function lobbyUpdated(tx: Tx, sessionId: string): Promise<void> {
   await appendRoomEvent(tx, sessionId, { type: "lobby_updated", payload: s });
 }
 
-function notInLobby(session: RoomSessionRow): NextResponse {
+export function notInLobby(session: RoomSessionRow): NextResponse {
   return codedError(409, "not_lobby", session.status === "live" ? NOT_IN_LOBBY : SESSION_ENDED);
 }
 
 /** Settings stored in the session row after a pin or re-roll changed the actual mix. */
 async function syncActualMix(tx: Tx, session: RoomSessionRow): Promise<void> {
   const slots = await loadSlots(tx, session.id);
-  if (slots.length !== session.problemCount) return;
+  if (slots.length !== drawnCount(session)) return;
   await tx
     .update(roomSessions)
     .set({ settings: { ...session.settings, mix: mixOf(slots) } })
     .where(eq(roomSessions.id, session.id));
 }
 
-async function lobbyResponse(
+export async function lobbyResponse(
   tx: Tx,
   session: RoomSessionRow,
   canManage: boolean,
@@ -267,7 +270,7 @@ export function drawSession(request: Request, roomId: string, sessionId: string)
 
       const slots = await loadSlots(tx, session.id);
       let notices: DrawNotice[] = [];
-      if (touchesDraw(data) || slots.length !== resolved.problemCount) {
+      if (touchesDraw(data) || slots.length !== drawnCount(resolved)) {
         const drawn = await drawAndSave(tx, session, resolved, sessionRng());
         if (!drawn.ok) {
           return drawErrorResponse(drawErrorView(drawn, resolved.problemCount, resolved.settings.tags.length));
@@ -292,6 +295,10 @@ async function slotContext(
 ): Promise<{ response: NextResponse } | { position: number; slots: Slot[] }> {
   const position = parseSlotPosition(rawPosition);
   if (position === null || position > session.problemCount) return { response: jsonError(404, SLOT_NOT_FOUND) };
+  // LeetCode slots are the last ones (rooms-external-problems §1.2): never drawn, re-rolled or pinned.
+  if (position > drawnCount(session)) {
+    return { response: codedError(409, "external_slot", EXTERNAL_SLOT) };
+  }
   const slots = await loadSlots(tx, session.id);
   return { position, slots: slots.map(toSlot) };
 }
@@ -372,11 +379,12 @@ export function rerollAllSlots(request: Request, roomId: string, sessionId: stri
       if (session.status !== "lobby") return notInLobby(session);
       const mode = selectionModeOf(session.settings);
       if (mode === "manual") return codedError(409, "manual_mode", "Pick the problems yourself in this mode");
+      if (drawnCount(session) === 0) return codedError(409, "external_only", "Only LeetCode problems: nothing to re-roll");
       const rows = await loadSlots(tx, session.id);
       const slots = rows.map(toSlot);
       const ctx = await loadDrawContext(tx, session, session.settings.tags);
       const common = {
-        problemCount: session.problemCount,
+        problemCount: drawnCount(session),
         pool: ctx.pool,
         rerolledIds: session.rerolledProblemIds,
         rerollCount: session.rerollCount,
@@ -544,8 +552,12 @@ export function startSession(request: Request, roomId: string, sessionId: string
       const t = transition(session.status, "start");
       if (!t.ok || !t.changed) return notInLobby(session);
       const slots = await loadSlots(tx, session.id);
-      if (slots.length !== session.problemCount) {
+      const externals = await loadExternalSlots(tx, session.id);
+      if (slots.length !== drawnCount(session)) {
         return codedError(409, "slots_incomplete", "Fill every problem slot first");
+      }
+      if (slots.length + externals.length !== session.problemCount) {
+        return codedError(409, "slots_incomplete", "Pick the LeetCode problems first");
       }
       const gone = slots.find((s) => !s.published);
       if (gone) {
@@ -559,9 +571,12 @@ export function startSession(request: Request, roomId: string, sessionId: string
         .where(eq(roomSessionParticipants.sessionId, session.id));
       if (participants === 0) return codedError(409, "no_participants", "At least one participant must join first");
 
+      // LeetCode problems never change ratings: a session with only LeetCode problems is unrated (§6).
+      const rated = session.rated && slots.length > 0;
       const { rows } = await tx.execute<{ started_at: string; ends_at: string }>(sql`
         UPDATE room_sessions AS s
-        SET status = 'live', started_at = c.t, ends_at = c.t + make_interval(mins => s.duration_min::int)
+        SET status = 'live', started_at = c.t, ends_at = c.t + make_interval(mins => s.duration_min::int),
+            rated = ${rated}
         FROM (SELECT clock_timestamp() AS t) AS c
         WHERE s.id = ${session.id} AND s.status = 'lobby'
         RETURNING s.started_at, s.ends_at

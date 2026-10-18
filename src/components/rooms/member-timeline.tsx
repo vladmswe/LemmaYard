@@ -14,6 +14,7 @@ import { formatSplit, problemLabel, splitsByPosition } from "@/lib/rooms/live-vi
 import { formatScoreTime } from "@/lib/rooms/scoring";
 import type { MemberTimeline } from "@/server/rooms/history";
 
+import { SelfReportedTag } from "./external/leetcode-bits";
 import { LocalDate } from "./local-date";
 
 /**
@@ -112,9 +113,9 @@ function Stat({ label, index, children }: { label: string; index: number; childr
 }
 
 function chipSr(p: TimelineSession["problems"][number], split: number | null): string {
-  const head = `${problemLabel(p.position)}, ${p.title}: `;
+  const head = `${problemLabel(p.position)}, ${p.external ? "LeetCode, " : ""}${p.title}: `;
   if (p.solveSeconds !== null) {
-    const parts = [`solved at ${formatScoreTime(p.solveSeconds)}`];
+    const parts = [`${p.external ? "marked solved (self-reported)" : "solved"} at ${formatScoreTime(p.solveSeconds)}`];
     if (split !== null) parts.push(`${formatSplit(split)} after the previous solve`);
     if (p.wrongBefore > 0) parts.push(`${p.wrongBefore} wrong`);
     if (p.firstSolver) parts.push("first to solve it");
@@ -158,14 +159,16 @@ function TimelineItem({ roomId, session: s }: { roomId: string; session: Timelin
             >
               <span className="sr-only">{chipSr(p, split)}</span>
               <span aria-hidden className="flex min-w-0 items-center gap-2">
-                <DifficultyGlyph difficulty={p.difficulty} className={DIFFICULTIES[p.difficulty].text} />
+                {p.difficulty && <DifficultyGlyph difficulty={p.difficulty} className={DIFFICULTIES[p.difficulty].text} />}
                 <span className="max-w-[12rem] truncate font-medium" title={p.title}>
-                  {p.position} · {p.title}
+                  {p.position} · {p.external ? "LeetCode · " : ""}
+                  {p.title}
                 </span>
                 {solved ? (
                   <span className="flex items-center gap-1.5 font-mono font-semibold whitespace-nowrap tabular-nums">
                     <span className="text-success">✓</span>
                     {formatScoreTime(p.solveSeconds!)}
+                    {p.external && <SelfReportedTag />}
                     {split !== null && <span className="font-medium text-success">{formatSplit(split)}</span>}
                     {p.wrongBefore > 0 && <span className="font-medium text-warning">{p.wrongBefore}w</span>}
                     {p.firstSolver && <span className="text-primary">★</span>}

@@ -9,7 +9,15 @@ import { DIFFICULTIES } from "@/components/problems/difficulty";
 import { Avatar } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
 import { formatMinutes, roomHistoryHref, sessionResultsHref, sessionScreenHref } from "@/lib/rooms/history";
-import { formatMinuteMark, matrixRows, problemLabel, type CellView } from "@/lib/rooms/live-view";
+import { SELF_REPORTED_NOTE, SELF_REPORTED_TOOLTIP } from "@/lib/rooms/external";
+import {
+  formatMinuteMark,
+  hasExternalProblems,
+  matrixRows,
+  problemLabel,
+  selfReportedPositions,
+  type CellView,
+} from "@/lib/rooms/live-view";
 import type { HistorySessionItem, OpenSessionItem, RoomHistory } from "@/server/rooms/history";
 
 import { LocalDate } from "./local-date";
@@ -151,6 +159,11 @@ function SessionCard({ roomId, session: s, viewerId }: { roomId: string; session
         )}
       </div>
       {!cancelled && s.standings.length > 0 && <MiniMatrix session={s} viewerId={viewerId} />}
+      {!cancelled && hasExternalProblems(s.problems) && (
+        <p className="mt-2 text-[0.8125rem] text-muted-foreground" data-testid="history-self-reported">
+          {SELF_REPORTED_NOTE} (marked SELF).
+        </p>
+      )}
     </li>
   );
 }
@@ -161,7 +174,7 @@ function MiniMatrix({ session: s, viewerId }: { session: HistorySessionItem; vie
   const rows = matrixRows(
     s.standings.map((p) => ({ ...p, isHost: false })),
     positions,
-    { viewerId, durationSec: s.durationMin * 60 },
+    { viewerId, durationSec: s.durationMin * 60, selfReported: selfReportedPositions(s.problems) },
   );
   return (
     <div className="relative mt-3 overflow-x-auto" data-testid="mini-matrix">
@@ -187,14 +200,21 @@ function MiniMatrix({ session: s, viewerId }: { session: HistorySessionItem; vie
                 className="truncate px-1 text-left font-mono text-[0.6875rem] font-medium text-muted-foreground"
                 title={p.title}
               >
-                <DifficultyGlyph difficulty={p.difficulty} className={cn("mr-1", DIFFICULTIES[p.difficulty].text)} />
+                {p.difficulty && (
+                  <DifficultyGlyph difficulty={p.difficulty} className={cn("mr-1", DIFFICULTIES[p.difficulty].text)} />
+                )}
                 <span aria-hidden>{p.position}</span>
                 <span className="hidden sm:inline" aria-hidden>
                   {" "}
-                  · {p.title}
+                  · {p.external ? "LeetCode · " : ""}
+                  {p.title}
                 </span>
                 <span className="sr-only">
-                  {problemLabel(p.position)}: {p.title} ({DIFFICULTIES[p.difficulty].label})
+                  {problemLabel(p.position)}: {p.title} (
+                  {[p.external ? "LeetCode, self-reported" : null, p.difficulty ? DIFFICULTIES[p.difficulty].label : null]
+                    .filter(Boolean)
+                    .join(", ")}
+                  )
                 </span>
               </th>
             ))}
@@ -244,7 +264,12 @@ function MiniCell({ cell }: { cell: CellView }) {
   const sr = <span className="sr-only">{cell.srText}</span>;
   if (cell.state === "solved") {
     return (
-      <span className={cn(box, "bg-success-bg text-foreground")} data-cell-state="solved">
+      <span
+        className={cn(box, "bg-success-bg text-foreground", cell.selfReported && "border border-dashed border-success/70")}
+        data-cell-state="solved"
+        data-self-reported={cell.selfReported || undefined}
+        title={cell.selfReported ? SELF_REPORTED_TOOLTIP : undefined}
+      >
         {sr}
         <span aria-hidden className="hidden text-success sm:inline">
           ✓
@@ -258,6 +283,11 @@ function MiniCell({ cell }: { cell: CellView }) {
         {cell.firstSolver && (
           <span aria-hidden className="text-primary">
             ★
+          </span>
+        )}
+        {cell.selfReported && (
+          <span aria-hidden className="text-[0.625rem] font-semibold text-foreground-secondary">
+            SELF
           </span>
         )}
       </span>

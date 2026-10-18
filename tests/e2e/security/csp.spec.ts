@@ -107,12 +107,24 @@ test("main pages raise no CSP violation", async ({ browser, baseURL }) => {
   // Rooms v2: Next-session card (weekly schedule) and the Settings tab.
   const schedule = { weekday: 6, time: "18:00", timeZone: "Europe/Kyiv", presetId: null };
   expect((await api.post(`/api/rooms/${roomId}/schedule`, { data: { schedule }, headers })).status()).toBe(200);
+  // LeetCode problems (rooms-external-problems): a list entry in Settings and a LeetCode slot below.
+  const bank = await api.post(`/api/rooms/${roomId}/external-problems`, {
+    data: { action: "add", url: "https://leetcode.com/problems/two-sum/" },
+    headers,
+  });
+  expect(bank.status()).toBe(201);
+  const { entry } = (await bank.json()) as { entry: { id: string } };
   await visit(page, collected, `/rooms/${roomId}`);
   await visit(page, collected, `/rooms/${roomId}?tab=settings`);
   const session = await api.post(`/api/rooms/${roomId}/sessions`, { data: { problemCount: 2, durationMin: 30 }, headers });
   expect(session.status()).toBe(201);
   const { id: sessionId } = (await session.json()) as { id: string };
   const sessionPath = `/rooms/${roomId}/sessions/${sessionId}`;
+  const external = await api.post(`${sessionPath.replace("/rooms/", "/api/rooms/")}/external`, {
+    data: { action: "add", bankId: entry.id },
+    headers,
+  });
+  expect(external.status()).toBe(200);
   await visit(page, collected, sessionPath);
   const start = await api.post(`/api/rooms/${roomId}/sessions/${sessionId}/start`, { data: {}, headers });
   expect(start.status()).toBe(200);

@@ -167,6 +167,10 @@ has one rating per room (`room_members.rating`, Elo-style, pure core in
 (or by difficulty, or by hand) from the room's default preset. A rated
 session updates the room's ratings once, when it is finished and nothing is
 still being judged (`src/server/rooms/ratings.ts`).
+A session can also include LeetCode problems
+([`docs/specs/rooms-external-problems.md`](docs/specs/rooms-external-problems.md)): links from the room's
+LeetCode list (Settings) that participants mark solved themselves. They score like solves, are marked
+"SELF" everywhere, and never change ratings; nothing is fetched from leetcode.com.
 
 **Guide** (`src/content/learn/`, `src/lib/guide/`, `src/components/guide/`).
 Each lesson is MDX plus metadata, quiz and code samples. A visualization is a

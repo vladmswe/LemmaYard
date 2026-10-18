@@ -331,7 +331,7 @@ describe("indexes", () => {
     room_session_participants_user_idx: /\(user_id, session_id\)/,
     room_session_results_submission_idx: /\(first_accepted_submission_id\) WHERE \(first_accepted_submission_id IS NOT NULL\)/,
     room_events_session_id_idx: /\(session_id, id\)/,
-    room_events_one_solve: /UNIQUE INDEX .* \(session_id, actor_user_id, \(\(payload ->> 'position'::text\)\)\) WHERE \(type = 'problem_solved'::room_event_type\)/,
+    room_events_one_solve: /UNIQUE INDEX .* \(session_id, actor_user_id, \(\(payload ->> 'position'::text\)\)\) WHERE \(\(type = 'problem_solved'::room_event_type\) AND \(\(payload ->> 'selfReported'::text\) IS NULL\)\)/,
     rooms_created_by_idx: /\(created_by, created_at\)/,
     rooms_invite_token_hash_unique: /UNIQUE INDEX .* \(invite_token_hash\)/,
     submissions_room_session_idx: /\(room_session_id, user_id, problem_id, created_at\) WHERE \(room_session_id IS NOT NULL\)/,

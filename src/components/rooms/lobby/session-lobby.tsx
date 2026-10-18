@@ -45,6 +45,7 @@ import { CalibrationPanel } from "./calibration-panel";
 import { ProblemSearchDialog } from "./problem-search-dialog";
 import { SessionSettingsForm } from "./session-settings-form";
 import { LobbyExpectationPanel, RatingExplainerCard } from "./rating-panels";
+import { AddLeetCodeDialog } from "./add-leetcode-dialog";
 import { SlotList } from "./slot-list";
 import { useRoomInfo } from "./use-room-info";
 
@@ -87,6 +88,8 @@ export function SessionLobby({
   const [pinFor, setPinFor] = useState<number | null>(null);
   const [focus, setFocus] = useState<{ position: number; message: string; nonce: number } | null>(null);
   const [confirm, setConfirm] = useState<"start" | "cancel" | null>(null);
+  const [addingExternal, setAddingExternal] = useState(false);
+  const externalCount = lobby.settings.external ?? 0;
   const canManage = lobby.canManage;
   const tagNames = new Map(tags.map((t) => [t.slug, t.name]));
   const tagName = (slug: string) => tagNames.get(slug) ?? humanizeTag(slug);
@@ -182,9 +185,10 @@ export function SessionLobby({
                 Problems
               </h2>
               <p className="text-sm text-muted-foreground">
-                {lobby.problemCount} problem{lobby.problemCount === 1 ? "" : "s"} · {lobby.durationMin} minutes
-                {mode === "rating" ? " · warm-up first, stretch last" : ""}
-                {lobby.rated === false ? " · unrated" : ""}
+                {lobby.problemCount} problem{lobby.problemCount === 1 ? "" : "s"}
+                {externalCount > 0 ? ` (${externalCount} from LeetCode)` : ""} · {lobby.durationMin} minutes
+                {mode === "rating" && externalCount < lobby.problemCount ? " · warm-up first, stretch last" : ""}
+                {lobby.rated === false || externalCount >= lobby.problemCount ? " · unrated" : ""}
               </p>
             </div>
             {canManage && (
@@ -270,6 +274,13 @@ export function SessionLobby({
               act(`unpin-${pos}`, () => sessionApi.unpin(roomId, sessionId, pos), {
                 focusPosition: pos,
                 focusMessage: `Problem ${pos} unpinned`,
+              })
+            }
+            external={externalCount}
+            onAddExternal={() => setAddingExternal(true)}
+            onRemoveExternal={(pos) =>
+              act(`remove-external-${pos}`, () => sessionApi.external(roomId, sessionId, { action: "remove", position: pos }), {
+                success: `Problem ${pos} (LeetCode) removed`,
               })
             }
           />
@@ -425,6 +436,33 @@ export function SessionLobby({
               focusMessage: `Problem ${pos} pinned`,
             });
             if (ok) setPinFor(null);
+          }}
+        />
+      )}
+
+      {canManage && addingExternal && (
+        <AddLeetCodeDialog
+          roomId={roomId}
+          pending={busy !== null}
+          canSaveToBank={room?.role === "owner"}
+          inSession={new Set(lobby.slots.flatMap((s) => (s.external?.slug ? [s.external.slug] : [])))}
+          onClose={() => setAddingExternal(false)}
+          onAdd={async (body) => {
+            setBusy("add-external");
+            const res = await sessionApi.external(roomId, sessionId, body);
+            setBusy(null);
+            if (!res.ok) return { ok: false, error: res.error };
+            const next = res.data.lobby;
+            onLobby(next);
+            setNotices(next.notices);
+            setAddingExternal(false);
+            const added = next.slots.find(
+              (s) => s.external && !lobby.slots.some((o) => o.position === s.position && o.external?.slug === s.external?.slug),
+            );
+            toast.success("LeetCode problem added");
+            if (added) setFocus({ position: added.position, message: `Problem ${added.position}: LeetCode problem added`, nonce: Date.now() });
+            refresh();
+            return { ok: true };
           }}
         />
       )}

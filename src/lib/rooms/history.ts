@@ -296,8 +296,12 @@ export function summarizeProblem(input: ProblemSummaryInput): ProblemSummary {
 export type TimelineProblem = {
   position: number;
   title: string;
+  /** Our problem's slug, or the LeetCode slug when `external`. */
   slug: string;
-  difficulty: Difficulty;
+  /** Null only for a LeetCode problem without a difficulty. */
+  difficulty: Difficulty | null;
+  /** A LeetCode problem (rooms-external-problems): a solve is self-reported. */
+  external?: boolean;
   solveSeconds: number | null;
   wrongBefore: number;
   attempts: number;
@@ -331,11 +335,11 @@ export function timelineTotals(sessions: readonly TimelineSession[]): {
     if (s.rank === 1) wins += 1;
     for (const p of s.problems) {
       offered += 1;
+      if (p.solveSeconds !== null) solved += 1;
+      // The solve rate by difficulty is about judged problems: LeetCode ones are self-reported.
+      if (p.external || p.difficulty === null) continue;
       byDifficulty[p.difficulty].offered += 1;
-      if (p.solveSeconds !== null) {
-        solved += 1;
-        byDifficulty[p.difficulty].solved += 1;
-      }
+      if (p.solveSeconds !== null) byDifficulty[p.difficulty].solved += 1;
     }
   }
   return { sessions: sessions.length, solved, offered, wins, byDifficulty };
@@ -402,11 +406,18 @@ export function resultFacts(rows: readonly FactRow[]): ResultFacts {
   return { winners, firstSolves, fastest };
 }
 
-export type TimelineMark = { position: number; solveSeconds: number; /** 0..1 */ left: number };
+export type TimelineMark = {
+  position: number;
+  solveSeconds: number;
+  /** 0..1 */
+  left: number;
+  /** A LeetCode solve marked by the participant (rooms-external-problems §5). */
+  selfReported: boolean;
+};
 
 /** One marker per solve at `left = solveSeconds / duration` (AC-V2-MX-6), in time order. */
 export function timelineMarks(
-  cells: readonly { position: number; solveSeconds: number | null }[],
+  cells: readonly { position: number; solveSeconds: number | null; selfReported?: boolean }[],
   durationSec: number,
 ): TimelineMark[] {
   return cells
@@ -414,6 +425,7 @@ export function timelineMarks(
     .map((c) => ({
       position: c.position,
       solveSeconds: c.solveSeconds!,
+      selfReported: c.selfReported ?? false,
       left: durationSec > 0 ? Math.min(1, Math.max(0, c.solveSeconds! / durationSec)) : 0,
     }))
     .sort((a, b) => a.solveSeconds - b.solveSeconds || a.position - b.position);

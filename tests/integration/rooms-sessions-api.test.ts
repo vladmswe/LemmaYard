@@ -697,7 +697,7 @@ describe("cursor replay under concurrent finalizes", () => {
         for (let k = 0; k < 2; k++) {
           const createdAt = new Date(session.startedAt!.getTime() + 1000 * (1 + ui * 10 + slot.position * 3 + k));
           const [r] = await getTestDb().insert(submissions).values({
-            userId: u.id, problemId: slot.problemId, roomSessionId: id, kind: "submit", language: "python",
+            userId: u.id, problemId: slot.problemId!, roomSessionId: id, kind: "submit", language: "python",
             code: "x", status: "running", createdAt, startedAt: createdAt,
           }).returning({ id: submissions.id });
           rows.push({ id: r.id, status: k === 0 ? "wrong_answer" : "accepted" });

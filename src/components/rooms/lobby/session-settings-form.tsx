@@ -18,6 +18,7 @@ import { FieldError, FieldHelp } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Segmented } from "@/components/ui/segmented";
+import { EXTERNAL_UNRATED_HELP } from "@/lib/rooms/external";
 import { DIFFICULTY_LABEL, formFromLobby, mixError, settingsDiff, type LobbyForm } from "@/lib/rooms/lobby-copy";
 import {
   applyPresetToLobby,
@@ -79,7 +80,7 @@ export function SessionSettingsForm({
   const update = (patch: Partial<LobbyForm>) => setForm((f) => ({ ...f, ...patch }));
   const diff = settingsDiff(lobby, form);
   const dirty = Object.keys(diff).length > 0;
-  const mixProblem = form.mode === "difficulty" ? mixError(form) : null;
+  const mixProblem = form.mode === "difficulty" || form.external > form.problemCount ? mixError(form) : null;
   useEffect(() => {
     if (!dirty) onClean?.();
   }, [dirty, onClean]);
@@ -204,7 +205,10 @@ export function SessionSettingsForm({
           />
           <FieldHelp>
             {MIN_PROBLEM_COUNT}–{MAX_PROBLEM_COUNT} · {minutesPerProblem(form.durationMin, form.problemCount)}
+            {form.external > 0 &&
+              ` · ${form.external} from LeetCode (add or remove them in the Problems list), ${form.problemCount - form.external} drawn`}
           </FieldHelp>
+          {form.external > form.problemCount && <FieldError>{mixError(form)}</FieldError>}
         </div>
         <DurationField value={form.durationMin} onChange={(v) => update({ durationMin: v })} disabled={pending} />
       </div>
@@ -280,7 +284,11 @@ export function SessionSettingsForm({
         />
         <SwitchRow
           label="Rated session"
-          help={ratedHelp(form.durationMin, form.problemCount)}
+          help={
+            form.external > 0
+              ? `${ratedHelp(form.durationMin, form.problemCount)} ${EXTERNAL_UNRATED_HELP}`
+              : ratedHelp(form.durationMin, form.problemCount)
+          }
           checked={form.rated}
           onChange={(v) => update({ rated: v })}
           disabled={pending}

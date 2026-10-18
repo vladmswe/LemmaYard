@@ -57,7 +57,9 @@ export function eventNotice(event: RoomEvent, ctx: NoticeContext, live: boolean)
       return {
         id: event.id,
         kind: "solved",
-        title: `${event.actor.username} solved ${problemText(ctx, event.payload.position)}`,
+        title: event.payload.selfReported
+          ? `${event.actor.username} marked ${problemText(ctx, event.payload.position)} solved (self-reported)`
+          : `${event.actor.username} solved ${problemText(ctx, event.payload.position)}`,
         description: solvedDescription(event.payload),
         action: { label: "Scoreboard", href: ctx.links.scoreboard },
       };
@@ -116,7 +118,8 @@ export type FeedLine = {
   id: string;
   /** Event time (ISO), shown as the session clock or local time. */
   at: string;
-  kind: "solved" | "attempt" | "joined" | "started" | "ended" | "cancelled" | "judging";
+  /** `self` = a self-reported LeetCode solve (no ∎: nothing was proven); `undone` = it was taken back. */
+  kind: "solved" | "self" | "undone" | "attempt" | "joined" | "started" | "ended" | "cancelled" | "judging";
   text: string;
   /** Session clock ("23:41") for events during the live window. */
   clock: string | null;
@@ -141,11 +144,19 @@ export function feedLine(event: RoomEvent, ctx: Pick<NoticeContext, "titles">, s
       const extra = p.firstSolver ? " (first)" : p.wrongBefore > 0 ? ` after ${p.wrongBefore} wrong` : "";
       return {
         ...base,
-        kind: "solved",
+        kind: p.selfReported ? "self" : "solved",
         clock: formatScoreTime(p.solveSeconds),
-        text: `${event.actor.username} solved ${name(p.position)}${extra}`,
+        text: p.selfReported
+          ? `${event.actor.username} marked ${name(p.position)} solved (self-reported)${p.firstSolver ? " (first)" : ""}`
+          : `${event.actor.username} solved ${name(p.position)}${extra}`,
       };
     }
+    case "solve_undone":
+      return {
+        ...base,
+        kind: "undone",
+        text: `${event.actor.username} undid their self-reported solve of ${name(event.payload.position)}`,
+      };
     case "attempt_failed":
       return { ...base, kind: "attempt", text: attemptFailedText(event.actor.username, event.payload.position) };
     case "participant_joined":

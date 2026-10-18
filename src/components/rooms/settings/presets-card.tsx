@@ -247,12 +247,27 @@ export function PresetEditorDialog({
               min={MIN_PROBLEM_COUNT}
               max={MAX_PROBLEM_COUNT}
               disabled={pending}
-              onChange={(v) => update({ problemCount: v })}
+              onChange={(v) => update({ problemCount: v, external: Math.min(form.external, v) })}
             />
             <FieldHelp>
               {MIN_PROBLEM_COUNT}–{MAX_PROBLEM_COUNT} · {minutesPerProblem(form.durationMin, form.problemCount)}
             </FieldHelp>
             {errors.problemCount && <FieldError>{errors.problemCount}</FieldError>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Stepper
+              label="From LeetCode"
+              unit="LeetCode problems"
+              value={form.external}
+              min={0}
+              max={form.problemCount}
+              disabled={pending}
+              onChange={(v) => update({ external: v })}
+            />
+            <FieldHelp>
+              Slots the host fills with LeetCode links in the lobby. They are self-reported and never change ratings.
+            </FieldHelp>
+            {errors.external && <FieldError>{errors.external}</FieldError>}
           </div>
           <DurationField value={form.durationMin} onChange={(v) => update({ durationMin: v })} disabled={pending} />
           {errors.durationMin && <FieldError>{errors.durationMin}</FieldError>}
@@ -293,9 +308,10 @@ export function PresetEditorDialog({
                   ))}
                 </div>
               )}
-              {form.mixMode === "manual" && mixSum !== form.problemCount && !errors.mix && (
+              {form.mixMode === "manual" && mixSum !== form.problemCount - form.external && !errors.mix && (
                 <FieldHelp>
-                  The mix adds up to {mixSum}; it must add up to {form.problemCount}.
+                  The mix adds up to {mixSum}; it must add up to {form.problemCount - form.external}
+                  {form.external > 0 ? ` (${form.external} more from LeetCode)` : ""}.
                 </FieldHelp>
               )}
               {errors.mix && <FieldError>{errors.mix}</FieldError>}

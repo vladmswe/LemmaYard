@@ -1,5 +1,5 @@
 {
-  "id": "4faf98d8-7490-487b-88fd-faf79739ae1e",
+  "id": "85cc1443-30a8-4cc1-aa11-9372f17415c8",
   "prevId": "137f68aa-6de6-4683-a825-ca76e3997acd",
   "version": "7",
   "dialect": "postgresql",
@@ -165,21 +165,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
-        },
-        "languages": {
-          "name": "languages",
-          "type": "language[]",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{python,javascript}'::language[]"
-        },
-        "wide_ints": {
-          "name": "wide_ints",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::text[]"
         },
         "created_at": {
           "name": "created_at",
@@ -371,7 +356,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"room_events\".\"type\" = 'problem_solved'",
+          "where": "\"room_events\".\"type\" = 'problem_solved' AND (\"room_events\".\"payload\" ->> 'selfReported') IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -416,6 +401,148 @@
         "room_events_solve_position": {
           "name": "room_events_solve_position",
           "value": "\"room_events\".\"type\" <> 'problem_solved' OR coalesce(jsonb_typeof(\"room_events\".\"payload\" -> 'position'), '') = 'number'"
+        }
+      },
+      "isRLSEnabled": true
+    },
+    "public.room_external_problems": {
+      "name": "room_external_problems",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "room_id": {
+          "name": "room_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "difficulty": {
+          "name": "difficulty",
+          "type": "difficulty",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rating": {
+          "name": "rating",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "added_by": {
+          "name": "added_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "room_external_problems_room_idx": {
+          "name": "room_external_problems_room_idx",
+          "columns": [
+            {
+              "expression": "room_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "room_external_problems_room_id_rooms_id_fk": {
+          "name": "room_external_problems_room_id_rooms_id_fk",
+          "tableFrom": "room_external_problems",
+          "tableTo": "rooms",
+          "columnsFrom": [
+            "room_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "room_external_problems_added_by_users_id_fk": {
+          "name": "room_external_problems_added_by_users_id_fk",
+          "tableFrom": "room_external_problems",
+          "tableTo": "users",
+          "columnsFrom": [
+            "added_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "room_external_problems_room_slug": {
+          "name": "room_external_problems_room_slug",
+          "nullsNotDistinct": false,
+          "columns": [
+            "room_id",
+            "slug"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "room_external_problems_slug": {
+          "name": "room_external_problems_slug",
+          "value": "char_length(\"room_external_problems\".\"slug\") BETWEEN 1 AND 100 AND \"room_external_problems\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        },
+        "room_external_problems_title": {
+          "name": "room_external_problems_title",
+          "value": "char_length(\"room_external_problems\".\"title\") BETWEEN 1 AND 100 AND \"room_external_problems\".\"title\" !~ '[[:cntrl:]]'"
+        },
+        "room_external_problems_rating": {
+          "name": "room_external_problems_rating",
+          "value": "\"room_external_problems\".\"rating\" IS NULL OR \"room_external_problems\".\"rating\" BETWEEN 0 AND 4000"
         }
       },
       "isRLSEnabled": true
@@ -726,14 +853,14 @@
           "name": "problem_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "difficulty": {
           "name": "difficulty",
           "type": "difficulty",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "pinned": {
           "name": "pinned",
@@ -753,6 +880,30 @@
           "type": "smallint",
           "primaryKey": false,
           "notNull": false
+        },
+        "external_problem_id": {
+          "name": "external_problem_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_slug": {
+          "name": "external_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_title": {
+          "name": "external_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_rating": {
+          "name": "external_rating",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -767,6 +918,44 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "room_session_problems_unique_external": {
+          "name": "room_session_problems_unique_external",
+          "columns": [
+            {
+              "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "external_slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"room_session_problems\".\"external_slug\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "room_session_problems_external_idx": {
+          "name": "room_session_problems_external_idx",
+          "columns": [
+            {
+              "expression": "external_problem_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"room_session_problems\".\"external_problem_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -798,6 +987,19 @@
           ],
           "onDelete": "restrict",
           "onUpdate": "no action"
+        },
+        "room_session_problems_external_problem_id_room_external_problems_id_fk": {
+          "name": "room_session_problems_external_problem_id_room_external_problems_id_fk",
+          "tableFrom": "room_session_problems",
+          "tableTo": "room_external_problems",
+          "columnsFrom": [
+            "external_problem_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -824,6 +1026,10 @@
         "room_session_problems_position": {
           "name": "room_session_problems_position",
           "value": "\"room_session_problems\".\"position\" BETWEEN 1 AND 8"
+        },
+        "room_session_problems_kind": {
+          "name": "room_session_problems_kind",
+          "value": "(\"room_session_problems\".\"problem_id\" IS NOT NULL AND \"room_session_problems\".\"difficulty\" IS NOT NULL AND \"room_session_problems\".\"external_slug\" IS NULL\n          AND \"room_session_problems\".\"external_title\" IS NULL AND \"room_session_problems\".\"external_rating\" IS NULL AND \"room_session_problems\".\"external_problem_id\" IS NULL)\n        OR (\"room_session_problems\".\"problem_id\" IS NULL AND \"room_session_problems\".\"external_slug\" IS NOT NULL AND \"room_session_problems\".\"external_title\" IS NOT NULL\n          AND char_length(\"room_session_problems\".\"external_slug\") BETWEEN 1 AND 100 AND \"room_session_problems\".\"external_slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'\n          AND char_length(\"room_session_problems\".\"external_title\") BETWEEN 1 AND 100 AND \"room_session_problems\".\"external_title\" !~ '[[:cntrl:]]'\n          AND (\"room_session_problems\".\"external_rating\" IS NULL OR \"room_session_problems\".\"external_rating\" BETWEEN 0 AND 4000)\n          AND \"room_session_problems\".\"rating_at_start\" IS NULL AND \"room_session_problems\".\"rating_delta\" IS NULL AND NOT \"room_session_problems\".\"pinned\")"
         }
       },
       "isRLSEnabled": true
@@ -2034,8 +2240,7 @@
       "schema": "public",
       "values": [
         "python",
-        "javascript",
-        "java"
+        "javascript"
       ]
     },
     "public.rating_source": {
@@ -2057,7 +2262,8 @@
         "problem_solved",
         "attempt_failed",
         "session_ended",
-        "session_cancelled"
+        "session_cancelled",
+        "solve_undone"
       ]
     },
     "public.room_role": {

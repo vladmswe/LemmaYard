@@ -44,6 +44,8 @@ export type PresetForm = {
   mix: Mix;
   avoidSolved: boolean;
   rated: boolean;
+  /** LeetCode slots to fill in the lobby (rooms-external-problems §4). */
+  external: number;
 };
 
 export type FieldErrors = Partial<Record<string, string>>;
@@ -60,6 +62,7 @@ export function emptyPresetForm(): PresetForm {
     mix: { easy: 1, medium: 2, hard: 1 },
     avoidSolved: true,
     rated: true,
+    external: 0,
   };
 }
 
@@ -76,6 +79,7 @@ export function presetToForm(p: SessionTemplate): PresetForm {
     mix: p.mix ? { ...p.mix } : { easy: 1, medium: 2, hard: 1 },
     avoidSolved: p.avoidSolved,
     rated: p.rated,
+    external: p.external ?? 0,
   };
 }
 
@@ -92,6 +96,7 @@ export function formToPresetInput(f: PresetForm): PresetInput {
     ...(f.mode === "difficulty" && f.mixMode === "manual" ? { mix: { ...f.mix } } : {}),
     avoidSolved: f.avoidSolved,
     rated: f.rated,
+    ...(f.external > 0 ? { external: f.external } : {}),
   };
 }
 
@@ -109,16 +114,24 @@ export function validatePresetForm(f: PresetForm): { ok: true; preset: PresetInp
   const input = formToPresetInput(f);
   const parsed = presetInputSchema.safeParse(input);
   const errors: FieldErrors = parsed.success ? {} : issuesToFieldErrors(parsed.error.issues);
-  if (input.mix && mixTotal(input.mix) !== input.problemCount && errors.mix === undefined) {
-    errors.mix = `The custom mix must add up to ${input.problemCount}`;
+  const drawn = input.problemCount - (input.external ?? 0);
+  if ((input.external ?? 0) > input.problemCount && errors.external === undefined) {
+    errors.external = `Use at most ${input.problemCount} LeetCode problems`;
+  }
+  if (input.mix && mixTotal(input.mix) !== drawn && errors.mix === undefined) {
+    errors.mix = `The custom mix must add up to ${drawn}`;
   }
   if (Object.keys(errors).length > 0) return { ok: false, fieldErrors: errors };
   return { ok: true, preset: parsed.success ? parsed.data : input };
 }
 
 /** "90 min · 4 problems · by rating · balanced" */
-export function presetSummary(p: Pick<SessionTemplate, "durationMin" | "problemCount" | "mode" | "challenge" | "mix">): string {
-  const parts = [`${p.durationMin} min`, `${p.problemCount} problem${p.problemCount === 1 ? "" : "s"}`, MODE_WORD[p.mode]];
+export function presetSummary(
+  p: Pick<SessionTemplate, "durationMin" | "problemCount" | "mode" | "challenge" | "mix" | "external">,
+): string {
+  const parts = [`${p.durationMin} min`, `${p.problemCount} problem${p.problemCount === 1 ? "" : "s"}`];
+  if (p.external) parts.push(`${p.external} from LeetCode`);
+  parts.push(MODE_WORD[p.mode]);
   if (p.mode === "difficulty" && p.mix) {
     parts.push(DIFFICULTIES.filter((d) => p.mix![d] > 0).map((d) => `${p.mix![d]} ${d}`).join(" + "));
   } else if (p.mode !== "manual") {
@@ -191,6 +204,7 @@ export type LobbyPresetFields = {
   mix: Mix;
   avoidSolved: boolean;
   rated: boolean;
+  external: number;
 };
 
 const sortedEqual = (a: readonly string[], b: readonly string[]) =>
@@ -204,6 +218,7 @@ export function lobbyMatchesPreset(form: LobbyPresetFields, p: SessionTemplate):
     form.mode !== p.mode ||
     form.avoidSolved !== p.avoidSolved ||
     form.rated !== p.rated ||
+    form.external !== (p.external ?? 0) ||
     !sortedEqual(form.tags, p.tags)
   ) {
     return false;
@@ -230,6 +245,7 @@ export function applyPresetToLobby<T extends LobbyPresetFields>(form: T, p: Sess
     mix: p.mix ? { ...p.mix } : form.mix,
     avoidSolved: p.avoidSolved,
     rated: p.rated,
+    external: p.external ?? 0,
   };
 }
 
@@ -246,5 +262,6 @@ export function presetFormFromLobby(form: LobbyPresetFields, name = ""): PresetF
     mix: { ...form.mix },
     avoidSolved: form.avoidSolved,
     rated: form.rated,
+    external: form.external,
   };
 }

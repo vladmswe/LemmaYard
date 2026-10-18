@@ -20,6 +20,7 @@ import { membersHref, parseLeaderboardRange, parsePageParam, type LeaderboardRan
 import { getCurrentUser, requireUser } from "@/server/auth/session";
 import { getDb } from "@/server/db";
 import { requireRoomMember } from "@/server/rooms/access";
+import { listBank } from "@/server/rooms/external";
 import { getRoomHistory, getRoomMemberStats } from "@/server/rooms/history";
 import { getRoomDetail, type RoomDetail } from "@/server/rooms/queries";
 import { getRoomScheduleData } from "@/server/rooms/schedule";
@@ -51,10 +52,12 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
   const membersRange = parseLeaderboardRange(range);
   if (legacyRoomTabRedirect(tab)) redirect(membersHref(roomId, membersRange));
   const now = new Date();
-  const [openSession, schedule, tags] = await Promise.all([
+  const [openSession, schedule, tags, bank] = await Promise.all([
     getOpenSessionSummary(getDb(), roomId, user.id),
     getRoomScheduleData(getDb(), detail.room, now),
     listSessionTags(getDb()),
+    // Membership was checked by getRoomDetail above.
+    listBank(getDb(), roomId),
   ]);
   const isOwner = detail.viewer.role === "owner";
   const sub = [detail.room.description, memberCountLabel(detail.members.length), "team room"].filter(Boolean).join(" · ");
@@ -107,7 +110,7 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
               <MembersTab roomId={roomId} userId={user.id} range={membersRange} detail={detail} />
             </Suspense>
           }
-          settings={<RoomSettingsTab detail={detail} defaults={<RoomDefaultsCards detail={detail} tags={tags} />} />}
+          settings={<RoomSettingsTab detail={detail} defaults={<RoomDefaultsCards detail={detail} tags={tags} bank={bank} />} />}
         />
       </div>
     </>
