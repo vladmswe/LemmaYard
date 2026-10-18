@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { formatTagLabel } from "@/lib/format";
 import { DifficultyBadge } from "@/components/problems/difficulty-badge";
@@ -18,7 +19,14 @@ import { Markdown } from "./markdown";
  * label column) placed before the "Constraints" section, whose list items
  * carry ∎ markers.
  */
-export function ProblemDescription({ problem }: { problem: ProblemPageData }) {
+export function ProblemDescription({
+  problem,
+  actions,
+}: {
+  problem: ProblemPageData;
+  /** Extra controls at the end of the pill row (e.g. "Add to plan"). */
+  actions?: ReactNode;
+}) {
   const { before, after } = splitAtConstraints(problem.descriptionMd);
   // "Not started" adds nothing on the problem page; solved/attempted only.
   const status = problem.status === "solved" || problem.status === "attempted" ? problem.status : null;
@@ -46,6 +54,7 @@ export function ProblemDescription({ problem }: { problem: ProblemPageData }) {
           </ul>
         )}
         {status && <ProblemStatusBadge status={status} className="ml-auto" />}
+        {actions && <div className={status ? undefined : "ml-auto"}>{actions}</div>}
       </div>
 
       <div className="prose-problem mt-6">

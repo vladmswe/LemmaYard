@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
 import { cn } from "cn";
 
 import { Logo } from "@/components/brand/logo";
-import { isActivePath, NAV_LINKS } from "@/components/nav-links";
+import { isActivePath, type NavFlags, visibleNavLinks } from "@/components/nav-links";
 import { Avatar } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
@@ -44,7 +44,7 @@ const THEME_OPTIONS = [
  * when enabled in src/lib/theme-config.ts) and the account items or
  * Log in / Sign up. Focus is trapped and Esc closes it (Base UI dialog).
  */
-export function MobileMenu({ username }: { username: string | null }) {
+export function MobileMenu({ username, flags }: { username: string | null; flags?: NavFlags }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { logout, pending } = useLogout();
@@ -63,7 +63,7 @@ export function MobileMenu({ username }: { username: string | null }) {
     return () => query.removeEventListener("change", onChange);
   }, [open]);
 
-  const links = NAV_LINKS.filter((l) => username || !l.signedInOnly);
+  const links = visibleNavLinks(Boolean(username), flags);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
