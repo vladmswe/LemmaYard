@@ -9,8 +9,12 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
 import { THEME_TOGGLE_ENABLED } from "@/lib/theme-config";
+import { isModeratorRole } from "@/lib/community/types";
 import { getCurrentUser } from "@/server/auth/session";
 import { plansEnabled } from "@/server/plans/flag";
+import { isCommunityEnabled } from "@/server/community/flags";
+import { moderationQueueCount } from "@/server/community/moderation";
+import { getDb } from "@/server/db";
 
 /**
  * Sticky translucent paper header (DESIGN.md §12): 68px (60px below 961px;
@@ -22,6 +26,11 @@ import { plansEnabled } from "@/server/plans/flag";
 export async function SiteHeader({ compact = false }: { compact?: boolean }) {
   const user = await getCurrentUser();
   const flags = { plans: plansEnabled() };
+  // Community C1: moderators get "Moderation" (with the queue size) in the account menu.
+  const moderation =
+    user && isModeratorRole(user.role) && isCommunityEnabled()
+      ? { count: await moderationQueueCount(getDb()).catch(() => 0) }
+      : null;
 
   return (
     <header
@@ -57,7 +66,7 @@ export async function SiteHeader({ compact = false }: { compact?: boolean }) {
           {user ? (
             // Below 961px the account items live in the mobile menu instead.
             <div className="hidden min-[961px]:block">
-              <UserMenu username={user.username} />
+              <UserMenu username={user.username} moderation={moderation} />
             </div>
           ) : (
             <>
@@ -76,7 +85,7 @@ export async function SiteHeader({ compact = false }: { compact?: boolean }) {
               </Link>
             </>
           )}
-          <MobileMenu username={user?.username ?? null} flags={flags} />
+          <MobileMenu username={user?.username ?? null} flags={flags} moderation={moderation} />
         </div>
       </div>
     </header>

@@ -1,0 +1,109 @@
+/* User markdown in comments (docs/specs/community.md §C.4). Tokens only
+   (DESIGN.md §16); sizes follow the mockups: 15/24 body, mono code. */
+@layer components {
+  .user-md {
+    font-size: 0.9375rem;
+    line-height: 1.5rem;
+    color: var(--foreground);
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .user-md > * + * {
+    margin-top: 0.625rem;
+  }
+  .user-md h3,
+  .user-md h4 {
+    font: 600 0.9375rem/1.5rem var(--font-sans);
+    margin-top: 1rem;
+  }
+  .user-md h3 {
+    font-size: 1rem;
+  }
+  .user-md a {
+    color: var(--link);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .user-md a:visited {
+    color: var(--link-visited);
+  }
+  .user-md strong,
+  .user-md b {
+    font-weight: 600;
+  }
+  .user-md ul,
+  .user-md ol {
+    padding-left: 1.375rem;
+  }
+  .user-md ul {
+    list-style: disc;
+  }
+  .user-md ol {
+    list-style: decimal;
+  }
+  .user-md li + li {
+    margin-top: 0.25rem;
+  }
+  .user-md blockquote {
+    border-left: 2px solid var(--border-strong);
+    padding-left: 0.875rem;
+    color: var(--foreground-secondary);
+  }
+  .user-md hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+  .user-md :not(pre) > code,
+  .user-md kbd {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    font-weight: 500;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.05em 0.35em;
+    font-variant-ligatures: none;
+  }
+  .user-md pre {
+    font: 400 0.8125rem/1.3125rem var(--font-mono);
+    background: var(--editor-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.625rem 0.875rem;
+    overflow-x: auto;
+    max-width: 100%;
+    font-variant-ligatures: none;
+    tab-size: 4;
+  }
+  .user-md pre code {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-size: inherit;
+    font-weight: 400;
+  }
+  .user-md table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .user-md th,
+  .user-md td {
+    border: 1px solid var(--border);
+    padding: 0.25rem 0.625rem;
+  }
+  /* Shiki emits both themes as CSS variables (defaultColor: false). */
+  .user-md .shiki,
+  .user-md .shiki span {
+    color: var(--shiki-light);
+  }
+  .dark .user-md .shiki,
+  .dark .user-md .shiki span {
+    color: var(--shiki-dark);
+  }
+  .user-md .shiki {
+    background: var(--editor-bg) !important;
+  }
+}

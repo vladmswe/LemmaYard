@@ -1,0 +1,304 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`XSS corpus (AC-C-MD-1) > snapshot of the server output for the whole corpus (giant inputs excluded) 1`] = `
+"## script plain
+<div dir="auto" class="user-md"></div>
+
+## script mixed case
+<div dir="auto" class="user-md"></div>
+
+## script nested
+<div dir="auto" class="user-md"><p>&lt;script&gt;alert(1)&lt;/script&gt;</p></div>
+
+## script split across lines
+<div dir="auto" class="user-md"></div>
+
+## script src
+<div dir="auto" class="user-md"></div>
+
+## script inside paragraph
+<div dir="auto" class="user-md"><p>hello alert(document.cookie) world</p></div>
+
+## script in blockquote
+<div dir="auto" class="user-md"><blockquote>
+
+</blockquote></div>
+
+## script in list
+<div dir="auto" class="user-md"><ul>
+<li>
+
+</li>
+</ul></div>
+
+## script in table
+<div dir="auto" class="user-md"><table><thead><tr><th>a</th></tr></thead><tbody><tr><td>alert(1)</td></tr></tbody></table></div>
+
+## img onerror
+<div dir="auto" class="user-md"></div>
+
+## img onerror no quotes
+<div dir="auto" class="user-md"><p>&lt;img src=x onerror=alert(1)//&gt;</p></div>
+
+## svg onload
+<div dir="auto" class="user-md"></div>
+
+## svg onload slash
+<div dir="auto" class="user-md"><p>&lt;svg/onload=alert(1)&gt;</p></div>
+
+## body onload
+<div dir="auto" class="user-md"></div>
+
+## details ontoggle
+<div dir="auto" class="user-md"></div>
+
+## div onmouseover
+<div dir="auto" class="user-md"></div>
+
+## a onclick
+<div dir="auto" class="user-md"><p>x</p></div>
+
+## input autofocus onfocus
+<div dir="auto" class="user-md"></div>
+
+## marquee onstart
+<div dir="auto" class="user-md"><p>x</p></div>
+
+## video onerror
+<div dir="auto" class="user-md"><p></p></div>
+
+## audio src onerror
+<div dir="auto" class="user-md"></div>
+
+## select onfocus
+<div dir="auto" class="user-md"><p></p></div>
+
+## textarea onfocus
+<div dir="auto" class="user-md"></div>
+
+## md link javascript
+<div dir="auto" class="user-md"><p><a>x</a></p></div>
+
+## md link JavaScript mixed case
+<div dir="auto" class="user-md"><p><a>x</a></p></div>
+
+## md link leading space
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## md link angle brackets
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## md link vbscript
+<div dir="auto" class="user-md"><p><a>x</a></p></div>
+
+## md link data html
+<div dir="auto" class="user-md"><p><a>x</a></p></div>
+
+## md link data svg
+<div dir="auto" class="user-md"><p>[x](data:image/svg+xml,)</p></div>
+
+## md link file
+<div dir="auto" class="user-md"><p><a>x</a></p></div>
+
+## md link colon entity
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## md link tab entity
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## md link decimal entity
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## md link hex entities
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## md link percent encoded
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## md link tab inside scheme
+<div dir="auto" class="user-md"><p>[a](java	script:alert(1))</p></div>
+
+## md link newline entity
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## md link null char
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## md link title injection
+<div dir="auto" class="user-md"><p><a href="https://ok.example" title="x&quot; onmouseover=&quot;alert(1)" rel="ugc nofollow noopener noreferrer">a</a></p></div>
+
+## md link title quotes
+<div dir="auto" class="user-md"><p><a href="https://ok.example" title="x&quot; onclick=&quot;alert(1)" rel="ugc nofollow noopener noreferrer">a</a></p></div>
+
+## autolink javascript
+<div dir="auto" class="user-md"><p><a>javascript:alert(1)</a></p></div>
+
+## autolink data
+<div dir="auto" class="user-md"><p>&lt;data:text/html,alert(1)&gt;</p></div>
+
+## autolink vbscript
+<div dir="auto" class="user-md"><p><a>vbscript:msgbox(1)</a></p></div>
+
+## reference link javascript
+<div dir="auto" class="user-md"><p><a>x</a></p></div>
+
+## reference link data
+<div dir="auto" class="user-md"><p><a title="t">x</a></p></div>
+
+## image javascript src
+<div dir="auto" class="user-md"><p><a>alt</a></p></div>
+
+## image data src
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## image normal
+<div dir="auto" class="user-md"><p><a href="https://example.com/cat.png" rel="ugc nofollow noopener noreferrer">a cat</a></p></div>
+
+## image reference
+<div dir="auto" class="user-md"><p><a>x</a></p></div>
+
+## image onerror in alt
+<div dir="auto" class="user-md"><p><a href="https://example.com/x.png" rel="ugc nofollow noopener noreferrer">&quot; onerror=&quot;alert(1)</a></p></div>
+
+## link in image alt
+<div dir="auto" class="user-md"><p><a>img</a></p></div>
+
+## protocol relative
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## protocol relative with path
+<div dir="auto" class="user-md"><p><a>a</a></p></div>
+
+## backslash host
+<div dir="auto" class="user-md"><p><a href="%5Cevil.com">a</a></p></div>
+
+## slash backslash
+<div dir="auto" class="user-md"><p><a href="/%5Cevil.com">a</a></p></div>
+
+## html a target blank
+<div dir="auto" class="user-md"><p>x</p></div>
+
+## html a javascript
+<div dir="auto" class="user-md"><p>a</p></div>
+
+## svg with script
+<div dir="auto" class="user-md"><p>alert(1)</p></div>
+
+## svg use href
+<div dir="auto" class="user-md"><p></p></div>
+
+## svg animate
+<div dir="auto" class="user-md"><p></p></div>
+
+## mathml href
+<div dir="auto" class="user-md"><p>x</p></div>
+
+## math maction
+<div dir="auto" class="user-md"><p>x</p></div>
+
+## iframe
+<div dir="auto" class="user-md"></div>
+
+## iframe srcdoc
+<div dir="auto" class="user-md"></div>
+
+## object data
+<div dir="auto" class="user-md"><p></p></div>
+
+## embed src
+<div dir="auto" class="user-md"></div>
+
+## style tag
+<div dir="auto" class="user-md"></div>
+
+## style attribute
+<div dir="auto" class="user-md"></div>
+
+## style expression
+<div dir="auto" class="user-md"></div>
+
+## base href
+<div dir="auto" class="user-md"></div>
+
+## meta refresh
+<div dir="auto" class="user-md"></div>
+
+## link stylesheet
+<div dir="auto" class="user-md"></div>
+
+## form action
+<div dir="auto" class="user-md"></div>
+
+## button formaction
+<div dir="auto" class="user-md"><p>x</p></div>
+
+## a id name
+<div dir="auto" class="user-md"><p>clobber</p></div>
+
+## form name
+<div dir="auto" class="user-md"></div>
+
+## img name
+<div dir="auto" class="user-md"></div>
+
+## heading id
+<div dir="auto" class="user-md"></div>
+
+## noscript title mxss
+<div dir="auto" class="user-md"><p></p></div>
+
+## math mglyph style mxss
+<div dir="auto" class="user-md"><p></p></div>
+
+## svg p style mxss
+<div dir="auto" class="user-md"><p></p></div>
+
+## template mxss
+<div dir="auto" class="user-md"><p></p></div>
+
+## comment break
+<div dir="auto" class="user-md"></div>
+
+## html comment
+<div dir="auto" class="user-md"><p>before  after</p></div>
+
+## cdata
+<div dir="auto" class="user-md"></div>
+
+## xmp
+<div dir="auto" class="user-md"><p></p></div>
+
+## listing plaintext
+<div dir="auto" class="user-md"><p></p></div>
+
+## footnotes
+<div dir="auto" class="user-md"><p>text[1]</p>
+</div>
+
+## task list
+<div dir="auto" class="user-md"><ul>
+<li> task one</li>
+<li> task two</li>
+</ul></div>
+
+## html entities in code fence
+<div dir="auto" class="user-md"><pre tabindex="0"><code>&amp;lt;script&amp;gt;alert(1)&amp;lt;/script&amp;gt; &lt;img src=x onerror=alert(1)&gt;
+</code></pre></div>
+
+## unknown fence with script
+<div dir="auto" class="user-md"><pre tabindex="0"><code>&lt;script&gt;alert(1)&lt;/script&gt;
+</code></pre></div>
+
+## python fence with html
+<div dir="auto" class="user-md"><pre class="shiki shiki-themes github-light-default github-dark-default" style="--shiki-light:#1f2328;--shiki-dark:#e6edf3;--shiki-light-bg:#ffffff;--shiki-dark-bg:#0d1117" tabindex="0" data-language="python"><code><span class="line"><span style="--shiki-light:#0550AE;--shiki-dark:#79C0FF">print</span><span style="--shiki-light:#1F2328;--shiki-dark:#E6EDF3">(</span><span style="--shiki-light:#0A3069;--shiki-dark:#A5D6FF">&#x27;&lt;script&gt;alert(1)&lt;/script&gt;&#x27;</span><span style="--shiki-light:#1F2328;--shiki-dark:#E6EDF3">)</span></span></code></pre></div>
+
+## fence language injection
+<div dir="auto" class="user-md"><pre tabindex="0"><code>x
+</code></pre></div>
+
+## inline code with html
+<div dir="auto" class="user-md"><p><code>&lt;img src=x onerror=alert(1)&gt;</code></p></div>
+
+## mention
+<div dir="auto" class="user-md"><p><a href="/u/jsun">@jsun</a> see <code>@notamention</code> and @x</p></div>"
+`;

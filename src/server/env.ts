@@ -54,7 +54,7 @@ export const envSchema = z.object({
   MAX_CODE_BYTES: int(65536),
   PAGE_SIZE: int(20),
   QUEUED_TIMEOUT_MS: int(60000),
-  // Guide (/learn): "1" enables the /learn/dev-fixtures pages used by Playwright.
+  // "1" enables the Playwright fixture pages (/learn/dev-fixtures/*, /dev-fixtures/community-xss).
   GUIDE_FIXTURES: z.enum(["0", "1"]).default("0"),
   // Code execution (Run / Submit / room sessions): "1" on, "0" off. Unset: on,
   // except on Vercel with the docker executor (no worker there). See isJudgeEnabled().
@@ -77,9 +77,26 @@ export const envSchema = z.object({
   // the nav item and the add-to-plan buttons; "0" (default) hides them and
   // every /api/plans route answers 404. Independent of COMMUNITY_ENABLED.
   PLANS_ENABLED: z.enum(["0", "1"]).default("0"),
+  // Community layer (docs/specs/community.md): "1" shows discussions, votes,
+  // reports, moderation and the legal pages; "0" (default) hides all of it and
+  // its routes answer 404. See src/server/community/flags.ts.
+  COMMUNITY_ENABLED: z.enum(["0", "1"]).default("0"),
+  // Incident switch: "1" keeps community pages readable but every community
+  // write answers 503 {"code":"community_read_only"}.
+  COMMUNITY_READ_ONLY: z.enum(["0", "1"]).default("0"),
+  // Shown on the legal and report pages. Required in production when
+  // COMMUNITY_ENABLED=1.
+  CONTACT_EMAIL: z.email().optional(),
 }).superRefine((env, ctx) => {
   if (env.VERCEL && env.AUTH_RATE_LIMITS === "0") {
     ctx.addIssue({ code: "custom", path: ["AUTH_RATE_LIMITS"], message: "must not be 0 on Vercel" });
+  }
+  if (env.COMMUNITY_ENABLED === "1" && !env.CONTACT_EMAIL && deployedProduction(env)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["CONTACT_EMAIL"],
+      message: "is required in production when COMMUNITY_ENABLED=1 (legal and report pages)",
+    });
   }
   if (deployedProduction(env)) {
     const problem = weakSecretReason(env.AUTH_SECRET);

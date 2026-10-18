@@ -15,6 +15,9 @@ import { DESKTOP_QUERY, useMediaQuery } from "./use-media-query";
  *
  * - `description`: left "Description" tab (server-rendered statement).
  * - `submissions`: left "Submissions" tab (M6 fills it).
+ * - `discussion` / `discussionLabel` / `discussionMobile`: optional left
+ *   "Discussion" tab (Community C1, only when COMMUNITY_ENABLED) with its
+ *   streamed count; on mobile a link block under the statement instead.
  * - `editor`: right top, normally an `<EditorPane>` (Monaco + toolbar).
  * - `console`: right bottom, normally a `<ConsolePane>` (run results).
  * - `footer`: optional mobile-only fixed bar under the content (the Run /
@@ -32,6 +35,9 @@ import { DESKTOP_QUERY, useMediaQuery } from "./use-media-query";
 export type ProblemWorkspaceProps = {
   description: ReactNode;
   submissions: ReactNode;
+  discussion?: ReactNode;
+  discussionLabel?: ReactNode;
+  discussionMobile?: ReactNode;
   editor: ReactNode;
   console: ReactNode;
   footer?: ReactNode;
@@ -45,18 +51,31 @@ const paneClasses = "h-full min-h-0 overflow-hidden rounded-lg border bg-card sh
 
 export function ProblemWorkspace(props: ProblemWorkspaceProps) {
   const desktop = useMediaQuery(DESKTOP_QUERY);
-  if (desktop === null) return <WorkspaceFallback description={props.description} />;
+  if (desktop === null) {
+    return <WorkspaceFallback description={props.description} hasDiscussion={props.discussion !== undefined} />;
+  }
   return desktop ? <DesktopWorkspace {...props} /> : <MobileWorkspace {...props} />;
 }
 
-/** Left pane tabs: Description | Submissions (42px, DESIGN.md §12 Tabs). */
-function LeftTabs({ description, submissions }: Pick<ProblemWorkspaceProps, "description" | "submissions">) {
+/** Left pane tabs: Description | Discussion (community) | Submissions (42px, DESIGN.md §12 Tabs). */
+function LeftTabs({
+  description,
+  submissions,
+  discussion,
+  discussionLabel,
+}: Pick<ProblemWorkspaceProps, "description" | "submissions" | "discussion" | "discussionLabel">) {
   return (
     <Tabs defaultValue="description" className="h-full min-h-0 gap-0">
       <TabsList aria-label="Problem" className="shrink-0 px-2">
         <TabsTrigger value="description" className="h-[42px]">
           Description
         </TabsTrigger>
+        {discussion !== undefined && (
+          <TabsTrigger value="discussion" className="h-[42px]" data-testid="discussion-tab-trigger">
+            Discussion
+            {discussionLabel}
+          </TabsTrigger>
+        )}
         <TabsTrigger value="submissions" className="h-[42px]">
           Submissions
         </TabsTrigger>
@@ -64,6 +83,11 @@ function LeftTabs({ description, submissions }: Pick<ProblemWorkspaceProps, "des
       <TabsContent value="description" keepMounted className="min-h-0 overflow-y-auto">
         {description}
       </TabsContent>
+      {discussion !== undefined && (
+        <TabsContent value="discussion" keepMounted className="min-h-0 overflow-y-auto">
+          {discussion}
+        </TabsContent>
+      )}
       <TabsContent value="submissions" keepMounted className="min-h-0 overflow-y-auto">
         {submissions}
       </TabsContent>
@@ -71,7 +95,7 @@ function LeftTabs({ description, submissions }: Pick<ProblemWorkspaceProps, "des
   );
 }
 
-function DesktopWorkspace({ description, submissions, editor, console }: ProblemWorkspaceProps) {
+function DesktopWorkspace({ description, submissions, discussion, discussionLabel, editor, console }: ProblemWorkspaceProps) {
   const outer = useDefaultLayout({ id: "problem-workspace", panelIds: ["left", "right"] });
   const inner = useDefaultLayout({ id: "problem-workspace-right", panelIds: ["editor", "console"] });
 
@@ -84,7 +108,12 @@ function DesktopWorkspace({ description, submissions, editor, console }: Problem
       >
         <ResizablePanel id="left" defaultSize="44%" minSize="30%" maxSize="65%">
           <div className={paneClasses}>
-            <LeftTabs description={description} submissions={submissions} />
+            <LeftTabs
+              description={description}
+              submissions={submissions}
+              discussion={discussion}
+              discussionLabel={discussionLabel}
+            />
           </div>
         </ResizablePanel>
         <ResizableHandle aria-label="Resize description and editor" />
@@ -117,6 +146,7 @@ const MOBILE_TABS: { value: MobileTab; label: string }[] = [
 function MobileWorkspace({
   description,
   submissions,
+  discussionMobile,
   editor,
   console,
   footer,
@@ -142,6 +172,7 @@ function MobileWorkspace({
         </TabsList>
         <TabsContent value="description" keepMounted className={cn("min-h-0 overflow-y-auto bg-card", clear)}>
           {description}
+          {discussionMobile}
           <div className="border-t">{submissions}</div>
         </TabsContent>
         <TabsContent value="code" keepMounted className={cn("flex min-h-0 flex-col bg-editor", clear)}>
@@ -161,7 +192,7 @@ function MobileWorkspace({
 }
 
 /** SSR / hydration: the description in a pane, editor + console as skeletons on md+. */
-function WorkspaceFallback({ description }: { description: ReactNode }) {
+function WorkspaceFallback({ description, hasDiscussion }: { description: ReactNode; hasDiscussion: boolean }) {
   return (
     <div className="flex h-full min-h-0 flex-col md:flex-row md:gap-2 md:p-2">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card md:flex-none md:basis-[calc(44%-4px)] md:rounded-lg md:border md:shadow-sm">
@@ -170,6 +201,11 @@ function WorkspaceFallback({ description }: { description: ReactNode }) {
             <span className="max-md:hidden">Description</span>
             <span className="md:hidden">Problem</span>
           </span>
+          {hasDiscussion && (
+            <span className="inline-flex items-center gap-1.5 px-3.5 text-sm font-medium text-muted-foreground max-md:hidden">
+              Discussion
+            </span>
+          )}
           <span className="inline-flex items-center gap-1.5 px-3.5 text-sm font-medium text-muted-foreground max-md:flex-1 max-md:justify-center">
             <span className="max-md:hidden">Submissions</span>
             <span className="md:hidden">Code</span>

@@ -56,6 +56,7 @@ in a locked-down Docker container.
 - [How to add a language](#how-to-add-a-language)
 - [Testing](#testing)
 - [Security](#security)
+- [Community (C1)](#community-c1)
 - [Deployment](#deployment)
 - [Accepted MVP properties and known limitations](#accepted-mvp-properties-and-known-limitations)
 - [Naming, status and license](#naming-status-and-license)
@@ -247,6 +248,9 @@ docs/               deploy guide, specs, generated Supabase SQL, images
 | `pnpm sandbox:build` | Builds and checks the Python, Node and Java sandbox images (`pnpm sandbox:build java` builds one); rerun after any change in `sandbox/`. |
 | `pnpm plans:unpublish <id>` | Admin takedown: makes a study plan private and drops its share link (`DATABASE_URL_DIRECT`, else `DATABASE_URL`). |
 | `pnpm run setup` | `install` + `docker compose up -d --wait` + `sandbox:build` + `db:seed`. |
+| `pnpm user:role <email> <role>` | Sets an account's community role (`user`, `moderator`, `admin`); the only way to grant moderation rights. |
+| `pnpm community:recount [--check]` | Rebuilds the community counters (votes, replies, comment counts, problem likes) from their rows; `--check` only reports drift and exits 1 if any. |
+| `pnpm community:difficulty-report` | Read-only maintainer report: difficulty feedback per problem next to its author rating, `rating_adjust` and solve rate. |
 
 `problems:import` validates every problem first and writes nothing if one is
 invalid; then it upserts by slug in one transaction. `--prune` unpublishes
@@ -276,6 +280,9 @@ production table is in [docs/DEPLOY.md, section 3](docs/DEPLOY.md#3-vercel-envir
 | `SANDBOX_IMAGE_PYTHON`, `SANDBOX_IMAGE_NODE`, `SANDBOX_IMAGE_JAVA` | `lemmayard-sandbox-*:latest` | Sandbox image tags. |
 | `LANG_TIME_MULT_PY`, `LANG_TIME_MULT_JS`, `LANG_TIME_MULT_JAVA` | 2, 1, 2 | Per-language multiplier of a problem's time limit (Java: JVM start-up and compile are not counted, JIT warm-up is). |
 | `RUN_RATE_PER_MIN`, `SUBMIT_RATE_PER_MIN`, `MAX_ACTIVE_PER_USER` | 10, 5, 2 | Per-user judge limits. |
+| `COMMUNITY_ENABLED` | `0` | `1` turns on discussions, votes, reports, moderation and the legal pages; `0` hides them (routes 404). |
+| `COMMUNITY_READ_ONLY` | `0` | `1` keeps community pages readable; every community write answers 503. |
+| `CONTACT_EMAIL` | none | Shown on the legal and report pages; required in production with `COMMUNITY_ENABLED=1`. |
 
 ## How to add a problem
 
@@ -580,8 +587,8 @@ What exists (details: response headers in
   `Referrer-Policy` (`no-referrer` on the invite page), `Permissions-Policy`,
   `Cross-Origin-Opener-Policy`. `tests/e2e/security/csp.spec.ts` fails on any
   CSP violation across the main pages.
-- **Data:** SQL only through Drizzle; RLS enabled without policies on all 13
-  tables, so Supabase's REST roles see nothing; Markdown is sanitized
+- **Data:** SQL only through Drizzle; RLS enabled without policies on every
+  table, so Supabase's REST roles see nothing; Markdown is sanitized
   (`rehype-sanitize`, no raw HTML); room invite tokens live in the URL
   fragment and only their sha256 is stored.
 - **Logs:** user code, program output and passwords are never logged
@@ -590,6 +597,11 @@ What exists (details: response headers in
 - **Production secrets:** the `.env.example` `AUTH_SECRET`, anything with
   "change-me" and low-entropy values are rejected on Vercel or with
   `NODE_ENV=production` and a non-localhost `AUTH_URL`.
+
+- **User content (community):** comments are markdown rendered on the server
+  with a strict allowlist (no raw HTML, no images, no ids, `http`/`https`/`mailto`
+  links only, `rel="ugc nofollow noopener noreferrer"` on external links);
+  the CSP is unchanged. Bodies are never logged. See [Community (C1)](#community-c1).
 
 **Dependency audit** (2026-10-18, `pnpm audit --prod` and `pnpm audit`),
 accepted findings:
@@ -602,6 +614,63 @@ accepted findings:
 
 **Reporting a vulnerability:** contact the repository owner privately; do not
 open a public issue. A dedicated contact will be added.
+
+## Community (C1)
+
+Phase C1 of [docs/specs/community.md](docs/specs/community.md): discussions
+and votes on problems with the moderation, limits and legal pages they need.
+Everything is behind `COMMUNITY_ENABLED` and **off by default**: with the flag
+off there is no tab, footer column or button, and every community route answers
+404. `COMMUNITY_READ_ONLY=1` is the incident switch: pages stay readable, every
+community write answers 503 `{"code":"community_read_only"}` and a banner
+says so. `CONTACT_EMAIL` is shown on the legal pages and is required in
+production when the flag is on.
+
+What C1 ships:
+
+- A **Discussion** tab on every problem (count, Best/New top 5, composer) and
+  the full page `/problems/[slug]/discuss` (cursor pagination, permalinks).
+  Two levels: comments and flat replies; a reply to a reply attaches to the
+  top-level comment. Markdown with code blocks (Shiki on the server), edits
+  for 24 hours (revisions kept), soft delete.
+- **Votes** ▲▼ on comments and problems: one per person, net score shown,
+  "Best" sorts by the Wilson lower bound (a generated column). ▼ needs an
+  established account (older than 72 hours with an accepted submission).
+  Problems show "% liked" from 10 votes.
+- **Difficulty feedback** (easier / about right / harder) after you solve a
+  problem, summarized from 10 answers. It **never changes ratings**; it feeds
+  `pnpm community:difficulty-report` for maintainers.
+- **Spoilers:** "Contains a solution" hides the body (it is not even sent)
+  until the viewer has solved the problem or clicks "Show".
+- **Safety:** reports (one per person, reason enum); 3 reports by established
+  members (or 1 by a moderator) hide the comment until a moderator decides;
+  rate limits counted in Postgres under a per-user advisory lock; link caps,
+  URL shorteners rejected, duplicate detection, hold for review of new
+  accounts' links; moderator queue `/mod` (open reports, held content, audit
+  log) with hide / restore / remove / set spoiler / lock / suspend, each with a
+  reason.
+- **Legal page drafts** (owner to approve): `/legal/terms`,
+  `/legal/privacy`, `/legal/content-policy`, `/legal/report`, linked from a
+  footer column.
+
+Roles are `user`, `moderator` and `admin`, set only from the command line:
+`pnpm user:role you@example.com admin` (no UI). `pnpm community:recount
+[--check]` rebuilds the counters after manual SQL.
+
+Shared pieces for later phases (C2 study plans, C3 posts) to reuse rather than
+copy:
+
+- Markdown: `src/lib/community/markdown-schema.ts` (sanitize schema and
+  rehype steps) with `src/components/community/user-markdown.tsx` (server
+  renderer + Shiki) and `user-markdown-preview.tsx` (client preview).
+- Rate limits: `src/server/community/limits.ts` (`withCommunityLock`,
+  `enforceRateLimit`, `windowStats`) with the numbers in
+  `src/lib/community/rate-limits.ts`.
+- Flags: `src/server/community/flags.ts` (`communityFlags`,
+  `isCommunityEnabled`, `requireCommunityPage`).
+- Roles: `src/server/community/roles.ts`, `isModeratorRole`
+  (`src/lib/community/types.ts`) and `isModerator`
+  (`src/lib/community/permissions.ts`).
 
 ## Deployment
 

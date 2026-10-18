@@ -74,6 +74,10 @@ export type SolveWorkspaceProps = {
   judgeEnabled: boolean;
   description: ReactNode;
   submissions: ReactNode;
+  /** Community C1: the Discussion tab, its count label and the mobile link (absent while the flag is off). */
+  discussion?: ReactNode;
+  discussionLabel?: ReactNode;
+  discussionMobile?: ReactNode;
 };
 
 /**
@@ -93,6 +97,9 @@ export function SolveWorkspace({
   judgeEnabled,
   description,
   submissions,
+  discussion,
+  discussionLabel,
+  discussionMobile,
 }: SolveWorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -368,6 +375,9 @@ export function SolveWorkspace({
     <ProblemWorkspace
       description={description}
       submissions={submissions}
+      discussion={discussion}
+      discussionLabel={discussionLabel}
+      discussionMobile={discussionMobile}
       mobileTab={mobileTab}
       onMobileTabChange={setMobileTab}
       editor={

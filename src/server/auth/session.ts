@@ -15,6 +15,8 @@ export type SessionUser = {
   id: string;
   email: string;
   username: string;
+  /** Community C1: user | moderator | admin (set only by `pnpm user:role`). */
+  role: "user" | "moderator" | "admin";
 };
 
 /**
@@ -28,7 +30,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const userId = await verifySessionToken(token);
   if (!userId) return null;
   const [user] = await getDb()
-    .select({ id: users.id, email: users.email, username: users.username })
+    .select({ id: users.id, email: users.email, username: users.username, role: users.role })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);

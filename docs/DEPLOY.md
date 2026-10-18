@@ -81,6 +81,9 @@ the `AUTH_URL` note):
 | `PLANS_ENABLED` | no | `1` | Study plans: `/plans`, the "Plans" nav item, "Add to plan" on problems and in the problem list, "Save as study plan" on room results. `0` or unset (default): all of it is hidden and every `/api/plans` route answers 404. Independent of the other community features. Turning it off hides plans without deleting them. |
 | `VERCEL_SANDBOX_IMAGE_PYTHON`, `VERCEL_SANDBOX_IMAGE_NODE` | no | `vercel/sandbox/python:3.14`, `vercel/sandbox/node:22` | Sandbox images for `JUDGE_EXECUTOR=vercel-sandbox`. Leave unset (the defaults). |
 | `VERCEL_SANDBOX_IMAGE_JAVA` | no | `lemmayard-java:1` | Java image for `JUDGE_EXECUTOR=vercel-sandbox`: there is no managed one, so it is `sandbox/Dockerfile.java` pushed to the team's registry once (section 7, step 6). Until it is pushed, Java submissions end as Internal Error; Python and JavaScript are unaffected. |
+| `COMMUNITY_ENABLED` | no | `1` | Community features (problem discussions, votes, reports, `/mod`, legal pages). Default `0`: all hidden, routes answer 404. See "Turning on the community" below. |
+| `COMMUNITY_READ_ONLY` | no | `1` | Incident switch: community pages stay readable, every community write answers 503. Default `0`. |
+| `CONTACT_EMAIL` | with `COMMUNITY_ENABLED=1` | `hello@example.com` | Shown on the legal and report pages. **Required in production when `COMMUNITY_ENABLED=1`**: env validation fails without it. |
 
 Do **not** set `DATABASE_URL_DIRECT` on Vercel; the web app never uses it.
 Do not set `NODE_ENV` or `PORT` either; Vercel manages them. Do not set
@@ -97,6 +100,24 @@ Changing an environment variable does not affect running deployments:
 **redeploy** afterwards (Deployments → ⋯ on the latest → Redeploy). The build
 itself does not need the database or any of these variables (all pages render
 on demand), so a missing variable shows up only at run time.
+
+### Turning on the community
+
+The community layer (phase C1, docs/specs/community.md) ships off. To turn it
+on, after the owner's go-ahead:
+
+1. Apply the migration: `DATABASE_URL_DIRECT='<session pooler>' pnpm db:migrate`
+   from your machine (or, for a fresh project, the regenerated
+   `docs/supabase/schema.sql` already contains it).
+2. Make yourself admin: `DATABASE_URL_DIRECT='<session pooler>' pnpm user:role you@example.com admin`.
+   Roles change only this way; there is no UI.
+3. Set `CONTACT_EMAIL` in Vercel, read the legal page drafts (`/legal/*`)
+   and adjust them if needed.
+4. Set `COMMUNITY_ENABLED=1` and redeploy.
+
+During an incident (spam wave, abuse) set `COMMUNITY_READ_ONLY=1` and
+redeploy: reading still works, writing does not. The moderation queue is at
+`/mod` (account menu → Moderation).
 
 **Region.** Put the Vercel Functions in the same region as the Supabase
 project (Settings → Functions → Function Region; e.g. Frankfurt `fra1` for
@@ -180,8 +201,8 @@ Then open `https://<production domain>/api/health` (section 6): it must answer
 
 `schema.sql` (generated from `drizzle/*.sql` by `pnpm db:export-sql`) is for an
 EMPTY project only: it refuses to run if the tables already exist. It creates
-all 19 tables, indexes and CHECKs, enables RLS on each table (no policies) and
-records the 8 migrations in `drizzle.__drizzle_migrations`, so a later
+all 27 tables, indexes and CHECKs, enables RLS on each table (no policies) and
+records the 9 migrations in `drizzle.__drizzle_migrations`, so a later
 `pnpm db:migrate` applies only migrations added after the file was generated.
 
 `problems.sql` (generated from `problems/` by `pnpm problems:export-sql`, with
@@ -202,15 +223,18 @@ with `pnpm db:export-sql` after adding a migration and with
 
 ### Row level security
 
-Row level security is on for all 18 application tables, **without any
+Row level security is on for all 27 application tables, **without any
 policies**: migration `0002_enable_rls` covers `users`, `problems`, `tags`,
 `problem_tags`, `test_cases` and `submissions`; migration `0003_rooms` creates
 `rooms`, `room_members`, `room_sessions`, `room_session_problems`,
 `room_session_participants`, `room_session_results` and `room_events` with RLS
 enabled. Migration `0004_rooms_v2` (per-room ratings, problem ratings, room
-presets and schedule) only adds columns to existing tables. Migration `0005_study_plans` creates
+presets and schedule) only adds columns to existing tables. Migration `0007_study_plans` creates
 `study_plans`, `study_plan_sections`, `study_plan_items`, `study_plan_ticks` and
-`study_plan_saves` with RLS enabled. Every table added later must enable it too
+`study_plan_saves`, and migration `0008_community_c1` creates the community tables
+(`discussion_threads`, `comments`, `comment_votes`, `problem_votes`,
+`problem_difficulty_feedback`, `reports`, `moderation_actions`, `content_revisions`),
+both with RLS enabled. Every table added later must enable it too
 (`tests/integration/rls.test.ts` fails otherwise). Supabase exposes the `public` schema through its
 REST API (with the public `anon` key); without RLS, anyone with that key could
 read `users`, including password hashes. With RLS on and no policies, the

@@ -380,7 +380,9 @@ describe("indexes", () => {
       await plan(
         sql`SELECT id FROM submissions WHERE room_session_id = ${s.session.id} AND user_id = ${u} AND problem_id = ${p} AND kind = 'submit' AND status NOT IN ('queued', 'running') ORDER BY created_at, id`,
       ),
-    ).toMatch(/submissions_room_session_idx/);
+      // With user and problem both bound, the planner may also pick the
+      // (user_id, problem_id, created_at) index on these tiny test tables.
+    ).toMatch(/submissions_room_session_idx|submissions_user_problem_created_idx/);
     expect(
       await plan(sql`SELECT count(*) FROM submissions WHERE room_session_id = ${s.session.id} AND status IN ('queued', 'running')`),
     ).toMatch(/submissions_room_session_idx/);

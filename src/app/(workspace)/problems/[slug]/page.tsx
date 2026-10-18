@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache, Suspense } from "react";
 
+import { DiscussionCount, DiscussionMobileLink, DiscussionTab } from "@/components/community/discussion-tab";
 import { NOT_FOUND_TITLE } from "@/components/not-found-content";
 import { AddToPlanDialog } from "@/components/plans/add-to-plan-dialog";
 import { ProblemDescription } from "@/components/problem/problem-description";
@@ -11,6 +12,7 @@ import { ProblemSessionSlot } from "@/components/rooms/live/problem-session-slot
 import { ProblemSubmissions } from "@/components/submissions/problem-submissions";
 import { SubmissionsSkeleton } from "@/components/submissions/submissions-skeleton";
 import { getCurrentUser } from "@/server/auth/session";
+import { isCommunityEnabled } from "@/server/community/flags";
 import { judgeEnabled } from "@/server/judge";
 import { languageList } from "@/lib/workspace/languages";
 import { plansEnabled } from "@/server/plans/flag";
@@ -42,6 +44,9 @@ export default async function ProblemPage({ params, searchParams }: PageProps<"/
   // Rooms: `?session=<id>` names the session explicitly (spec §1.2 step 8).
   const { session } = await searchParams;
   const sessionParam = typeof session === "string" ? session : null;
+  // Community C1: the Discussion tab streams in its own boundary (AC-C-CM-7).
+  const community = isCommunityEnabled();
+  const userId = user?.id ?? null;
 
   return (
     <SubmitContextProvider>
@@ -66,6 +71,33 @@ export default async function ProblemPage({ params, searchParams }: PageProps<"/
               problem={problem}
               actions={user && plansEnabled() ? <AddToPlanDialog problem={{ slug: problem.slug, title: problem.title }} /> : null}
             />
+          }
+          discussion={
+            community ? (
+              <Suspense
+                fallback={
+                  <div className="p-4">
+                    <SubmissionsSkeleton rows={3} />
+                  </div>
+                }
+              >
+                <DiscussionTab slug={problem.slug} userId={userId} />
+              </Suspense>
+            ) : undefined
+          }
+          discussionLabel={
+            community ? (
+              <Suspense fallback={null}>
+                <DiscussionCount slug={problem.slug} userId={userId} />
+              </Suspense>
+            ) : undefined
+          }
+          discussionMobile={
+            community ? (
+              <Suspense fallback={null}>
+                <DiscussionMobileLink slug={problem.slug} userId={userId} />
+              </Suspense>
+            ) : undefined
           }
           submissions={
             // Own boundary: the tab's query (AC-M6-3) streams without holding up the editor.

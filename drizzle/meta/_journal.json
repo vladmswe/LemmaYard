@@ -57,6 +57,13 @@
       "when": 1792347782227,
       "tag": "0007_study_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792348463803,
+      "tag": "0008_community_c1",
+      "breakpoints": true
     }
   ]
 }
