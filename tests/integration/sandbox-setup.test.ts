@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import {
   createDockerExecutor,
+  namespaceLabel,
   prepareSandbox,
   SANDBOX_LABEL,
   SandboxSetupError,
@@ -14,22 +15,49 @@ import { config, evensJob, sandboxContainers } from "../helpers/sandbox";
 
 const T = 60_000;
 
+/** A started `sleep 60` container with the sandbox label and `extraLabels`. */
+function sleeper(extraLabels: string[]): string {
+  const id = execFileSync(
+    "docker",
+    ["create", "--label", SANDBOX_LABEL, ...extraLabels.flatMap((l) => ["--label", l]), "--network", "none", config().imagePython, "sleep", "60"],
+    { encoding: "utf8" },
+  ).trim();
+  execFileSync("docker", ["start", id]);
+  return id;
+}
+
+const exists = (id: string) =>
+  execFileSync("docker", ["ps", "-a", "--filter", `id=${id}`, "-q"], { encoding: "utf8" }).trim() !== "";
+
 afterAll(() => {
   expect(sandboxContainers()).toEqual([]);
 });
 
 describe("prepareSandbox", () => {
-  it("removes orphaned sandbox containers", { timeout: T }, async () => {
-    const id = execFileSync(
-      "docker",
-      ["create", "--label", SANDBOX_LABEL, "--network", "none", config().imagePython, "sleep", "60"],
-      { encoding: "utf8" },
-    ).trim();
-    execFileSync("docker", ["start", id]);
+  it("removes orphaned sandbox containers of its own namespace", { timeout: T }, async () => {
+    const id = sleeper([namespaceLabel(config().namespace)]);
     expect(sandboxContainers()).toContain(id.slice(0, 12));
     const { removed } = await prepareSandbox(config());
     expect(removed).toBeGreaterThanOrEqual(1);
     expect(sandboxContainers()).toEqual([]);
+  });
+
+  it("leaves other namespaces and containers without the ns label alone", { timeout: T }, async () => {
+    const otherNs = `${config().namespace}-other`;
+    const other = sleeper([namespaceLabel(otherNs)]);
+    const legacy = sleeper([]);
+    try {
+      // This checkout's worker starts: neither container is touched.
+      await expect(prepareSandbox(config())).resolves.toEqual({ removed: 0 });
+      expect(exists(other)).toBe(true);
+      expect(exists(legacy)).toBe(true);
+      // The other namespace's worker starts: it removes only its own container.
+      await expect(prepareSandbox({ ...config(), namespace: otherNs })).resolves.toEqual({ removed: 1 });
+      expect(exists(other)).toBe(false);
+      expect(exists(legacy)).toBe(true);
+    } finally {
+      for (const id of [other, legacy].filter(exists)) execFileSync("docker", ["rm", "-f", id], { stdio: "ignore" });
+    }
   });
 
   it("passes when both images exist", { timeout: T }, async () => {

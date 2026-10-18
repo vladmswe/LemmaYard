@@ -32,13 +32,13 @@ describe("no shell execution in worker/ and scripts/", () => {
 });
 
 describe("docker create arguments", () => {
-  const args = buildCreateArgs("img:tag", 256, sandboxCommand("javascript", 256));
+  const args = buildCreateArgs("img:tag", 256, sandboxCommand("javascript", 256), "ns-test");
 
   it("carries every hardening flag of PLAN.md section 5", () => {
     const joined = args.join(" ");
     for (const flag of [
       "create -i",
-      "--label lemmayard.sandbox=1",
+      "--label lemmayard.sandbox=1 --label lemmayard.ns=ns-test",
       "--pull never",
       "--network none",
       "--read-only",

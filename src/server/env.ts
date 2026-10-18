@@ -35,6 +35,13 @@ export const envSchema = z.object({
   WALL_CAP_MS: int(30000),
   SANDBOX_IMAGE_PYTHON: z.string().min(1).default("lemmayard-sandbox-python:latest"),
   SANDBOX_IMAGE_NODE: z.string().min(1).default("lemmayard-sandbox-node:latest"),
+  // Label lemmayard.ns=<value> on every sandbox container; the worker's
+  // start-up cleanup only removes containers of its own namespace. Unset: the
+  // checkout's directory name + a path hash (worker/docker-executor.ts).
+  SANDBOX_NAMESPACE: z
+    .string()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/, "letters, digits, _ . - (max 64), starting with a letter or digit")
+    .optional(),
   LANG_TIME_MULT_PY: z.coerce.number().positive().default(2),
   LANG_TIME_MULT_JS: z.coerce.number().positive().default(1),
   RUN_RATE_PER_MIN: int(10),

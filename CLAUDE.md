@@ -54,7 +54,9 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
   `sandbox/harness.{py,js}`. Queue SQL and job/result mapping
   `worker/queue.ts`, slots + sweep `worker/loop.ts`, process `worker/index.ts`.
   Finalize only `WHERE status='running'`; never requeue; worker logs never
-  contain user code or stdout.
+  contain user code or stdout. Sandbox containers carry `lemmayard.sandbox=1`
+  and `lemmayard.ns=<SANDBOX_NAMESPACE>` (default: checkout dir + path hash);
+  cleanup and leftover checks filter by both, never by the sandbox label alone.
 - Rooms (`docs/specs/rooms.md`): pure, deterministic domain code in
   `src/lib/rooms/` (`types`, `selection`, `scoring`, `invite`, `session-state`,
   `events`, `rng`) with no DB or server imports, so the client can reuse it;

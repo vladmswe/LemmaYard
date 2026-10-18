@@ -3,7 +3,8 @@
 // with argument arrays (never a shell), no bind mounts and no `-e`: the
 // worker's environment never reaches the container.
 import { execFile } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import path from "node:path";
 
 import type { Env } from "@/server/env";
 
@@ -12,6 +13,12 @@ import { FrameParser, type SandboxPayload } from "./protocol";
 import type { ExecJob, ExecResult, Executor, Language } from "./types";
 
 export const SANDBOX_LABEL = "lemmayard.sandbox=1";
+/**
+ * Every container also carries `lemmayard.ns=<namespace>`. Start-up cleanup
+ * and the leftover checks only look at their own namespace, so workers of
+ * other checkouts (worktrees) or other runs never lose their containers.
+ */
+export const NAMESPACE_LABEL_KEY = "lemmayard.ns";
 export const OUTPUT_LIMIT_BYTES = 1024 * 1024;
 export const WALL_BASE_MS = 3000;
 const DOCKER_CMD_TIMEOUT_MS = 30_000;
@@ -24,6 +31,8 @@ export type DockerExecutorConfig = {
   timeMultPython: number;
   timeMultJs: number;
   wallCapMs: number;
+  /** Value of the `lemmayard.ns` label (see `sandboxNamespace`). */
+  namespace: string;
   dockerBin?: string;
   /** Extra `key=value` labels on every container (the worker tags its own). */
   labels?: string[];
@@ -36,7 +45,23 @@ export function dockerConfigFromEnv(env: Env): DockerExecutorConfig {
     timeMultPython: env.LANG_TIME_MULT_PY,
     timeMultJs: env.LANG_TIME_MULT_JS,
     wallCapMs: env.WALL_CAP_MS,
+    namespace: env.SANDBOX_NAMESPACE ?? defaultSandboxNamespace(),
   };
+}
+
+/**
+ * Default namespace of a checkout: its directory name plus a short hash of
+ * the absolute path (`leet-copy-1a2b3c4d`), so two worktrees never share one.
+ */
+export function defaultSandboxNamespace(projectDir: string = process.cwd()): string {
+  const dir = path.resolve(projectDir);
+  const name = path.basename(dir).toLowerCase().replace(/[^a-z0-9_.-]+/g, "-").replace(/^[-_.]+/, "").slice(0, 40);
+  const hash = createHash("sha256").update(dir).digest("hex").slice(0, 8);
+  return name ? `${name}-${hash}` : hash;
+}
+
+export function namespaceLabel(namespace: string): string {
+  return `${NAMESPACE_LABEL_KEY}=${namespace}`;
 }
 
 export class SandboxSetupError extends Error {
@@ -82,6 +107,7 @@ export function buildCreateArgs(
   image: string,
   memoryMb: number,
   command: string[],
+  namespace: string,
   extraLabels: string[] = [],
 ): string[] {
   return [
@@ -89,6 +115,8 @@ export function buildCreateArgs(
     "-i",
     "--label",
     SANDBOX_LABEL,
+    "--label",
+    namespaceLabel(namespace),
     ...extraLabels.flatMap((label) => ["--label", label]),
     "--pull",
     "never",
@@ -138,11 +166,18 @@ function docker(bin: string, args: string[], timeoutMs = DOCKER_CMD_TIMEOUT_MS):
   });
 }
 
+/** `docker ps` filter for the sandbox containers of one namespace. */
+export function namespaceFilterArgs(namespace: string): string[] {
+  return ["--filter", `label=${SANDBOX_LABEL}`, "--filter", `label=${namespaceLabel(namespace)}`];
+}
+
 /**
- * Worker start-up: removes orphaned sandbox containers (label
- * `lemmayard.sandbox=1`) and checks that both images exist. Other users of the
- * executor (`problems:verify`) pass `removeOrphans: false` so that they never
- * remove the containers of a running worker.
+ * Worker start-up: removes orphaned sandbox containers of this namespace
+ * (labels `lemmayard.sandbox=1` and `lemmayard.ns=<namespace>`; containers of
+ * other namespaces and old containers without the ns label are left alone)
+ * and checks that both images exist. Other users of the executor
+ * (`problems:verify`) pass `removeOrphans: false` so that they never remove
+ * the containers of a running worker.
  */
 export async function prepareSandbox(
   config: DockerExecutorConfig,
@@ -151,7 +186,7 @@ export async function prepareSandbox(
   const bin = config.dockerBin ?? "docker";
   let ids: string[];
   try {
-    const { stdout } = await docker(bin, ["ps", "-a", "--filter", `label=${SANDBOX_LABEL}`, "-q"]);
+    const { stdout } = await docker(bin, ["ps", "-a", ...namespaceFilterArgs(config.namespace), "-q"]);
     ids = stdout.split("\n").map((s) => s.trim()).filter(Boolean);
   } catch (error) {
     throw new SandboxSetupError(
@@ -295,6 +330,7 @@ export function createDockerExecutor(config: DockerExecutorConfig): Executor {
         imageFor(job.language, config),
         job.limits.memoryMb,
         sandboxCommand(job.language, job.limits.memoryMb),
+        config.namespace,
         config.labels,
       );
       id = (await docker(bin, args)).stdout.trim();

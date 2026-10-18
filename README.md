@@ -124,8 +124,10 @@ and never removes containers (safe while a worker is running).
 ### Worker
 
 `pnpm worker` runs on the host (it needs the Docker CLI; it is not part of
-docker compose). At start it removes orphaned sandbox containers (label
-`lemmayard.sandbox=1`) and checks both images, exiting non-zero with a clear
+docker compose). At start it removes orphaned sandbox containers of its own
+namespace (labels `lemmayard.sandbox=1` and `lemmayard.ns=<SANDBOX_NAMESPACE>`;
+the namespace defaults to the checkout's directory name plus a hash of its
+path, so workers of other worktrees and runs keep their containers) and checks both images, exiting non-zero with a clear
 message if Docker or an image is missing. It then runs `WORKER_CONCURRENCY`
 slots that poll every `WORKER_POLL_MS` and claim the oldest `queued`
 submission atomically (`UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED
@@ -140,6 +142,13 @@ jobs, then mark the rest `internal_error` and remove this worker's containers
 (label `lemmayard.worker=<id>`); a second signal skips the wait. Code:
 `worker/index.ts` (process), `worker/loop.ts` (slots, sweep timer),
 `worker/queue.ts` (SQL and job/result mapping).
+
+Containers created before the namespace label existed (no `lemmayard.ns`) are
+never removed automatically. One-time cleanup, with no worker or
+`problems:verify` running anywhere on the machine:
+`docker ps -aq --filter label=lemmayard.sandbox=1 | xargs docker rm -f`.
+List containers per namespace with
+`docker ps -a --filter label=lemmayard.sandbox=1 --format '{{.ID}} {{.Label "lemmayard.ns"}}'`.
 
 ### Run / Submit API
 
