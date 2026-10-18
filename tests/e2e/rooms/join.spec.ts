@@ -36,7 +36,7 @@ test("owner invites; a member and a guest join through the link", async ({ brows
   await register(owner, baseURL!, `own_${suffix}`);
   await register(friend, baseURL!, `fri_${suffix}`);
 
-  // Owner: empty state → New room → room page (Members tab).
+  // Owner: empty state → New room → room page (Settings tab: invite link, members).
   const po = await owner.newPage();
   recordRequests(po, seen);
   await po.goto("/rooms");
@@ -45,7 +45,7 @@ test("owner invites; a member and a guest join through the link", async ({ brows
   await po.getByRole("button", { name: "New room" }).first().click();
   await po.getByLabel("Room name").fill("E2E Club");
   await po.getByRole("button", { name: "Create room" }).click();
-  await expect(po).toHaveURL(/\/rooms\/[0-9a-f-]{36}\?tab=members$/);
+  await expect(po).toHaveURL(/\/rooms\/[0-9a-f-]{36}\?tab=settings$/);
   const roomPath = new URL(po.url()).pathname;
 
   await po.getByRole("button", { name: "Create link" }).click();
@@ -83,7 +83,7 @@ test("owner invites; a member and a guest join through the link", async ({ brows
   await expect(pg).toHaveURL(new RegExp(`${roomPath}$`));
 
   // Everyone sees everyone.
-  await po.goto(`${roomPath}?tab=members`);
+  await po.goto(`${roomPath}?tab=settings`);
   const members = po.getByRole("list", { name: "Members" });
   for (const name of [`own_${suffix}`, `fri_${suffix}`, `gst_${suffix}`]) {
     await expect(members.getByText(name, { exact: true })).toBeVisible();
@@ -91,12 +91,12 @@ test("owner invites; a member and a guest join through the link", async ({ brows
   await po.emulateMedia({ colorScheme: "dark" });
   await expect(po.locator("html")).toHaveClass(/\bdark\b/);
   await expectNoSeriousAxe(po);
-  await pf.goto(`${roomPath}?tab=members`);
+  await pf.goto(`${roomPath}?tab=settings`);
   await expect(pf.getByRole("list", { name: "Members" }).getByText(`own_${suffix}`, { exact: true })).toBeVisible();
 
   // The token never travelled in a URL or Referer, and is not in server HTML.
   expect(seen.filter((line) => line.includes(token))).toEqual([]);
-  expect(await (await owner.request.get(`${roomPath}?tab=members`)).text()).not.toContain(token);
+  expect(await (await owner.request.get(`${roomPath}?tab=settings`)).text()).not.toContain(token);
 
   // Clean up.
   await po.getByRole("button", { name: "Delete room" }).click();

@@ -164,15 +164,15 @@ function MiniMatrix({ session: s, viewerId }: { session: HistorySessionItem; vie
     { viewerId, durationSec: s.durationMin * 60 },
   );
   return (
-    <div className="mt-3 overflow-x-auto" data-testid="mini-matrix">
+    <div className="relative mt-3 overflow-x-auto" data-testid="mini-matrix">
       <table className="w-full table-fixed border-separate border-spacing-1 text-[0.8125rem]">
         <caption className="sr-only">Who solved which problem, and when</caption>
         <colgroup>
           <col className="w-[5.5rem] sm:w-[7.5rem]" />
           {positions.map((p) => (
-            <col key={p} className={cn(positions.length <= 4 && "sm:w-[12.5rem]")} />
+            <col key={p} className={cn(positions.length <= 4 && "lg:w-[12.5rem]")} />
           ))}
-          {positions.length <= 4 && <col className="hidden sm:table-column" />}
+          {positions.length <= 4 && <col className="hidden lg:table-column" />}
           <col className="w-9 sm:w-[4.5rem]" />
         </colgroup>
         <thead>
@@ -198,7 +198,7 @@ function MiniMatrix({ session: s, viewerId }: { session: HistorySessionItem; vie
                 </span>
               </th>
             ))}
-            {positions.length <= 4 && <td aria-hidden className="hidden sm:table-cell" />}
+            {positions.length <= 4 && <td aria-hidden className="hidden lg:table-cell" />}
             <th scope="col" className="px-1 text-right font-mono text-[0.6875rem] font-medium text-muted-foreground">
               solved
             </th>
@@ -219,7 +219,7 @@ function MiniMatrix({ session: s, viewerId }: { session: HistorySessionItem; vie
                   <MiniCell cell={c} />
                 </td>
               ))}
-              {positions.length <= 4 && <td aria-hidden className="hidden sm:table-cell" />}
+              {positions.length <= 4 && <td aria-hidden className="hidden lg:table-cell" />}
               <td className="px-1 text-right font-mono font-semibold whitespace-nowrap tabular-nums">
                 {r.solved}
                 <span className="hidden font-normal text-muted-foreground sm:inline">

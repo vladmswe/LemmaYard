@@ -10,7 +10,8 @@ import { expect, test, type APIRequestContext, type Browser, type BrowserContext
 import { Pool } from "pg";
 
 import { forcedTheme } from "../../../src/lib/theme-config";
-import { stubJudge } from "../../helpers/stub-judge";
+import { JUDGE_TAG, requireJudge } from "../../e2e-support/judge";
+import { referenceSolution } from "../../e2e-support/workspace";
 import { expectTouchTargets } from "../guide/helpers";
 
 const THEMES = (forcedTheme ? [forcedTheme] : ["light", "dark"]) as ("light" | "dark")[];
@@ -188,7 +189,9 @@ async function checkPage(page: Page, path: string, ready: string, widths = [360,
   }
 }
 
-test.describe.serial("rooms", () => {
+// @judge: the live test's submission is judged by the harness's real worker.
+test.describe.serial("rooms", { tag: JUDGE_TAG }, () => {
+  requireJudge();
   test.beforeAll(async ({ browser, baseURL }) => {
     owner = await member(browser, baseURL!, `p2b_o_${suffix}`);
     friend = await member(browser, baseURL!, `p2b_f_${suffix}`);
@@ -213,7 +216,7 @@ test.describe.serial("rooms", () => {
     test.setTimeout(120_000);
     const page = await owner.context.newPage();
     await checkPage(page, "/rooms", "h1");
-    for (const tab of ["", "?tab=leaderboard", "?tab=members"]) await checkPage(page, `/rooms/${roomId}${tab}`, "[data-testid=open-session-card]");
+    for (const tab of ["", "?tab=members", "?tab=settings"]) await checkPage(page, `/rooms/${roomId}${tab}`, "[data-testid=open-session-card]");
     await page.close();
   });
 
@@ -228,7 +231,7 @@ test.describe.serial("rooms", () => {
     await guest.close();
   });
 
-  test("live: night hero, timer, problem cards, scoreboard with a first solver", async ({ baseURL }) => {
+  test("live: night hero, timer, scoreboard matrix with a first solver", async ({ baseURL }) => {
     test.setTimeout(150_000);
     const base = `/api/rooms/${roomId}/sessions/${sessionId}`;
     await post(owner.context.request, baseURL!, `${base}/join`);
@@ -236,19 +239,25 @@ test.describe.serial("rooms", () => {
     await post(owner.context.request, baseURL!, `${base}/start`);
     const path = `/rooms/${roomId}/sessions/${sessionId}`;
     const page = await owner.context.newPage();
-    await checkPage(page, path, "[data-testid=problem-list]");
+    // The matrix from lg, the Problems tab (legend) below it.
+    await checkPage(page, path, "[data-testid=matrix-table]:visible, [data-testid=problem-list]:visible");
 
-    // The friend solves problem 1 (stub judge); the owner's scoreboard shows it with "First".
+    // The friend solves problem 1 with its reference solution, judged by the harness's real worker
+    // (a stubbed verdict on a queued row raced the worker); the owner's matrix shows it with "First".
     const { rows } = await pool.query<{ slug: string }>(
       "select p.slug from room_session_problems sp join problems p on p.id = sp.problem_id where sp.session_id = $1 and sp.position = 1",
       [sessionId],
     );
     const sub = await post(friend.context.request, baseURL!, `/api/problems/${rows[0]!.slug}/submit`, {
       language: "python",
-      code: "class Solution:\n    pass\n",
+      code: referenceSolution(rows[0]!.slug, "python"),
       roomSessionId: sessionId,
     });
-    await stubJudge(DB, sub.id, "accepted");
+    await expect
+      .poll(async () => (await (await friend.context.request.get(`/api/submissions/${sub.id}`)).json()).status, {
+        timeout: 60_000,
+      })
+      .toBe("accepted");
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(path);
     const row = page.getByTestId(`score-row-${friend.username}`);

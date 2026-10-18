@@ -47,7 +47,7 @@ export function ProblemList({
                 P{p.position}
               </span>
               <DifficultyBadge difficulty={p.difficulty} />
-              <span className="min-w-0 flex-1 truncate font-semibold" title={p.title}>
+              <span className="relative min-w-0 flex-1 truncate font-semibold" title={p.title}>
                 {href ? (
                   <Link href={href} className="text-foreground hover:text-link">
                     <span className="sr-only">{problemLabel(p.position)}: </span>

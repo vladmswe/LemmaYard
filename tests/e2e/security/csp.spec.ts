@@ -104,6 +104,7 @@ test("main pages raise no CSP violation", async ({ browser, baseURL }) => {
   const { id: roomId } = (await room.json()) as { id: string };
   await visit(page, collected, `/rooms/${roomId}`);
   await visit(page, collected, `/rooms/${roomId}?tab=members`);
+  await visit(page, collected, `/rooms/${roomId}?tab=settings`);
   const session = await api.post(`/api/rooms/${roomId}/sessions`, { data: { problemCount: 2, durationMin: 30 }, headers });
   expect(session.status()).toBe(201);
   const { id: sessionId } = (await session.json()) as { id: string };
@@ -112,7 +113,7 @@ test("main pages raise no CSP violation", async ({ browser, baseURL }) => {
   const start = await api.post(`/api/rooms/${roomId}/sessions/${sessionId}/start`, { data: {}, headers });
   expect(start.status()).toBe(200);
   await visit(page, collected, sessionPath, async (p) => {
-    await expect(p.getByTestId("problem-list")).toBeVisible({ timeout: 10_000 });
+    await expect(p.getByTestId("scoreboard")).toBeVisible({ timeout: 10_000 });
     // The Web Notification API stays usable under Permissions-Policy (headless
     // Chromium reports Notification.permission "denied" even when granted, so
     // ask the Permissions API).

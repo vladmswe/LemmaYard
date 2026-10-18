@@ -94,6 +94,7 @@ function FirstTag({ words }: { words: boolean }) {
     <span
       className="inline-flex h-[18px] items-center gap-1 rounded-sm bg-primary-soft px-1.5 font-mono text-[0.625rem] font-semibold tracking-[0.04em] text-on-primary-soft uppercase"
       title="First to solve it"
+      data-testid="first-solver"
     >
       ★{words && " First"}
     </span>
@@ -200,8 +201,8 @@ export function MatrixCell({
 /** Mobile card cell: `P3 / ✓ 40:00 ★ / +36:00 1w` (§3.1). */
 function MobileCell({ cell, n, final, extra }: { cell: CellView; n: number; final: boolean; extra?: ReactNode }) {
   const pn = <span className="font-mono text-[0.65625rem] font-semibold text-muted-foreground">P{cell.position}</span>;
-  const base = "relative flex min-h-14 min-w-0 flex-col gap-1 rounded-[10px] px-2 py-1.5";
-  const line = "flex min-w-0 flex-wrap items-center gap-1 font-mono text-[0.8125rem] font-semibold tabular-nums";
+  const base = "relative flex min-h-14 min-w-0 flex-col gap-1 rounded-[10px] px-1.5 py-1.5";
+  const line = "flex min-w-0 items-center gap-0.5 font-mono text-[0.78125rem] font-semibold whitespace-nowrap tabular-nums";
   let body: ReactNode;
   let cls = "";
   if (cell.state === "solved") {
@@ -285,8 +286,8 @@ function ColumnHeader({
         <span className="sr-only">{problemLabel(problem.position)}: </span>
         {problem.title ?? <span aria-hidden>{problemLabel(problem.position)}</span>}
       </span>
-      <span className="mt-1.5 flex items-baseline justify-between gap-1.5 font-mono text-[0.71875rem] text-muted-foreground">
-        <span className="truncate" data-testid="column-meta">
+      <span className="mt-1.5 flex items-baseline justify-between gap-x-1.5 font-mono text-[0.71875rem] text-muted-foreground">
+        <span className="min-w-0" data-testid="column-meta">
           {columnMetaText(stats, layout, final)}
         </span>
         {href && (
@@ -380,9 +381,9 @@ export function ScoreMatrix({
   const layout = matrixLayout(n);
   const stats = problems.map((p) => columnStats(rows, p.position));
   return (
-    <div className={className} data-testid="scoreboard" data-variant={layout.variant} data-problems={n}>
+    <div className={cn("relative min-w-0", className)} data-testid="scoreboard" data-variant={layout.variant} data-problems={n}>
       {/* lg+: a real table */}
-      <div className="hidden overflow-x-auto rounded-xl border bg-card shadow-sm lg:block" data-testid="matrix-table">
+      <div className="relative hidden overflow-x-auto rounded-xl border bg-card shadow-sm lg:block" data-testid="matrix-table">
         <table className="w-full table-fixed border-separate border-spacing-0 text-[0.9375rem]">
           <caption className="sr-only">{caption}</caption>
           <colgroup>
@@ -477,7 +478,7 @@ export function ScoreMatrix({
                 <li key={p.position} className="flex min-w-0 items-center gap-2">
                   <span className="font-mono text-xs text-muted-foreground">P{p.position}</span>
                   <DifficultyBadge difficulty={p.difficulty} />
-                  <span className="min-w-0 flex-1 truncate" title={p.title}>
+                  <span className="relative min-w-0 flex-1 truncate" title={p.title}>
                     <span className="sr-only">{problemLabel(p.position)}: </span>
                     {p.title ?? problemLabel(p.position)}
                   </span>

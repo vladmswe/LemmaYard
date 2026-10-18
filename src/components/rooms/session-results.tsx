@@ -249,27 +249,30 @@ export function SessionTimeline({ results, rows }: { results: FinishedResults; r
           ))}
         </div>
       </div>
-      <table className="sr-only">
-        <caption>Solves by person and time</caption>
-        <thead>
-          <tr>
-            <th scope="col">Person</th>
-            <th scope="col">Problem</th>
-            <th scope="col">Time from the start</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.flatMap((r) =>
-            timelineMarks(r.cells, durationSec).map((m) => (
-              <tr key={`${r.userId}-${m.position}`}>
-                <td>{r.username}</td>
-                <td>{problemLabel(m.position)}</td>
-                <td>{formatScoreTime(m.solveSeconds)}</td>
-              </tr>
-            )),
-          )}
-        </tbody>
-      </table>
+      {/* sr-only on a wrapper: a <table> ignores the 1px box and would widen the page. */}
+      <div className="sr-only">
+        <table>
+          <caption>Solves by person and time</caption>
+          <thead>
+            <tr>
+              <th scope="col">Person</th>
+              <th scope="col">Problem</th>
+              <th scope="col">Time from the start</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.flatMap((r) =>
+              timelineMarks(r.cells, durationSec).map((m) => (
+                <tr key={`${r.userId}-${m.position}`}>
+                  <td>{r.username}</td>
+                  <td>{problemLabel(m.position)}</td>
+                  <td>{formatScoreTime(m.solveSeconds)}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
