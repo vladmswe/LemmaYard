@@ -60,6 +60,32 @@ export function extractMentions(body: string): string[] {
   return [...seen];
 }
 
+/** Deepest blockquote / list nesting outside fenced code (the markdown → HTML step recurses per level). */
+export const MAX_NESTING = 32;
+
+export function nestingDepth(body: string): number {
+  let deepest = 0;
+  let fence: string | null = null;
+  for (const line of body.split(/\r\n|\r|\n/)) {
+    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
+    if (fence) {
+      if (marker && marker[0] === fence[0] && marker.length >= fence.length) fence = null;
+      continue;
+    }
+    if (marker) {
+      fence = marker;
+      continue;
+    }
+    const prefix = /^[ \t>]*/.exec(line)![0];
+    const quotes = (prefix.match(/>/g) ?? []).length;
+    // List items: every ~2 columns of indentation before a marker is one more level.
+    const list = /^([ \t>]*)(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/.exec(line);
+    const indent = list ? list[1].replace(/>/g, "").replace(/\t/g, "    ").length : 0;
+    deepest = Math.max(deepest, quotes + Math.floor(indent / 2));
+  }
+  return deepest;
+}
+
 /**
  * The first rule a body breaks, as a user-facing message, or null when it is
  * acceptable. Runs on the trimmed body.
@@ -80,6 +106,9 @@ export function bodyProblem(raw: string): string | null {
   }
   if (extractMentions(body).length > COMMUNITY_LIMITS.mentionsMax) {
     return `At most ${COMMUNITY_LIMITS.mentionsMax} @mentions per comment.`;
+  }
+  if (nestingDepth(body) > MAX_NESTING) {
+    return `Quotes and lists can be nested at most ${MAX_NESTING} levels deep.`;
   }
   return null;
 }

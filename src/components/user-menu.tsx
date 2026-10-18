@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, HistoryIcon, LogOutIcon, UserIcon } from "lucide-react";
+import { ChevronDownIcon, HistoryIcon, LogOutIcon, ShieldIcon, UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -38,7 +38,14 @@ export function useLogout() {
   return { logout, pending };
 }
 
-export function UserMenu({ username }: { username: string }) {
+export function UserMenu({
+  username,
+  moderation = null,
+}: {
+  username: string;
+  /** Community C1: set for moderators (open reports + held comments). */
+  moderation?: { count: number } | null;
+}) {
   const { logout, pending } = useLogout();
 
   return (
@@ -74,6 +81,18 @@ export function UserMenu({ username }: { username: string }) {
           <HistoryIcon aria-hidden className="text-muted-foreground" />
           Submissions
         </DropdownMenuItem>
+        {moderation && (
+          <DropdownMenuItem render={<Link href="/mod" />}>
+            <ShieldIcon aria-hidden className="text-muted-foreground" />
+            Moderation
+            {moderation.count > 0 && (
+              <span className="ml-auto rounded-full bg-primary px-1.5 text-xs leading-5 font-semibold text-primary-foreground tabular-nums">
+                {moderation.count > 99 ? "99+" : moderation.count}
+                <span className="sr-only"> items to review</span>
+              </span>
+            )}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled={pending} onClick={logout}>
           {pending ? (

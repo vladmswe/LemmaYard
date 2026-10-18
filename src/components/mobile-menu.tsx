@@ -7,6 +7,7 @@ import {
   MenuIcon,
   MonitorIcon,
   MoonIcon,
+  ShieldIcon,
   SunIcon,
   UserIcon,
   UserPlusIcon,
@@ -44,7 +45,14 @@ const THEME_OPTIONS = [
  * when enabled in src/lib/theme-config.ts) and the account items or
  * Log in / Sign up. Focus is trapped and Esc closes it (Base UI dialog).
  */
-export function MobileMenu({ username }: { username: string | null }) {
+export function MobileMenu({
+  username,
+  moderation = null,
+}: {
+  username: string | null;
+  /** Community C1: set for moderators (queue size). */
+  moderation?: { count: number } | null;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { logout, pending } = useLogout();
@@ -138,6 +146,18 @@ export function MobileMenu({ username }: { username: string | null }) {
                   <HistoryIcon aria-hidden className="size-4 text-muted-foreground" />
                   Submissions
                 </Link>
+                {moderation && (
+                  <Link href="/mod" onClick={close} className={accountItemClasses}>
+                    <ShieldIcon aria-hidden className="size-4 text-muted-foreground" />
+                    Moderation
+                    {moderation.count > 0 && (
+                      <span className="ml-auto rounded-full bg-primary px-1.5 text-xs leading-5 font-semibold text-primary-foreground tabular-nums">
+                        {moderation.count > 99 ? "99+" : moderation.count}
+                        <span className="sr-only"> items to review</span>
+                      </span>
+                    )}
+                  </Link>
+                )}
                 <button
                   type="button"
                   disabled={pending}

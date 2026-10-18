@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { MarkdownAsync } from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
@@ -20,15 +21,23 @@ import "./community.css";
  * C3/C5 reuse this component for posts and lesson comments.
  */
 export async function UserMarkdown({ children, className }: { children: string; className?: string }) {
-  const rendered = await MarkdownAsync({
-    children,
-    remarkPlugins: [remarkGfm],
-    // The list is built from the shared plugin steps; react-markdown's own types are looser than ours.
-    rehypePlugins: userMarkdownRehypePlugins(rehypeSanitize, [rehypeShikiUserCode]) as never,
-    allowedElements: USER_MARKDOWN_ALLOWED_ELEMENTS,
-    unwrapDisallowed: true,
-    skipHtml: true,
-  });
+  let rendered: ReactNode;
+  try {
+    rendered = await MarkdownAsync({
+      children,
+      remarkPlugins: [remarkGfm],
+      // The list is built from the shared plugin steps; react-markdown's own types are looser than ours.
+      rehypePlugins: userMarkdownRehypePlugins(rehypeSanitize, [rehypeShikiUserCode]) as never,
+      allowedElements: USER_MARKDOWN_ALLOWED_ELEMENTS,
+      unwrapDisallowed: true,
+      skipHtml: true,
+    });
+  } catch (error) {
+    // Pathological nesting (the body rules cap it, see MAX_NESTING) must not
+    // take the whole page down: fall back to the escaped text.
+    if (!(error instanceof RangeError)) throw error;
+    rendered = <p className="whitespace-pre-wrap">{children}</p>;
+  }
   return (
     <div dir="auto" className={cn("user-md", className)}>
       {rendered}

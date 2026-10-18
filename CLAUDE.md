@@ -76,6 +76,12 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
   under the session lock `rs:<id>`; lock order is user → room → session, and a
   session-lock holder never takes another lock. Session submits are scored in
   `finalize()` (same transaction, `src/server/rooms/outcome.ts`).
+- Community (`docs/specs/community.md`, C1): pure rules in `src/lib/community/`
+  (no DB/server imports), server code in `src/server/community/`. Everything is
+  behind `COMMUNITY_ENABLED` (`flags.ts`: `requireCommunityPage()` for pages,
+  routes go through `communityRead` / `communityWrite` in `http.ts`). Writes take
+  `community:<user>` (`withCommunityLock`) first, never while holding a room or
+  session lock. Roles only via `pnpm user:role`.
 - Import alias `@/` → `src/`.
 
 ## Rules

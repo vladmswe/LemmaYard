@@ -2,12 +2,12 @@
 //   Discussion tab on the problem page:  ≤ 3 queries (summary+viewer, Best top 5, New top 5)
 //   /problems/[slug]/discuss:            ≤ 5 queries (summary+viewer, one page with replies)
 // Pages call these directly (no fetch to our own API), like the rest of the app.
-import type { CommentPage, ProblemCommunitySummary, ViewerSummary } from "@/lib/community/dto";
+import type { CommentPage, CommentView, ProblemCommunitySummary, ViewerSummary } from "@/lib/community/dto";
 import { canWrite, isModerator, isSuspended, type CommunityViewer } from "@/lib/community/permissions";
 import { COMMUNITY_LIMITS, type CommentSort } from "@/lib/community/types";
 import type { Db } from "@/server/db";
 
-import { listComments } from "./comments";
+import { findComment, getCommentView, listComments, listReplies } from "./comments";
 import { communityFlags } from "./flags";
 import { getProblemSummary } from "./threads";
 
@@ -67,8 +67,35 @@ export async function getDiscussionTabData(
 export type DiscussPageData = {
   summary: ProblemCommunitySummary;
   viewer: ViewerSummary;
+  /** The full viewer (permissions), for follow-up reads on the same page. */
+  communityViewer: CommunityViewer | null;
   page: CommentPage;
 };
+
+/**
+ * Permalink mode of the full page (`?comment=<id>`): the top-level comment
+ * (or a reply's parent) with its replies, paged by `cursor`. Null when the
+ * comment is unknown, hidden from the viewer or not in this problem.
+ */
+export async function getCommentThread(
+  db: Db,
+  input: { data: DiscussPageData; commentId: string; cursor?: string; now: Date },
+): Promise<{ comment: CommentView; nextCursor: string | null } | null> {
+  const { summary, communityViewer } = input.data;
+  const record = await findComment(db, input.commentId);
+  if (!record || record.problemId !== summary.problemId) return null;
+  const top = record.depth === 1 && record.parentId ? await findComment(db, record.parentId) : record;
+  if (!top) return null;
+  const ctx = { viewer: communityViewer, viewerSolved: summary.solved === true, now: input.now, locked: summary.locked };
+  const comment = await getCommentView(db, top.id, { ...ctx, reveal: false });
+  if (!comment) return null;
+  const replies = await listReplies(db, {
+    ...ctx,
+    parent: { id: top.id, authorId: top.authorId, status: top.status },
+    cursor: input.cursor,
+  });
+  return { comment: { ...comment, replies: replies.replies, moreReplies: false }, nextCursor: replies.nextCursor };
+}
 
 /** `/problems/[slug]/discuss`: one page (Best or New), cursor-paginated. */
 export async function getDiscussPageData(
@@ -88,5 +115,5 @@ export async function getDiscussPageData(
     sort: input.sort,
     cursor: input.cursor,
   });
-  return { summary, viewer: viewerSummary(viewer, summary, now), page };
+  return { summary, viewer: viewerSummary(viewer, summary, now), communityViewer: viewer, page };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
@@ -18,17 +19,25 @@ import "./community.css";
  * plain). Loaded lazily (next/dynamic), so its bundle is paid only when used.
  */
 export default function UserMarkdownPreview({ children, className }: { children: string; className?: string }) {
+  let rendered: ReactNode;
+  try {
+    // Called directly (not as <Markdown>) so a parser stack overflow on
+    // pathological nesting can be caught here and shown as plain text.
+    rendered = Markdown({
+      children,
+      remarkPlugins: [remarkGfm],
+      rehypePlugins: userMarkdownRehypePlugins(rehypeSanitize) as never,
+      allowedElements: USER_MARKDOWN_ALLOWED_ELEMENTS,
+      unwrapDisallowed: true,
+      skipHtml: true,
+    });
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+    rendered = <p className="whitespace-pre-wrap">{children}</p>;
+  }
   return (
     <div dir="auto" className={cn("user-md", className)}>
-      <Markdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={userMarkdownRehypePlugins(rehypeSanitize) as never}
-        allowedElements={USER_MARKDOWN_ALLOWED_ELEMENTS}
-        unwrapDisallowed
-        skipHtml
-      >
-        {children}
-      </Markdown>
+      {rendered}
     </div>
   );
 }

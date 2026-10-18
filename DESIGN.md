@@ -372,7 +372,7 @@ Built: `LessonShell.tsx` + `LessonTrackNav.tsx` (lessons by track from 961px; be
 - Header (`site-header.tsx`): sticky translucent paper (`.site-header`: `backdrop-filter` with a solid fallback), the hairline border appears after an 8px scroll (`HeaderScrollState`), 68px (60px below 961px, 52px `compact` in the workspace). Skip link first. Nav pills Problems, Guide, Rooms (signed in); the active item gets a 5px ∎ dot under it. Right: the theme toggle (only when enabled), the account menu (avatar + username; its accessible name comes from the visible content: username + sr-only ", account menu") or Log in / Sign up. Below 961px: Sign up (guests) + the burger. A notifications bell (room events, unread primary dot) is planned for rooms; not built yet.
 - Account menu: Profile, Submissions, Log out (∎ loader while logging out).
 - Mobile sheet (`mobile-menu.tsx`): from the right, full height, paper; nav links in serif 36px with `§ NN` numbers (active = primary italic), then the theme segmented control (only when enabled) and the account items or Sign up / Log in. Focus is trapped, Esc closes, it closes itself when the viewport reaches 961px.
-- Footer (`site-footer.tsx`): night block with grain, four columns (brand + blurb, Practice, Learn, Account), the giant serif wordmark with a sky ∎ (clamp 60–236px, `aria-hidden`), base row. Absent from the workspace group.
+- Footer (`site-footer.tsx`): night block with grain, four columns (brand + blurb, Practice, Learn, Account; plus Community with Content policy, Report content / copyright, Terms, Privacy when `COMMUNITY_ENABLED=1`, five columns from 961px), the giant serif wordmark with a sky ∎ (clamp 60–236px, `aria-hidden`), base row. Absent from the workspace group.
 
 ## 14. Tailwind v4 / shadcn notes
 

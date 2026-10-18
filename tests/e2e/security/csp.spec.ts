@@ -90,6 +90,20 @@ test("main pages raise no CSP violation", async ({ browser, baseURL }) => {
     // Word-based suggestions run in the editor worker.
     await expect.poll(() => workers.length, { timeout: 15_000 }).toBeGreaterThan(0);
   });
+  // Community C1 (AC-C-MD-4): Discussion tab with a highlighted code block, the full page, legal, XSS corpus.
+  const commented = await api.post("/api/comments", {
+    data: { target: "problem:two-sum", body: "CSP check:\n\n```python\nseen = {}\n```", hasSpoiler: false },
+    headers,
+  });
+  expect(commented.status()).toBe(201);
+  await visit(page, collected, "/problems/two-sum", async (p) => {
+    await p.getByTestId("discussion-tab-trigger").click();
+    await expect(p.getByTestId("discussion-tab")).toBeVisible();
+    await p.getByRole("tab", { name: "Preview" }).first().click();
+  });
+  await visit(page, collected, "/problems/two-sum/discuss?sort=new");
+  await visit(page, collected, "/legal/content-policy");
+  await visit(page, collected, "/dev-fixtures/community-xss");
   await visit(page, collected, "/submissions");
   await visit(page, collected, `/u/${username}`);
   await visit(page, collected, "/learn");

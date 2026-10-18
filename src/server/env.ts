@@ -50,7 +50,7 @@ export const envSchema = z.object({
   MAX_CODE_BYTES: int(65536),
   PAGE_SIZE: int(20),
   QUEUED_TIMEOUT_MS: int(60000),
-  // Guide (/learn): "1" enables the /learn/dev-fixtures pages used by Playwright.
+  // "1" enables the Playwright fixture pages (/learn/dev-fixtures/*, /dev-fixtures/community-xss).
   GUIDE_FIXTURES: z.enum(["0", "1"]).default("0"),
   // Code execution (Run / Submit / room sessions): "1" on, "0" off. Unset: on,
   // except on Vercel with the docker executor (no worker there). See isJudgeEnabled().

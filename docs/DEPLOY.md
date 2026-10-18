@@ -79,6 +79,9 @@ the `AUTH_URL` note):
 | `JUDGE_EXECUTOR` | no | `vercel-sandbox` | Who runs user code. `docker` (default) = a `pnpm worker` process with Docker; `vercel-sandbox` = the app judges in Vercel Sandbox microVMs (section 7). |
 | `JUDGE_ENABLED` | no | `0` | Code execution (Run, Submit, room session start). Unset: on, **except on Vercel with `JUDGE_EXECUTOR` unset/`docker`** (no worker there). `0` switches it off anywhere, `1` forces it on (only with a judge that serves this database). Only `0` and `1` are accepted. |
 | `VERCEL_SANDBOX_IMAGE_PYTHON`, `VERCEL_SANDBOX_IMAGE_NODE` | no | `vercel/sandbox/python:3.14`, `vercel/sandbox/node:22` | Sandbox images for `JUDGE_EXECUTOR=vercel-sandbox`. Leave unset (the defaults). |
+| `COMMUNITY_ENABLED` | no | `1` | Community features (problem discussions, votes, reports, `/mod`, legal pages). Default `0`: all hidden, routes answer 404. See "Turning on the community" below. |
+| `COMMUNITY_READ_ONLY` | no | `1` | Incident switch: community pages stay readable, every community write answers 503. Default `0`. |
+| `CONTACT_EMAIL` | with `COMMUNITY_ENABLED=1` | `hello@example.com` | Shown on the legal and report pages. **Required in production when `COMMUNITY_ENABLED=1`**: env validation fails without it. |
 
 Do **not** set `DATABASE_URL_DIRECT` on Vercel; the web app never uses it.
 Do not set `NODE_ENV` or `PORT` either; Vercel manages them. Do not set
@@ -88,6 +91,24 @@ Changing an environment variable does not affect running deployments:
 **redeploy** afterwards (Deployments → ⋯ on the latest → Redeploy). The build
 itself does not need the database or any of these variables (all pages render
 on demand), so a missing variable shows up only at run time.
+
+### Turning on the community
+
+The community layer (phase C1, docs/specs/community.md) ships off. To turn it
+on, after the owner's go-ahead:
+
+1. Apply the migration: `DATABASE_URL_DIRECT='<session pooler>' pnpm db:migrate`
+   from your machine (or, for a fresh project, the regenerated
+   `docs/supabase/schema.sql` already contains it).
+2. Make yourself admin: `DATABASE_URL_DIRECT='<session pooler>' pnpm user:role you@example.com admin`.
+   Roles change only this way; there is no UI.
+3. Set `CONTACT_EMAIL` in Vercel, read the legal page drafts (`/legal/*`)
+   and adjust them if needed.
+4. Set `COMMUNITY_ENABLED=1` and redeploy.
+
+During an incident (spam wave, abuse) set `COMMUNITY_READ_ONLY=1` and
+redeploy: reading still works, writing does not. The moderation queue is at
+`/mod` (account menu → Moderation).
 
 **Region.** Put the Vercel Functions in the same region as the Supabase
 project (Settings → Functions → Function Region; e.g. Frankfurt `fra1` for
@@ -193,13 +214,16 @@ with `pnpm db:export-sql` after adding a migration and with
 
 ### Row level security
 
-Row level security is on for all 13 application tables, **without any
+Row level security is on for every application table, **without any
 policies**: migration `0002_enable_rls` covers `users`, `problems`, `tags`,
 `problem_tags`, `test_cases` and `submissions`; migration `0003_rooms` creates
 `rooms`, `room_members`, `room_sessions`, `room_session_problems`,
 `room_session_participants`, `room_session_results` and `room_events` with RLS
 enabled. Migration `0004_rooms_v2` (per-room ratings, problem ratings, room
-presets and schedule) only adds columns to existing tables. Every table added later must enable it too
+presets and schedule) only adds columns to existing tables. Migration
+`community_c1` creates the community tables (`discussion_threads`, `comments`,
+`comment_votes`, `problem_votes`, `problem_difficulty_feedback`, `reports`,
+`moderation_actions`, `content_revisions`) with RLS enabled. Every table added later must enable it too
 (`tests/integration/rls.test.ts` fails otherwise). Supabase exposes the `public` schema through its
 REST API (with the public `anon` key); without RLS, anyone with that key could
 read `users`, including password hashes. With RLS on and no policies, the

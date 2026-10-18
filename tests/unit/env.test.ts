@@ -125,3 +125,41 @@ describe("AUTH_RATE_LIMITS", () => {
     expect(() => parseEnv({ ...required, VERCEL: "1", AUTH_RATE_LIMITS: "0" })).toThrow(/AUTH_RATE_LIMITS/);
   });
 });
+
+describe("community variables", () => {
+  const strongSecret = "Qx7vLm2Rp9TzWk4Ns8Hd3Jf6Bc1Yg5Ae0Uo";
+  const production = { ...required, AUTH_SECRET: strongSecret, VERCEL: "1", NODE_ENV: "production" };
+
+  it("default to off and accept only 0 / 1", () => {
+    const env = parseEnv(required);
+    expect(env.COMMUNITY_ENABLED).toBe("0");
+    expect(env.COMMUNITY_READ_ONLY).toBe("0");
+    expect(env.CONTACT_EMAIL).toBeUndefined();
+    const on = parseEnv({ ...required, COMMUNITY_ENABLED: "1", COMMUNITY_READ_ONLY: "1" });
+    expect(on.COMMUNITY_ENABLED).toBe("1");
+    expect(on.COMMUNITY_READ_ONLY).toBe("1");
+    expect(() => parseEnv({ ...required, COMMUNITY_ENABLED: "true" })).toThrow(/COMMUNITY_ENABLED/);
+    expect(() => parseEnv({ ...required, COMMUNITY_READ_ONLY: "true" })).toThrow(/COMMUNITY_READ_ONLY/);
+  });
+
+  it("CONTACT_EMAIL must be an email address", () => {
+    expect(parseEnv({ ...required, CONTACT_EMAIL: "owner@example.com" }).CONTACT_EMAIL).toBe("owner@example.com");
+    expect(() => parseEnv({ ...required, CONTACT_EMAIL: "not-an-email" })).toThrow(/CONTACT_EMAIL/);
+  });
+
+  it("requires CONTACT_EMAIL in production when the community is on", () => {
+    expect(() => parseEnv({ ...production, COMMUNITY_ENABLED: "1" })).toThrow(/CONTACT_EMAIL/);
+    expect(
+      parseEnv({ ...production, COMMUNITY_ENABLED: "1", CONTACT_EMAIL: "owner@example.com" }).COMMUNITY_ENABLED,
+    ).toBe("1");
+    expect(parseEnv(production).COMMUNITY_ENABLED).toBe("0");
+  });
+
+  it("does not require CONTACT_EMAIL locally", () => {
+    expect(parseEnv({ ...required, COMMUNITY_ENABLED: "1" }).CONTACT_EMAIL).toBeUndefined();
+    expect(
+      parseEnv({ ...required, COMMUNITY_ENABLED: "1", NODE_ENV: "production", AUTH_URL: "http://localhost:3000" })
+        .COMMUNITY_ENABLED,
+    ).toBe("1");
+  });
+});

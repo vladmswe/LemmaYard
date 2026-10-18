@@ -202,6 +202,11 @@ export async function startHarness(settings: E2eSettings): Promise<() => Promise
     AUTH_RATE_LIMITS: "0",
     JUDGE_ENABLED: settings.variant === "main" ? "1" : "0",
     GUIDE_FIXTURES: settings.variant === "main" ? "1" : "0",
+    // Community C1: on for the main suite, off (the production default) for judge-off,
+    // whose community-off spec checks that nothing community-related exists.
+    COMMUNITY_ENABLED: settings.variant === "main" ? "1" : "0",
+    COMMUNITY_READ_ONLY: "0",
+    CONTACT_EMAIL: "owner@example.test",
     WORKER_POLL_MS: process.env.E2E_WORKER_POLL_MS || "100",
     WORKER_CONCURRENCY: process.env.E2E_WORKER_CONCURRENCY || "2",
     SANDBOX_NAMESPACE: namespace,
