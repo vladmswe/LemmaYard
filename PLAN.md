@@ -8,7 +8,7 @@ Pet-проект, запускается локально (docker-compose для
 
 ### Статус (2026-10-18, ветка `integration`)
 - **M0–M6: готовы** (все АС закрыты, слиты в `integration`).
-- **M7: в работе.** e2e (`pnpm test:e2e`, AC-M7-1) подключается: изолированная e2e-БД, web + worker из Playwright; пока `test:e2e` — заглушка, есть только частичные спеки (`test:e2e:guide`, `tests/e2e/**`). Error boundaries, axe на основных страницах, замеры AC-M7-5 и README (AC-M7-6) ещё не закрыты. CI (GitHub Actions: lint, typecheck, unit, build, DB-интеграционные тесты) — `.github/workflows/ci.yml`; Docker-тесты и e2e в CI пока нет.
+- **M7: в работе.** e2e (`pnpm test:e2e`, AC-M7-1) подключается: изолированная e2e-БД, web + worker из Playwright; пока `test:e2e` — заглушка, есть только частичные спеки (`test:e2e:guide`, `tests/e2e/**`). Error boundaries есть (`(site)`, `(workspace)`, корневой `global-error.tsx`); не закрыты: проверка ошибок консоли в e2e основных сценариев (AC-M7-2), axe на `/login`, `/problems`, `/problems/two-sum` (AC-M7-3), замеры AC-M7-5, README (AC-M7-6). CI (GitHub Actions: lint, typecheck, unit, build, DB-интеграционные тесты) — `.github/workflows/ci.yml`; Docker-тесты и e2e в CI пока нет.
 - **Сделано сверх плана:**
   - Rooms R1–R5 (спека `docs/specs/rooms.md`, миграция `0003_rooms`): комнаты, инвайты, сессии с жеребьёвкой задач, live-события, итоги, лидерборд, история.
   - Гайд `/learn` (G0–G2, G4): плеер визуализаций, контент-пайплайн; опубликовано 5 уроков из 15 (complexity basics, arrays, dynamic arrays, stacks, queues and deques), остальные — черновики.
