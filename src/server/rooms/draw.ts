@@ -435,7 +435,8 @@ export async function buildLobbyView(
     problemCount: session.problemCount,
     durationMin: session.durationMin,
     plannedFor: session.plannedFor?.toISOString() ?? null,
-    settings: session.settings,
+    // Slot targets sit next to the drawn problems' ratings: host/owner only (AC-V2-SEL-4).
+    settings: canManage ? session.settings : settingsWithoutTargets(session.settings),
     rerollCount: session.rerollCount,
     rerollsLeft: Math.max(0, MAX_REROLLS - session.rerollCount),
     slots: slots.map((s) => ({ position: s.position, difficulty: s.difficulty, pinned: s.pinned, tags: s.tags })),
