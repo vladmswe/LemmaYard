@@ -6,6 +6,19 @@ Pet-проект, запускается локально (docker-compose для
 Язык UI: English. Язык этого плана: русский (идентификаторы и команды на английском).
 Тексты задач пишем **свои**, не копируем с LeetCode. Название и брендинг свои.
 
+### Статус (2026-10-18, ветка `integration`)
+- **M0–M6: готовы** (все АС закрыты, слиты в `integration`).
+- **M7: в работе.** e2e (`pnpm test:e2e`, AC-M7-1) подключается: изолированная e2e-БД, web + worker из Playwright; пока `test:e2e` — заглушка, есть только частичные спеки (`test:e2e:guide`, `tests/e2e/**`). Error boundaries, axe на основных страницах, замеры AC-M7-5 и README (AC-M7-6) ещё не закрыты. CI (GitHub Actions: lint, typecheck, unit, build, DB-интеграционные тесты) — `.github/workflows/ci.yml`; Docker-тесты и e2e в CI пока нет.
+- **Сделано сверх плана:**
+  - Rooms R1–R5 (спека `docs/specs/rooms.md`, миграция `0003_rooms`): комнаты, инвайты, сессии с жеребьёвкой задач, live-события, итоги, лидерборд, история.
+  - Гайд `/learn` (G0–G2, G4): плеер визуализаций, контент-пайплайн; опубликовано 5 уроков из 15 (complexity basics, arrays, dynamic arrays, stacks, queues and deques), остальные — черновики.
+  - Design v2 «Proof» (`DESIGN.md`): фаза 1 (токены, компоненты, лендинг, auth) слита; сайт пока только тёмный (`THEME_TOGGLE_ENABLED = false` в `src/lib/theme-config.ts`, обе темы остаются рабочими). Фазы 2A/2B в работе.
+  - Деплой-готовность (Vercel + Supabase, `docs/DEPLOY.md`): pooler/TLS, RLS на всех 13 таблицах, `/api/health`, `docs/supabase/schema.sql`.
+  - Режим без судьи (`JUDGE_ENABLED`, по умолчанию выключен на Vercel): Run/Submit/старт сессии отвечают понятной ошибкой, а не висят в очереди.
+  - Security hardening: security headers + CSP, rate limit на login/register, отказ от placeholder-`AUTH_SECRET` в продакшене.
+  - Переименование в LemmaYard (пакет, образы `lemmayard-sandbox-*`, cookie `lemmayard_session`, label `lemmayard.sandbox`).
+- Схема: кроме M1 добавлены `0002_enable_rls` (деплой) и `0003_rooms` (Rooms) — по исключению для фич (см. `CLAUDE.md`).
+
 ---
 
 ## 1. Scope
@@ -36,7 +49,7 @@ Contests, discussions, лайки/закладки, ListNode/TreeNode, Java/C++/
 | Область | Решение |
 |---|---|
 | Фреймворк | Next.js (последний stable, App Router) + TypeScript strict, Node runtime. **Без middleware/proxy**: защита через `getCurrentUser()` в страницах и route handlers |
-| UI | Tailwind + shadcn/ui, тема system/light/dark |
+| UI | Tailwind + shadcn/ui, темы light/dark (system); сейчас сайт только тёмный, переключатель — `THEME_TOGGLE_ENABLED` в `src/lib/theme-config.ts` |
 | Редактор | `monaco-editor` + `@monaco-editor/react` с `loader.config({ monaco })` (локальная сборка, без CDN), `dynamic(..., { ssr: false })` |
 | БД | Postgres 16 + Drizzle ORM + drizzle-kit |
 | Auth | **Своя минимальная**: `@node-rs/argon2` (в `serverExternalPackages`) + `jose` JWT в httpOnly cookie (`SameSite=Lax`, `Secure` в prod, TTL 7 дней), пользователь перечитывается из БД на каждый запрос. Auth.js не используем |
@@ -179,10 +192,11 @@ Rejected-запросы **не создают** строк в БД.
 ## 7. Скрипты и env
 
 ### package.json scripts
-`dev`, `build`, `start`, `worker`, `dev:all` (web+worker через `concurrently`), `lint`, `typecheck`, `test` (unit), `test:integration`, `test:e2e`, `db:generate`, `db:migrate`, `db:seed` (= migrate + import), `problems:import`, `problems:verify`, `sandbox:build`, `setup` (вызывать как `pnpm run setup`, голый `pnpm setup` — встроенная команда pnpm; = install + `docker compose up -d --wait` + `sandbox:build` + `db:seed`).
+`dev`, `build`, `start`, `worker`, `dev:all` (web+worker через `concurrently`), `lint`, `typecheck`, `test` (unit), `test:integration`, `test:e2e` (подключается в M7, пока заглушка), `db:generate`, `db:export-sql`, `db:migrate`, `db:seed` (= migrate + import), `problems:import`, `problems:verify`, `sandbox:build`, `setup` (вызывать как `pnpm run setup`, голый `pnpm setup` — встроенная команда pnpm; = install + `docker compose up -d --wait` + `sandbox:build` + `db:seed`).
 
 ### .env.example
 `DATABASE_URL`, `TEST_DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `PORT`, `WORKER_CONCURRENCY=2`, `WORKER_POLL_MS=500`, `STALE_RUNNING_MIN=3`, `WALL_CAP_MS=30000`, `SANDBOX_IMAGE_PYTHON`, `SANDBOX_IMAGE_NODE`, `LANG_TIME_MULT_PY=2`, `LANG_TIME_MULT_JS=1`, `RUN_RATE_PER_MIN=10`, `SUBMIT_RATE_PER_MIN=5`, `MAX_ACTIVE_PER_USER=2`, `MAX_CODE_BYTES=65536`, `PAGE_SIZE=20`, `QUEUED_TIMEOUT_MS=60000`.
+Позже добавлены деплой-переменные (`DATABASE_URL_DIRECT`, `DATABASE_SSL*`, `DATABASE_POOL_MAX`), `TEST_DB_SUFFIX`, `AUTH_RATE_LIMITS`, `GUIDE_FIXTURES`, `JUDGE_ENABLED`. Источник правды — схема `src/server/env.ts`; каждая её переменная описана в `.env.example` или `docs/DEPLOY.md` (unit-тест `tests/unit/env-docs.test.ts`).
 
 ---
 
@@ -322,4 +336,5 @@ Rejected-запросы **не создают** строк в БД.
 - БД: Supabase Postgres. Drizzle + `pg` работают; для serverless использовать pooled connection string (transaction mode), `FOR UPDATE SKIP LOCKED` и `pg_advisory_xact_lock` внутри транзакции совместимы; миграции гонять напрямую (не через pooler).
 - Проблема: worker на хосте с Docker не запускается на Vercel/Supabase. Варианты (решает оркестратор в деплой-фазе): (a) `VercelSandboxExecutor` за интерфейсом `Executor` (Vercel Sandbox = изолированные microVM) + запуск проверки из Vercel Functions/Cron/Queues вместо долгоживущего worker; (b) отдельный маленький VPS только под worker+Docker. Рекомендация: (a), если Vercel Sandbox покрывает наши лимиты (память, время, нет сети, Python 3 и Node); иначе (b).
 - Секреты только через env Vercel; `AUTH_SECRET` новый; `AUTH_URL` = боевой домен; проверка Origin уже завязана на нём.
-- Переименование: новое имя из `scratchpad/branding/NAMING.md`; заменить `leetcopy` в package.json, образах (`leetcopy-sandbox-*`), cookie `leetcopy_session`, label `leetcopy.sandbox`, README, UI-текстах; переименовать репозиторий/папку; деплой, домен и любые внешние действия — только после явного ОК Влада.
+- Переименование в коде сделано (LemmaYard: package.json, образы `lemmayard-sandbox-*`, cookie `lemmayard_session`, label `lemmayard.sandbox`, README, UI). Осталось: переименовать репозиторий/папку, LICENSE; деплой, домен и любые внешние действия — только после явного ОК Влада.
+- Готово к деплою веба без судьи: `docs/DEPLOY.md` (Supabase pooler/TLS, RLS, `/api/health`), `JUDGE_ENABLED` выключает Run/Submit на Vercel. Продакшен-судья (вариант (a) или (b)) ещё не сделан.
