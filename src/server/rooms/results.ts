@@ -32,6 +32,7 @@ import {
 } from "@/server/db/schema";
 
 import { requireRoomMember } from "./access";
+import { loadSessionRatings } from "./ratings";
 import { closeIfDueNow } from "./lifecycle";
 
 const idSchema = z.uuid();
@@ -225,6 +226,12 @@ export async function getSessionResults(
       : db.select({ name: tags.name }).from(tags).where(inArray(tags.slug, settings.tags)).orderBy(asc(tags.name)),
   ]);
 
+  // Rooms v2 rating slots: only once the session's ratings are applied.
+  const ratingView = await loadSessionRatings(db, sessionId);
+  const applied = ratingView?.state === "applied" ? ratingView : null;
+  const ratingByUser = new Map(applied?.participants.map((r) => [r.userId, r]));
+  const ratingByPosition = new Map(applied?.problems.map((r) => [r.position, r]));
+
   const parsed = participantRows.map((p) => ({
     ...p,
     cells: p.cells.map((c) => ({ ...c, firstAcceptedAt: c.firstAcceptedAt ? new Date(c.firstAcceptedAt) : null })),
@@ -265,6 +272,7 @@ export async function getSessionResults(
         penaltySec: p.penaltySec,
         breakdown: penaltyBreakdown(p.cells),
         cells,
+        ...ratingChangeFor(ratingByUser.get(p.userId)),
       };
     })
     .sort(
@@ -307,10 +315,26 @@ export async function getSessionResults(
       pendingJudging: session.pending,
     },
     topics: tagRows.map((t) => formatTagLabel(t.name)),
-    problems: problemRows.map((p) => ({ ...p, difficulty: p.difficulty as Difficulty })),
+    problems: problemRows.map((p) => {
+      const r = ratingByPosition.get(p.position);
+      return {
+        ...p,
+        difficulty: p.difficulty as Difficulty,
+        ...(r && r.before !== null && r.after !== null ? { rating: { before: r.before, after: r.after } } : {}),
+      };
+    }),
     participants,
     summaries,
   };
+}
+
+/** Rating slot of one participant (absent when the session is not rated or the member has no snapshot). */
+function ratingChangeFor(
+  r: { before: number | null; delta: number | null; expected: number | null; active: boolean } | undefined,
+): Pick<ResultParticipant, "ratingChange"> {
+  if (!r || r.before === null) return {};
+  if (!r.active || r.delta === null) return { ratingChange: null };
+  return { ratingChange: { before: r.before, delta: r.delta, expected: r.expected ?? 0 } };
 }
 
 // --- Solutions viewer (§4.5) ---

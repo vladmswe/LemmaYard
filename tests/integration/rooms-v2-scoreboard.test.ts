@@ -4,13 +4,13 @@
 // which problem, never a verdict), its query budget, non-member 404, and the
 // results / history / timeline data behind the matrix for N = 1, 2, 4, 5, 8.
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { matrixRows } from "@/lib/rooms/live-view";
 import { resultFacts, timelineMarks } from "@/lib/rooms/history";
 import { createDb, schema, type Db } from "@/server/db";
-import { roomSessions, submissions } from "@/server/db/schema";
+import { roomSessionParticipants, roomSessionProblems, roomSessions, submissions } from "@/server/db/schema";
 import { getMemberTimeline, getRoomHistory } from "@/server/rooms/history";
 import { getSessionResults, type FinishedResults } from "@/server/rooms/results";
 import { computeSessionState } from "@/server/rooms/state";
@@ -258,6 +258,46 @@ describe.each([1, 2, 4, 5, 8])("finished session with N = %i problems", (n) => {
     } finally {
       await c.close();
     }
+  });
+});
+
+describe("results rating slots (rooms-v2 §2.2)", () => {
+  it("filled once the ratings are applied: before/delta per participant, before→after per problem; null for inactive", async () => {
+    const { room, session, people } = await finishedSession(2, PLANS[2]);
+    const [alice, bob, carol, dan] = people;
+    const d = db();
+    // Not rated yet: no slots.
+    let r = (await getSessionResults(d, room.id, session.id, alice.id)) as FinishedResults;
+    expect(r.participants.every((p) => p.ratingChange === undefined)).toBe(true);
+    expect(r.problems.every((p) => p.rating === undefined)).toBe(true);
+
+    const start: [typeof alice, number, number][] = [[alice, 1500, 20], [bob, 1400, 12], [carol, 1300, -8], [dan, 1200, -24]];
+    for (const [u, before, delta] of start) {
+      await d
+        .update(roomSessionParticipants)
+        .set({ ratingAtStart: before, ratingDelta: delta })
+        .where(and(eq(roomSessionParticipants.sessionId, session.id), eq(roomSessionParticipants.userId, u.id)));
+    }
+    for (const [position, before, delta] of [[1, 1350, -10], [2, 1450, 15]] as const) {
+      await d
+        .update(roomSessionProblems)
+        .set({ ratingAtStart: before, ratingDelta: delta })
+        .where(and(eq(roomSessionProblems.sessionId, session.id), eq(roomSessionProblems.position, position)));
+    }
+    await d.update(roomSessions).set({ rated: true }).where(eq(roomSessions.id, session.id));
+    // Rated but not applied yet (pending): still no slots.
+    r = (await getSessionResults(d, room.id, session.id, alice.id)) as FinishedResults;
+    expect(r.participants.every((p) => p.ratingChange === undefined)).toBe(true);
+
+    await d.update(roomSessions).set({ ratedAt: new Date() }).where(eq(roomSessions.id, session.id));
+    r = (await getSessionResults(d, room.id, session.id, alice.id)) as FinishedResults;
+    const byName = new Map(r.participants.map((p) => [p.username, p.ratingChange]));
+    expect(byName.get("alice")).toMatchObject({ before: 1500, delta: 20 });
+    expect(byName.get("dan")).toMatchObject({ before: 1200, delta: -24 });
+    expect(r.problems.map((p) => p.rating)).toEqual([
+      { before: 1350, after: 1340 },
+      { before: 1450, after: 1465 },
+    ]);
   });
 });
 

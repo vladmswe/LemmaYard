@@ -17,7 +17,7 @@ import { getCurrentUser, requireUser } from "@/server/auth/session";
 import { getDb } from "@/server/db";
 import { requireRoomMember } from "@/server/rooms/access";
 import { getRoomHistory, getRoomMemberStats } from "@/server/rooms/history";
-import { getRoomDetail } from "@/server/rooms/queries";
+import { getRoomDetail, type RoomDetail } from "@/server/rooms/queries";
 import { getOpenSessionSummary } from "@/server/rooms/session-page";
 
 export const dynamic = "force-dynamic";
@@ -71,7 +71,7 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
           }
           members={
             <Suspense key={membersRange} fallback={<PanelSkeleton />}>
-              <MembersTab roomId={roomId} userId={user.id} range={membersRange} />
+              <MembersTab roomId={roomId} userId={user.id} range={membersRange} detail={detail} />
             </Suspense>
           }
           settings={<RoomSettingsTab detail={detail} />}
@@ -89,10 +89,16 @@ async function SessionsTab({ roomId, userId, page }: { roomId: string; userId: s
 }
 
 /** Members tab: per-member stats over `?range=`, attendance over the last 8 sessions. */
-async function MembersTab({ roomId, userId, range }: { roomId: string; userId: string; range: LeaderboardRange }) {
+async function MembersTab({ roomId, userId, range, detail }: { roomId: string; userId: string; range: LeaderboardRange; detail: RoomDetail }) {
   const stats = await getRoomMemberStats(getDb(), roomId, userId, range);
   if (!stats) notFound();
-  return <RoomMembersPanel roomId={roomId} viewerId={userId} stats={stats} />;
+  // Rooms v2 (D2/D3): one rating per member in this room, visible to every member of it.
+  const ratings = new Map(
+    detail.members.flatMap((m) =>
+      m.rating.rating === null ? [] : [[m.userId, { rating: m.rating.rating, provisional: m.rating.provisional }] as const],
+    ),
+  );
+  return <RoomMembersPanel roomId={roomId} viewerId={userId} stats={stats} ratings={ratings} />;
 }
 
 function PanelSkeleton() {
