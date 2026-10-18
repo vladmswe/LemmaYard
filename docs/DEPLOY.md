@@ -205,6 +205,13 @@ all 27 tables, indexes and CHECKs, enables RLS on each table (no policies) and
 records the 9 migrations in `drizzle.__drizzle_migrations`, so a later
 `pnpm db:migrate` applies only migrations added after the file was generated.
 
+`upgrade.sql` (same generator) is for a database that ALREADY has tables from
+an older `schema.sql` or from `pnpm db:migrate`: paste it into the SQL Editor
+and run it. It applies only the migrations whose hash is not yet in
+`drizzle.__drizzle_migrations`, records them, and is safe to run again (it also
+works on an empty database). After a release that adds a migration, run
+`upgrade.sql` once, then redeploy. The last query shows 9 recorded migrations.
+
 `problems.sql` (generated from `problems/` by `pnpm problems:export-sql`, with
 the same validation and the same rows as `pnpm problems:import`) is idempotent:
 it upserts every problem by slug (published, with its author rating), its tags

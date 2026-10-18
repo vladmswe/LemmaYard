@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { OUTPUT_FILE, buildSupabaseSql } from "../../scripts/export-supabase-sql";
+import { OUTPUT_FILE, UPGRADE_FILE, buildSupabaseSql, buildUpgradeSql } from "../../scripts/export-supabase-sql";
 
 describe("docs/supabase/schema.sql", () => {
   const sql = buildSupabaseSql();
@@ -23,5 +23,21 @@ describe("docs/supabase/schema.sql", () => {
     const created = [...sql.matchAll(/^CREATE TABLE "(\w+)" \(/gm)].map((m) => m[1]);
     expect(created.length).toBeGreaterThanOrEqual(13);
     for (const t of created) expect(sql).toContain(`ALTER TABLE "${t}" ENABLE ROW LEVEL SECURITY;`);
+  });
+});
+
+describe("docs/supabase/upgrade.sql", () => {
+  const sql = buildUpgradeSql();
+
+  it("is up to date with drizzle/*.sql", () => {
+    expect(readFileSync(UPGRADE_FILE, "utf8")).toBe(sql);
+  });
+
+  it("runs once per migration, guarded by its recorded hash, in one transaction", () => {
+    const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")) as { entries: { when: number }[] };
+    expect(sql).toMatch(/^BEGIN;$/m);
+    expect(sql).toMatch(/^COMMIT;$/m);
+    expect(sql.match(/IF NOT EXISTS \(SELECT 1 FROM "drizzle"\."__drizzle_migrations" WHERE hash = /g)).toHaveLength(journal.entries.length);
+    for (const e of journal.entries) expect(sql).toContain(String(e.when));
   });
 });
