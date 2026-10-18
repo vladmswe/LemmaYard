@@ -85,6 +85,13 @@ Do **not** set `DATABASE_URL_DIRECT` on Vercel; the web app never uses it.
 Do not set `NODE_ENV` or `PORT` either; Vercel manages them. Do not set
 `AUTH_RATE_LIMITS` (login/register limits; `0` is rejected on Vercel).
 
+Study plans have no reporting flow yet (that comes with the community
+moderation phases). To take down a public or link-shared plan, run
+`DATABASE_URL_DIRECT='<session pooler>' pnpm plans:unpublish <plan id>` from
+your machine (the id is the last part of `/plans/<id>`): the plan becomes
+private and its share link stops working. The owner can also make it private
+on the plan page.
+
 Changing an environment variable does not affect running deployments:
 **redeploy** afterwards (Deployments → ⋯ on the latest → Redeploy). The build
 itself does not need the database or any of these variables (all pages render

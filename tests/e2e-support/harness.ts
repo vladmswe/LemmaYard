@@ -202,6 +202,8 @@ export async function startHarness(settings: E2eSettings): Promise<() => Promise
     AUTH_RATE_LIMITS: "0",
     JUDGE_ENABLED: settings.variant === "main" ? "1" : "0",
     GUIDE_FIXTURES: settings.variant === "main" ? "1" : "0",
+    // Study plans: on in the main suite, off (the default) in the judge-off suite.
+    PLANS_ENABLED: settings.variant === "main" ? "1" : "0",
     WORKER_POLL_MS: process.env.E2E_WORKER_POLL_MS || "100",
     WORKER_CONCURRENCY: process.env.E2E_WORKER_CONCURRENCY || "2",
     SANDBOX_NAMESPACE: namespace,
