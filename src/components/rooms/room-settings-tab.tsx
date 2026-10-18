@@ -34,7 +34,7 @@ export function RoomSettingsTab({ detail, defaults }: { detail: RoomDetail; defa
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]" data-testid="room-settings">
       <div className="flex min-w-0 flex-col gap-6">
-        {isOwner && <RoomSettingsCard roomId={room.id} name={room.name} shareSolutions={room.shareSolutions} />}
+        {isOwner && <RoomSettingsCard roomId={room.id} shareSolutions={room.shareSolutions} />}
         <RoomDefaultsRegion>{defaults}</RoomDefaultsRegion>
         <Card>
           <CardHeader>

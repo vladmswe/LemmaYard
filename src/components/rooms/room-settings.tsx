@@ -2,7 +2,7 @@
 
 import { LogOutIcon, Trash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -20,7 +20,7 @@ import { Field, FieldError, FieldHelp } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { confirmsRoomName, ROOM_NAME_MAX, roomNameSchema } from "@/lib/rooms/schemas";
+import { confirmsRoomName } from "@/lib/rooms/schemas";
 
 import { useRoomAction } from "./use-room-action";
 
@@ -94,63 +94,15 @@ export function MemberPreferencesCard({ roomId, shareSolutions }: { roomId: stri
   );
 }
 
-/** Owner: rename and the room-wide sharing setting. */
-export function RoomSettingsCard({
-  roomId,
-  name,
-  shareSolutions,
-}: {
-  roomId: string;
-  name: string;
-  shareSolutions: boolean;
-}) {
-  const id = useId();
-  const [value, setValue] = useState(name);
-  const [error, setError] = useState<string | null>(null);
-  const { run, pending } = useRoomAction();
-
-  async function onRename(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const parsed = roomNameSchema.safeParse(value);
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Enter a room name");
-      return;
-    }
-    setError(null);
-    const res = await run(`/api/rooms/${roomId}/rename`, { name: parsed.data }, { success: "Room renamed", toastErrors: false });
-    if (res.ok) setValue(parsed.data);
-    else setError(res.fieldErrors?.name ?? res.error);
-  }
-
-  const unchanged = value.trim() === name;
+/** Owner: the room-wide sharing setting (name, description and color live in the room profile card). */
+export function RoomSettingsCard({ roomId, shareSolutions }: { roomId: string; shareSolutions: boolean }) {
   return (
     <Card>
       <CardHeader>
-        <h2 className="text-lg/7 font-semibold">Room settings</h2>
-        <CardDescription>Only you, the owner, can change these.</CardDescription>
+        <h2 className="text-lg/7 font-semibold">Sharing</h2>
+        <CardDescription>Only you, the owner, can change this.</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-6">
-        <form onSubmit={onRename} noValidate>
-          <Field>
-            <Label htmlFor={`${id}-name`}>Room name</Label>
-            <div className="flex gap-2">
-              <Input
-                id={`${id}-name`}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                maxLength={ROOM_NAME_MAX * 2}
-                autoComplete="off"
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? `${id}-error` : undefined}
-                className="min-w-0 flex-1"
-              />
-              <Button type="submit" variant="secondary" loading={pending} disabled={unchanged}>
-                Save
-              </Button>
-            </div>
-            {error && <FieldError id={`${id}-error`}>{error}</FieldError>}
-          </Field>
-        </form>
+      <CardContent>
         <SettingSwitch
           label="Share accepted solutions with members after each session"
           help="Members who did not opt out can see each other's accepted code once a session has finished. Never during a session."
