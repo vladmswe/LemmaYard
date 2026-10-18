@@ -97,9 +97,12 @@ export function sandboxCommand(language: Language, memoryMb: number): string[] {
     // -B: never write .pyc (the root filesystem is read-only).
     return ["python3", "-I", "-B", "/sandbox/harness.py"];
   }
-  // V8 heap below the cgroup limit so heap exhaustion aborts cleanly (exit 134).
-  const heapMb = Math.max(16, Math.floor(memoryMb * 0.75));
-  return ["node", `--max-old-space-size=${heapMb}`, "/sandbox/harness.js"];
+  return ["node", `--max-old-space-size=${nodeHeapMb(memoryMb)}`, "/sandbox/harness.js"];
+}
+
+/** V8 heap below the memory limit so heap exhaustion aborts cleanly (exit 134). */
+export function nodeHeapMb(memoryMb: number): number {
+  return Math.max(16, Math.floor(memoryMb * 0.75));
 }
 
 /** `docker create` arguments. Deliberately no `-e`, `-v` or `--mount`. */

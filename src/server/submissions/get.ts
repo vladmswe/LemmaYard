@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/server/auth/session";
 import { getDb, type Db } from "@/server/db";
 import { problems, submissions } from "@/server/db/schema";
 import { jsonError } from "@/server/http/request";
+import { scheduleJudgeForWaiting } from "@/server/judge-runner";
 
 import { toSubmissionDto } from "./serialize";
 
@@ -52,5 +53,7 @@ export async function getSubmission(id: string): Promise<NextResponse> {
   if (!user) return jsonError(401, "Log in to view submissions");
   const dto = await findOwnSubmission(getDb(), user.id, id);
   if (!dto) return jsonError(404, "Submission not found");
+  // JUDGE_EXECUTOR=vercel-sandbox: a waiting row gets another drain (no-op for docker).
+  scheduleJudgeForWaiting(dto.status, dto.createdAt);
   return NextResponse.json(dto, { headers: { "Cache-Control": "no-store" } });
 }

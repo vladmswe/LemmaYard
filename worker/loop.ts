@@ -113,6 +113,38 @@ export async function processSubmission(
   }
 }
 
+/**
+ * One sweep: stale `running` rows → `internal_error`, old Run rows deleted,
+ * then the rooms backstop. Never throws; failures are logged.
+ */
+export async function sweepOnce(db: Db, staleMin: number, workerId: string, log: Logger): Promise<void> {
+  try {
+    const { stale, deletedRuns } = await sweep(db, staleMin);
+    if (stale.length > 0 || deletedRuns > 0) {
+      log({ level: "warn", msg: "sweep", workerId, staleIds: stale, deletedRuns });
+    }
+  } catch (error) {
+    log({ level: "error", msg: "sweep failed", workerId, reason: safeErrorMessage(error) });
+  }
+  // Rooms backstop for the lazy close (docs/specs/rooms.md §7.3): expired
+  // live sessions → finished, stale lobbies → cancelled.
+  try {
+    const { expired, stale, rated } = await sweepRoomSessions(db);
+    if (expired.length > 0 || stale.length > 0 || rated.length > 0) {
+      log({
+        level: "info",
+        msg: "room sessions closed",
+        workerId,
+        expired: expired.length,
+        stale: stale.length,
+        rated: rated.length,
+      });
+    }
+  } catch (error) {
+    log({ level: "error", msg: "room session sweep failed", workerId, reason: safeErrorMessage(error) });
+  }
+}
+
 export function startWorker(options: WorkerOptions): WorkerHandle {
   const { db, executor, workerId, concurrency, pollMs, staleMin } = options;
   const log = options.log ?? jsonLogger;
@@ -133,33 +165,7 @@ export function startWorker(options: WorkerOptions): WorkerHandle {
       wakers.add(done);
     });
 
-  const runSweep = async () => {
-    try {
-      const { stale, deletedRuns } = await sweep(db, staleMin);
-      if (stale.length > 0 || deletedRuns > 0) {
-        log({ level: "warn", msg: "sweep", workerId, staleIds: stale, deletedRuns });
-      }
-    } catch (error) {
-      log({ level: "error", msg: "sweep failed", workerId, reason: safeErrorMessage(error) });
-    }
-    // Rooms backstop for the lazy close (docs/specs/rooms.md §7.3): expired
-    // live sessions → finished, stale lobbies → cancelled.
-    try {
-      const { expired, stale, rated } = await sweepRoomSessions(db);
-      if (expired.length > 0 || stale.length > 0 || rated.length > 0) {
-        log({
-          level: "info",
-          msg: "room sessions closed",
-          workerId,
-          expired: expired.length,
-          stale: stale.length,
-          rated: rated.length,
-        });
-      }
-    } catch (error) {
-      log({ level: "error", msg: "room session sweep failed", workerId, reason: safeErrorMessage(error) });
-    }
-  };
+  const runSweep = () => sweepOnce(db, staleMin, workerId, log);
 
   const sweeper = (async () => {
     while (!stopping) {
@@ -200,4 +206,42 @@ export function startWorker(options: WorkerOptions): WorkerHandle {
     },
     done,
   };
+}
+
+export type DrainOptions = {
+  db: Db;
+  executor: Executor;
+  workerId: string;
+  staleMin: number;
+  /** Claim new submissions only while less than this much time has passed. */
+  claimWindowMs: number;
+  /** Run the sweep first (callers throttle it). */
+  sweepFirst: boolean;
+  log?: Logger;
+};
+
+/**
+ * Serverless counterpart of one worker slot (docs/specs/judge-prod.md): claims
+ * and processes queued submissions one by one until the queue is empty or the
+ * claim window is over, with the same claim / finalize / sweep semantics as
+ * `startWorker`. Returns how many submissions it processed. Never throws.
+ */
+export async function drainQueue(options: DrainOptions): Promise<number> {
+  const { db, executor, workerId, staleMin, claimWindowMs } = options;
+  const log = options.log ?? jsonLogger;
+  const started = performance.now();
+  if (options.sweepFirst) await sweepOnce(db, staleMin, workerId, log);
+  let processed = 0;
+  while (performance.now() - started < claimWindowMs) {
+    let submission: Submission | null = null;
+    try {
+      submission = await claimNext(db, workerId);
+    } catch (error) {
+      log({ level: "error", msg: "claim failed", workerId, reason: safeErrorMessage(error) });
+    }
+    if (!submission) break;
+    await processSubmission(db, executor, submission, log, workerId);
+    processed += 1;
+  }
+  return processed;
 }
