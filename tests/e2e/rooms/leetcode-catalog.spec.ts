@@ -195,6 +195,7 @@ test("auto-picked LeetCode slot: lobby, re-roll, hidden from members, live self-
   // --- Attribution: the footer links the third-party notices.
   await ph.getByTestId("footer-notices").click();
   await expect(ph).toHaveURL(/\/notices$/);
+  await expect(ph).toHaveTitle(/Third-party notices/);
   await expect(ph.getByTestId("mit-notice")).toContainText("Copyright (c) 2021 Shuxin Chen");
   await expect(ph.getByText("not affiliated with or endorsed by LeetCode")).toBeVisible();
   await expectNoSeriousAxe(ph, "notices");
