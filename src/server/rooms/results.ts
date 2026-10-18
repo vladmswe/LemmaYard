@@ -139,6 +139,7 @@ async function loadSession(db: Db, roomId: string, sessionId: string) {
       problemCount: roomSessions.problemCount,
       settings: roomSessions.settings,
       hostId: roomSessions.hostId,
+      ratedAt: roomSessions.ratedAt,
       host: users.username,
       now: sql<string>`clock_timestamp()`,
       pending: sql<number>`(SELECT count(*)::int FROM submissions x
@@ -227,7 +228,8 @@ export async function getSessionResults(
   ]);
 
   // Rooms v2 rating slots: only once the session's ratings are applied.
-  const ratingView = await loadSessionRatings(db, sessionId);
+  // The session row already says whether they are (rated_at), so unrated sessions cost no query.
+  const ratingView = session.ratedAt ? await loadSessionRatings(db, sessionId) : null;
   const applied = ratingView?.state === "applied" ? ratingView : null;
   const ratingByUser = new Map(applied?.participants.map((r) => [r.userId, r]));
   const ratingByPosition = new Map(applied?.problems.map((r) => [r.position, r]));
