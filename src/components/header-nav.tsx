@@ -4,14 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "cn";
 
-import { isActivePath, NAV_LINKS } from "@/components/nav-links";
+import { isActivePath, type NavFlags, visibleNavLinks } from "@/components/nav-links";
 
 /** Desktop nav pills; the active link gets a 5px ∎ dot under it (§12). */
-export function HeaderNav({ signedIn }: { signedIn: boolean }) {
+export function HeaderNav({ signedIn, flags }: { signedIn: boolean; flags?: NavFlags }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Main" className="hidden h-full items-center gap-1 min-[961px]:flex">
-      {NAV_LINKS.filter((l) => signedIn || !l.signedInOnly).map((link) => {
+      {visibleNavLinks(signedIn, flags).map((link) => {
         const active = isActivePath(pathname, link.href);
         return (
           <Link

@@ -10,6 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
 import { THEME_TOGGLE_ENABLED } from "@/lib/theme-config";
 import { getCurrentUser } from "@/server/auth/session";
+import { plansEnabled } from "@/server/plans/flag";
 
 /**
  * Sticky translucent paper header (DESIGN.md §12): 68px (60px below 961px;
@@ -20,6 +21,7 @@ import { getCurrentUser } from "@/server/auth/session";
  */
 export async function SiteHeader({ compact = false }: { compact?: boolean }) {
   const user = await getCurrentUser();
+  const flags = { plans: plansEnabled() };
 
   return (
     <header
@@ -49,7 +51,7 @@ export async function SiteHeader({ compact = false }: { compact?: boolean }) {
         >
           <Logo className={compact ? "text-lg" : undefined} markClassName={compact ? "size-[22px]" : undefined} />
         </Link>
-        <HeaderNav signedIn={Boolean(user)} />
+        <HeaderNav signedIn={Boolean(user)} flags={flags} />
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           {THEME_TOGGLE_ENABLED && <ThemeToggle />}
           {user ? (
@@ -74,7 +76,7 @@ export async function SiteHeader({ compact = false }: { compact?: boolean }) {
               </Link>
             </>
           )}
-          <MobileMenu username={user?.username ?? null} />
+          <MobileMenu username={user?.username ?? null} flags={flags} />
         </div>
       </div>
     </header>

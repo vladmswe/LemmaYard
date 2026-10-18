@@ -116,8 +116,8 @@ describe("migration 0004_rooms_v2", () => {
       expect(await columns(db, "room_session_participants")).toEqual(expect.arrayContaining(["rating_at_start", "rating_delta"]));
       expect(await columns(db, "room_session_problems")).toEqual(expect.arrayContaining(["rating_at_start", "rating_delta"]));
       const all = await tables(db);
-      // 13 tables up to 0004; migration 0005 adds room_external_problems.
-      expect(all).toHaveLength(14);
+      // 13 tables up to 0004; later migrations add more (rls.test.ts keeps the exact list).
+      expect(all.length).toBeGreaterThanOrEqual(13);
       expect(all.every((t) => t.rls)).toBe(true);
     });
   });

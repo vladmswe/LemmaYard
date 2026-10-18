@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cache, Suspense } from "react";
 
 import { NOT_FOUND_TITLE } from "@/components/not-found-content";
+import { AddToPlanDialog } from "@/components/plans/add-to-plan-dialog";
 import { ProblemDescription } from "@/components/problem/problem-description";
 import { SolveWorkspace } from "@/components/problem/solve-workspace";
 import { SubmitContextProvider } from "@/components/problem/submit-context";
@@ -12,6 +13,7 @@ import { SubmissionsSkeleton } from "@/components/submissions/submissions-skelet
 import { getCurrentUser } from "@/server/auth/session";
 import { judgeEnabled } from "@/server/judge";
 import { languageList } from "@/lib/workspace/languages";
+import { plansEnabled } from "@/server/plans/flag";
 import { getProblemPageData } from "@/server/problem-page";
 import { getPollingConfig } from "@/server/submissions/config";
 
@@ -59,7 +61,12 @@ export default async function ProblemPage({ params, searchParams }: PageProps<"/
           signedIn={problem.signedIn}
           pollingConfig={getPollingConfig()}
           judgeEnabled={judgeEnabled()}
-          description={<ProblemDescription problem={problem} />}
+          description={
+            <ProblemDescription
+              problem={problem}
+              actions={user && plansEnabled() ? <AddToPlanDialog problem={{ slug: problem.slug, title: problem.title }} /> : null}
+            />
+          }
           submissions={
             // Own boundary: the tab's query (AC-M6-3) streams without holding up the editor.
             <Suspense

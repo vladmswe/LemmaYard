@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { cn } from "cn";
 
 import { formatPercent, formatTagLabel } from "@/lib/format";
@@ -47,10 +48,13 @@ export function CatalogResults({
   data,
   filters,
   showStatus,
+  rowAction,
 }: {
   data: CatalogPage;
   filters: CatalogFilters;
   showStatus: boolean;
+  /** An extra control per row (e.g. "Add to a study plan"), last column / beside the card. */
+  rowAction?: (row: CatalogRow) => ReactNode;
 }) {
   if (data.rows.length === 0) {
     const pastEnd = data.total > 0;
@@ -103,6 +107,11 @@ export function CatalogResults({
               Acceptance
             </TableHead>
             <TableHead className="w-32">Difficulty</TableHead>
+            {rowAction && (
+              <TableHead className="w-14">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -148,6 +157,7 @@ export function CatalogResults({
               <TableCell>
                 <DifficultyBadge difficulty={row.difficulty} variant="text" />
               </TableCell>
+              {rowAction && <TableCell className="pr-3">{rowAction(row)}</TableCell>}
             </TableRow>
           ))}
         </TableBody>
@@ -155,10 +165,13 @@ export function CatalogResults({
 
       <ul aria-label="Problems" className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm md:hidden">
         {data.rows.map((row) => (
-          <li key={row.id} data-testid="catalog-card">
+          <li key={row.id} data-testid="catalog-card" className={rowAction ? "flex items-center" : undefined}>
             <Link
               href={`/problems/${row.slug}`}
-              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 px-4 py-3.5 transition-colors duration-120 hover:bg-accent focus-visible:-outline-offset-2"
+              className={cn(
+                "grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 px-4 py-3.5 transition-colors duration-120 hover:bg-accent focus-visible:-outline-offset-2",
+                rowAction && "min-w-0 flex-1",
+              )}
             >
               {showStatus && row.status ? (
                 <ProblemStatusIcon status={row.status} className="row-span-2 mt-px" />
@@ -189,6 +202,7 @@ export function CatalogResults({
                 </span>
               </span>
             </Link>
+            {rowAction && <div className="shrink-0 pr-3">{rowAction(row)}</div>}
           </li>
         ))}
       </ul>

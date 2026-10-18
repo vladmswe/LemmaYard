@@ -26,6 +26,12 @@ in a locked-down Docker container.
   a drawn set of problems, a live person × problem scoreboard (solve times,
   splits, "Judging…" while a submit runs), an activity feed, results with a
   timeline, shared solutions and per-member stats.
+- **Follow study plans** (`/plans`, behind `PLANS_ENABLED`): ordered problem
+  lists with sections, mixing our problems and LeetCode links (only the link
+  is kept, nothing is fetched). Private, shared by link or public, with your
+  own progress on anyone's plan; duplicate or save other people's plans, add
+  a problem from its page or the problem list, and save a finished room
+  session as a plan.
 - **Learn data structures** in the guide (`/learn`): 5 published lessons
   (complexity basics, arrays, dynamic arrays, stacks, queues and deques) with
   a trace player that steps through each operation next to the Python and
@@ -172,6 +178,20 @@ A session can also include LeetCode problems
 LeetCode list (Settings) that participants mark solved themselves. They score like solves, are marked
 "SELF" everywhere, and never change ratings; nothing is fetched from leetcode.com.
 
+**Study plans** (`src/lib/plans/`, `src/server/plans/`, `src/components/plans/`,
+phase C2 of [`docs/specs/community.md`](docs/specs/community.md)). Tables
+`study_plans`, `study_plan_sections`, `study_plan_items`, `study_plan_ticks`
+(a viewer's "Mark done" on a LeetCode item) and `study_plan_saves`. Progress on
+our problems is computed from the viewer's submits (the catalog rule), never
+stored, and is always the viewer's own. Visibility: private (others get 404),
+"anyone with the link" (an unguessable 43-character token in `?share=`, can be
+reset) or public (listed under Discover). External items store only the
+LeetCode problem slug; the canonical `https://leetcode.com/problems/<slug>/`
+is built when rendering. Every write runs in one transaction under the user's
+advisory lock with limits counted from the user's own rows
+(`src/server/plans/limits.ts`). `PLANS_ENABLED=0` (default) hides all of it and
+the `/api/plans` routes answer 404.
+
 **Guide** (`src/content/learn/`, `src/lib/guide/`, `src/components/guide/`).
 Each lesson is MDX plus metadata, quiz and code samples. A visualization is a
 `VizModel` (`src/lib/guide/contracts.ts`) whose pure `generate(input)` returns a
@@ -225,6 +245,7 @@ docs/               deploy guide, specs, generated Supabase SQL, images
 | `pnpm problems:import` | Validates and upserts `problems/` (`--dir <path>`, `--prune`). |
 | `pnpm problems:verify` | Runs every reference solution present (Python, JavaScript, and Java where `solution.java` exists) in the real sandbox; must all be Accepted (`--dir`, `--only <slug>`, `--concurrency <n>`). |
 | `pnpm sandbox:build` | Builds and checks the Python, Node and Java sandbox images (`pnpm sandbox:build java` builds one); rerun after any change in `sandbox/`. |
+| `pnpm plans:unpublish <id>` | Admin takedown: makes a study plan private and drops its share link (`DATABASE_URL_DIRECT`, else `DATABASE_URL`). |
 | `pnpm run setup` | `install` + `docker compose up -d --wait` + `sandbox:build` + `db:seed`. |
 
 `problems:import` validates every problem first and writes nothing if one is
@@ -249,6 +270,7 @@ production table is in [docs/DEPLOY.md, section 3](docs/DEPLOY.md#3-vercel-envir
 | `PORT` | 3000 | Web port for `dev` / `start`. |
 | `JUDGE_ENABLED` | on, off on Vercel with `docker` | `0` disables Run, Submit and room session start. |
 | `JUDGE_EXECUTOR` | `docker` | `docker` = `pnpm worker`; `vercel-sandbox` = the web app judges in Vercel Sandbox (production). |
+| `PLANS_ENABLED` | `0` | `1` turns on study plans (`/plans`, nav item, add-to-plan buttons, "Save as study plan"). |
 | `TEST_DATABASE_URL` | compose Postgres | Server for the integration and e2e databases. |
 | `WORKER_CONCURRENCY`, `WORKER_POLL_MS` | 2, 500 | Worker slots and poll interval. |
 | `SANDBOX_IMAGE_PYTHON`, `SANDBOX_IMAGE_NODE`, `SANDBOX_IMAGE_JAVA` | `lemmayard-sandbox-*:latest` | Sandbox image tags. |

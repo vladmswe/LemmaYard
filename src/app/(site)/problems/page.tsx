@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { formatTagLabel } from "@/lib/format";
 import { PageHead } from "@/components/page-head";
+import { AddToPlanDialog } from "@/components/plans/add-to-plan-dialog";
 import {
   CatalogFilterBar,
   CatalogResultsRegion,
@@ -13,6 +14,7 @@ import { effectiveFilters, parseCatalogFilters } from "@/lib/catalog/filters";
 import { getCurrentUser } from "@/server/auth/session";
 import { getCatalogPage } from "@/server/catalog";
 import { getEnv } from "@/server/env";
+import { plansEnabled } from "@/server/plans/flag";
 
 export const metadata: Metadata = {
   title: "Problems · LemmaYard",
@@ -58,7 +60,16 @@ export default async function ProblemsPage({ searchParams }: PageProps<"/problem
             showStatus={showStatus}
           />
           <CatalogResultsRegion>
-            <CatalogResults data={data} filters={filters} showStatus={showStatus} />
+            <CatalogResults
+              data={data}
+              filters={filters}
+              showStatus={showStatus}
+              rowAction={
+                user && plansEnabled()
+                  ? (row) => <AddToPlanDialog compact problem={{ slug: row.slug, title: row.title }} />
+                  : undefined
+              }
+            />
           </CatalogResultsRegion>
         </CatalogShell>
       </div>

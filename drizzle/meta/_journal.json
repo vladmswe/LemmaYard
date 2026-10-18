@@ -50,6 +50,13 @@
       "when": 1792346143315,
       "tag": "0006_lang_java",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792347782227,
+      "tag": "0007_study_plans",
+      "breakpoints": true
     }
   ]
 }

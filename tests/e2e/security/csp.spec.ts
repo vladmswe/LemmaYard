@@ -143,6 +143,25 @@ test("main pages raise no CSP violation", async ({ browser, baseURL }) => {
   expect(end.status()).toBe(200);
   await visit(page, collected, `${sessionPath}/results`);
 
+  // Study plans (PLANS_ENABLED=1 in the e2e harness): list, plan page, edit mode, add-to-plan dialog.
+  const plan = await api.post("/api/plans", {
+    data: { title: "CSP plan", items: [{ problemSlug: "two-sum" }, { leetcodeUrl: "https://leetcode.com/problems/lru-cache/" }] },
+    headers,
+  });
+  expect(plan.status()).toBe(201);
+  const { id: planId } = (await plan.json()) as { id: string };
+  await visit(page, collected, "/plans");
+  await visit(page, collected, `/plans/${planId}`, async (p) => {
+    await p.getByTestId("edit-plan-toggle").click();
+    await p.getByTestId("add-problems").click();
+    await p.getByRole("dialog").getByLabel("Search by title or number").fill("two");
+    await expect(p.getByRole("dialog").getByRole("list", { name: "Search results" })).toBeVisible();
+  });
+  await visit(page, collected, "/problems/two-sum", async (p) => {
+    await p.getByTestId("add-to-plan").click();
+    await expect(p.getByRole("dialog").getByRole("radio", { name: /CSP plan/ })).toBeVisible();
+  });
+
   expect(collected.violations).toEqual([]);
 
   await api.post(`/api/rooms/${roomId}/delete`, { data: { confirmName: "CSP Club" }, headers });

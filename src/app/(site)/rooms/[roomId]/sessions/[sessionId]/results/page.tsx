@@ -7,6 +7,7 @@ import { cache } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { NOT_FOUND_TITLE } from "@/components/not-found-content";
 import { PageHead } from "@/components/page-head";
+import { SaveSessionPlanButton } from "@/components/plans/save-session-plan-button";
 import { LocalDate } from "@/components/rooms/local-date";
 import { LocalTime } from "@/components/rooms/local-time";
 import { MemberPreferencesCard } from "@/components/rooms/room-settings";
@@ -26,6 +27,7 @@ import { plural, sessionResultsHref, sessionScreenHref } from "@/lib/rooms/histo
 import { formatShortDate } from "@/lib/format";
 import { getCurrentUser, requireUser } from "@/server/auth/session";
 import { getDb } from "@/server/db";
+import { plansEnabled } from "@/server/plans/flag";
 import { getSessionResults } from "@/server/rooms/results";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +113,7 @@ export default async function SessionResultsPage({
           </>
         }
         qed
+        actions={plansEnabled() ? <SaveSessionPlanButton sessionId={sessionId} /> : undefined}
       />
       <div className="container-page flex flex-col gap-8 py-8">
         {session.pendingJudging > 0 && (
