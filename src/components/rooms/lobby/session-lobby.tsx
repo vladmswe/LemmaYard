@@ -353,8 +353,8 @@ export function SessionLobby({
           open
           onOpenChange={(open) => {
             if (open) return;
-            // The dialog unmounts at once, so Base UI cannot return focus to
-            // the trigger: put it back on the slot (as after the other actions).
+            // The dialog unmounts at once and does not return focus itself
+            // (finalFocus off): put it back on the slot, as after the other actions.
             setFocus({ position: pinFor, message: "", nonce: Date.now() });
             setPinFor(null);
           }}

@@ -77,7 +77,9 @@ export function ProblemSearchDialog({
         }
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      {/* The lobby moves focus to the slot itself after closing; Base UI would
+          otherwise pick an older element from its focus history. */}
+      <DialogContent className="sm:max-w-lg" finalFocus={false}>
         <DialogHeader>
           <DialogTitle>Pin a problem to Problem {position}</DialogTitle>
           <DialogDescription>
