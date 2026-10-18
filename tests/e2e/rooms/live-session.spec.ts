@@ -78,7 +78,7 @@ test("two friends: lobby → live → solve → toast and scoreboard → finishe
   await po.getByRole("button", { name: "New room" }).first().click();
   await po.getByLabel("Room name").fill("E2E Live Club");
   await po.getByRole("button", { name: "Create room" }).click();
-  await expect(po).toHaveURL(/\/rooms\/[0-9a-f-]{36}\?tab=members$/);
+  await expect(po).toHaveURL(/\/rooms\/[0-9a-f-]{36}\?tab=settings$/);
   const roomPath = new URL(po.url()).pathname;
   await po.getByRole("button", { name: "Create link" }).click();
   const link = await po.getByLabel("Link", { exact: true }).inputValue();

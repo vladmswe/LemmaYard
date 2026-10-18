@@ -195,13 +195,14 @@ test("members browse history, results, solutions, member stats and a timeline", 
   expect(own?.status()).toBe(200);
 
   // Members (v2; the old Leaderboard tab redirects here): ann and ben 1 win, 3 solved and 2 first
-  // solves each (tie → by name), cat played 1 of 2.
+  // solves each (tie → by name), cat played 1 of 1 since joining.
   await pb.goto(`${roomPath}?tab=leaderboard`);
   await expect(pb).toHaveURL(/tab=members/);
   const lb = pb.getByTestId("members-table");
   await expect(lb.locator("tbody tr").first()).toHaveAttribute("data-user", ann.username);
   await expect(lb.locator(`tr[data-user="${ann.username}"]`)).toContainText("2/2");
-  await expect(lb.locator(`tr[data-user="${cat.username}"]`)).toContainText("1/2");
+  // Cat joined (row inserted) after the older session: it counts as "before joining", not missed.
+  await expect(lb.locator(`tr[data-user="${cat.username}"]`)).toContainText("1/1");
   await expect(pb.getByTestId("difficulty-profile")).toHaveCount(0);
   await pb.getByTestId("leaderboard-range").click();
   await pb.getByRole("option", { name: "All time" }).click();

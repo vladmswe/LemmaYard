@@ -273,7 +273,7 @@ test.describe.serial("rooms", { tag: JUDGE_TAG }, () => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(path);
       await page.getByRole("tab", { name: "Scoreboard" }).click();
-      await expect(page.getByTestId(width < 768 ? `score-card-${friend.username}` : `score-row-${friend.username}`)).toBeVisible();
+      await expect(page.getByTestId(`score-card-${friend.username}`)).toBeVisible();
       await settle(page);
       await expectNoOverflow(page, `live @${width}`);
       await expectAxeClean(page);
