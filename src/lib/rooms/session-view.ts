@@ -80,7 +80,7 @@ export type DrawNoticeView = DrawNotice & { message: string };
 
 export function noticeView(n: DrawNotice): DrawNoticeView {
   if (n.code === "targets_far") {
-    return { ...n, message: `Problem ${n.position}: closest available: ${n.rating} (target ${n.target})` };
+    return { ...n, message: `Problem ${n.position}: closest available is ${n.rating} (target ${n.target})` };
   }
   return { ...n, message: `${REROLLS_RESET_NOTICE} (${LABEL[n.difficulty]})` };
 }

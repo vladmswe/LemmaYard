@@ -151,6 +151,8 @@ const EXTRA_TEXT: [string, string][] = [
     [`difficulty-${d}`, "surface-sunken"],
     [`difficulty-${d}`, "accent"],
   ]),
+  // Rooms v2: white initials on the 8 room color tiles.
+  ...[0, 1, 2, 3, 4, 5, 6, 7].map((i): [string, string] => ["on-room", `room-${i}`]),
 ];
 
 describe.each([
