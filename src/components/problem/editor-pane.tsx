@@ -3,14 +3,14 @@ import type { ReactNode } from "react";
 import { cn } from "cn";
 
 /**
- * Editor slot of the problem workspace (DESIGN.md §9.4), M5 contract:
+ * Editor slot of the problem workspace (DESIGN.md §13.4), M5 contract:
  *
- * - `toolbar`: the 48px toolbar row (language select, Reset, Run, Submit).
+ * - `toolbar`: the 46px toolbar row (language select, Reset, Run, Submit).
  *   Rendered above the editor with `border-b`; omitted = no toolbar row.
  * - `children`: the editor itself (Monaco). It gets a flex-1, min-h-0 box
  *   that fills the pane (on mobile: 55dvh); size Monaco to 100% / 100%.
  *   Omitted = the read-only placeholder below.
- * - `statusBar`: the 28px status row ("Saved locally" | "Ln, Col").
+ * - `statusBar`: the 28px mono status row ("Ln, Col" · language · indent … "Saved locally").
  *
  * The pane renders exactly once per page (the workspace picks the desktop
  * split or the mobile tabs on the client), so Monaco mounts once.
@@ -30,11 +30,11 @@ export function EditorPane({ toolbar, children, statusBar, className }: EditorPa
       className={cn("flex h-full min-h-0 flex-col bg-editor", className)}
     >
       {toolbar && (
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b bg-card px-2">{toolbar}</div>
+        <div className="flex h-[46px] shrink-0 items-center gap-1.5 border-b bg-card pr-2 pl-2.5">{toolbar}</div>
       )}
       <div className="relative min-h-0 flex-1">{children ?? <EditorPlaceholder />}</div>
       {statusBar && (
-        <div className="flex h-7 shrink-0 items-center justify-between border-t px-3 text-xs text-muted-foreground">
+        <div className="flex h-7 shrink-0 items-center gap-4 border-t bg-editor px-3.5 font-mono text-xs text-muted-foreground">
           {statusBar}
         </div>
       )}
