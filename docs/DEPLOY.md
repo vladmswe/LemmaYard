@@ -81,6 +81,8 @@ the `AUTH_URL` note):
 | `VERCEL_SANDBOX_IMAGE_PYTHON`, `VERCEL_SANDBOX_IMAGE_NODE` | no | `vercel/sandbox/python:3.14`, `vercel/sandbox/node:22` | Sandbox images for `JUDGE_EXECUTOR=vercel-sandbox`. Leave unset (the defaults). |
 | `VERCEL_SANDBOX_IMAGE_JAVA` | no | `lemmayard-java:1` | Java image for `JUDGE_EXECUTOR=vercel-sandbox`: there is no managed one, so it is `sandbox/Dockerfile.java` pushed to the team's registry once (section 7, step 6). Until it is pushed, Java submissions end as Internal Error; Python and JavaScript are unaffected. |
 
+| `LEETCODE_CATALOG_ENABLED` | no | `0` | Rooms: automatic LeetCode problems from the committed catalog. Unset or `1`: on. `0` turns the feature off without a code change (takes effect after a redeploy, below); hand-picked LeetCode links keep working. |
+
 Do **not** set `DATABASE_URL_DIRECT` on Vercel; the web app never uses it.
 Do not set `NODE_ENV` or `PORT` either; Vercel manages them. Do not set
 `AUTH_RATE_LIMITS` (login/register limits; `0` is rejected on Vercel).

@@ -18,6 +18,10 @@ result**: participants open it on leetcode.com in a new tab and mark it solved t
 - **Scoring** treats a self-reported solve like a verified one (solved count, time, rank, ★ First), and every place
   that shows such a session says it "includes self-reported LeetCode problems".
 - **Ratings** ignore LeetCode problems completely. A session with only LeetCode problems is unrated.
+- **Auto-pick** (`docs/specs/leetcode-integration.md`, built later): the draw can fill the LeetCode slots from a
+  committed catalog. Still nothing is fetched from leetcode.com. Slots the draw picked are listed in
+  `settings.leetcodeAutoSlugs` (re-picked by the next draw, re-rollable); every other LeetCode slot was picked by
+  hand and stays. LeetCode rows keep `pinned = false` (the CHECK below requires it).
 
 ## 1. Data
 

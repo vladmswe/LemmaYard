@@ -171,6 +171,14 @@ A session can also include LeetCode problems
 ([`docs/specs/rooms-external-problems.md`](docs/specs/rooms-external-problems.md)): links from the room's
 LeetCode list (Settings) that participants mark solved themselves. They score like solves, are marked
 "SELF" everywhere, and never change ratings; nothing is fetched from leetcode.com.
+The lobby (and presets) can also **pick LeetCode problems automatically**
+([`docs/specs/leetcode-integration.md`](docs/specs/leetcode-integration.md)) from a committed, offline catalog
+(`src/server/leetcode/`): 2,616 contest problems (number, slug, title, contest position) with the community contest
+ratings of [zerotrac/leetcode_problem_rating](https://github.com/zerotrac/leetcode_problem_rating) (MIT), plus a
+hand-editable overlay with LemmaYard's own labels (estimated topic tags, difficulty overrides, premium/exclude flags,
+a few classic problems). Difficulty is derived from the rating in one place (`src/lib/leetcode/difficulty.ts`) and
+shown as "estimated"; LeetCode slots get their own rating ladder or difficulty mix, avoid repeats and re-rolls, and
+stay hidden from non-hosts until the start. `LEETCODE_CATALOG_ENABLED=0` turns the feature off.
 
 **Guide** (`src/content/learn/`, `src/lib/guide/`, `src/components/guide/`).
 Each lesson is MDX plus metadata, quiz and code samples. A visualization is a
@@ -226,6 +234,7 @@ docs/               deploy guide, specs, generated Supabase SQL, images
 | `pnpm problems:verify` | Runs every reference solution present (Python, JavaScript, and Java where `solution.java` exists) in the real sandbox; must all be Accepted (`--dir`, `--only <slug>`, `--concurrency <n>`). |
 | `pnpm sandbox:build` | Builds and checks the Python, Node and Java sandbox images (`pnpm sandbox:build java` builds one); rerun after any change in `sandbox/`. |
 | `pnpm run setup` | `install` + `docker compose up -d --wait` + `sandbox:build` + `db:seed`. |
+| `pnpm leetcode:catalog` | Regenerates `src/server/leetcode/catalog.json` from a downloaded zerotrac `data.json` (`--input <path> --commit <sha>`), offline; see [`src/server/leetcode/NOTICE.md`](src/server/leetcode/NOTICE.md). |
 
 `problems:import` validates every problem first and writes nothing if one is
 invalid; then it upserts by slug in one transaction. `--prune` unpublishes
@@ -653,3 +662,9 @@ Design rules: [DESIGN.md](DESIGN.md); contributor and agent conventions:
 **License.** [MIT](LICENSE). Problem statements and lesson texts in this
 repository are original; the course material that inspired the guide is not
 included.
+
+**Third-party notices.** The LeetCode catalog (`src/server/leetcode/catalog.json`) contains facts about LeetCode
+contest problems and the community ratings of zerotrac/leetcode_problem_rating, MIT licence, copyright (c) 2021
+Shuxin Chen; the full notice is in [`src/server/leetcode/NOTICE.md`](src/server/leetcode/NOTICE.md) and on the
+site's `/notices` page. LeetCode is a trademark of LeetCode LLC. LemmaYard is not affiliated with or endorsed by
+LeetCode.

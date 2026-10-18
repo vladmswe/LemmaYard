@@ -1,6 +1,7 @@
 # Rooms: real LeetCode problems, picked automatically (research and plan)
 
-Date: 2026-10-18. Status: research and plan for owner review. No code yet. Extends
+Date: 2026-10-18. Status: **option A built** on `feature/leetcode-catalog` (see §10 "As built" for the owner's
+answers and the differences from this plan). Extends
 `docs/specs/rooms-external-problems.md` (LeetCode slots, honor-system results) and `docs/specs/rooms-v2.md` (draw
 modes, per-room Elo). Everything not mentioned here stays as specified there.
 
@@ -566,6 +567,47 @@ and secondary sources, as marked. No LeetCode API or GraphQL endpoint was contac
 - Chrome `externally_connectable` (for option D): https://developer.chrome.com/docs/extensions/reference/manifest/externally-connectable ;
   Chrome Web Store program policies: https://developer.chrome.com/docs/webstore/program-policies/
 - Feist Publications v. Rural Telephone Service (1991): https://en.wikipedia.org/wiki/Feist_Publications,_Inc.,_v._Rural_Telephone_Service_Co.
+
+## 10. As built (2026-10-18)
+
+**Owner answers.** Q1 a (facts + zerotrac MIT ratings committed, attribution in `src/server/leetcode/NOTICE.md`,
+`/notices`, the footer, the README and room Settings → LeetCode problems). Q2: a dedicated rating column in the
+catalog; difficulty derived by ONE function with documented bands (`src/lib/leetcode/difficulty.ts`: < 1450 easy,
+< 1850 medium, else hard; change the bands there), always labelled "estimated"; the overlay can override it per
+problem. Problems without any rating get no invented difficulty: only the overlay can give one, else they are never
+auto-picked (hand picks via the catalog search still work). Q3 a, plus 60 classic problems seeded in the overlay by
+an agent (number, slug, title, difficulty marked `"difficultySource": "estimated"`, no rating). Q4: topic tags
+labelled by an agent from model knowledge, conservative (1–4 of our tag slugs), stored in `overlay.json` with
+`"tagsSource": "estimated"` so regenerating the catalog never touches them; untagged problems are skipped when a
+topic filter is active (with the fallback notice when too few match). Q5 a, Q6 a, Q7 a, Q8 a. No browser extension.
+
+**Initial data.** Dataset commit `df2f5b9e11db26574da3956271d98a551bff7ba4` (downloaded once, anonymously, from
+raw.githubusercontent.com; nothing from leetcode.com): 2,616 problems, 0 skipped (12 dataset titles had stray
+spaces at the ends; the generator trims them), ratings 1,084–3,125. Overlay: 2,434 catalog problems tagged (182
+untagged), 60 classics. Tagging was done in 8 batches; the three newest batches (numbers ≥ 2835) got a strict
+second review that reduced the newest one (≥ 3698) mostly to title-evident tags (array/string/tree/matrix/graph).
+A spot check of 40 random tagged problems found 1 wrong tag (an `array` on a string problem, fixed); the estimated
+error rate is about 3–6 % of tags overall, higher for the newest contests. The owner can edit any entry; set
+`tagsSource` to `"owner"` (or remove it) once checked.
+
+**Differences from the plan.**
+- `pinned` cannot mark hand-picked LeetCode slots: the CHECK `room_session_problems_kind` requires `NOT pinned` on
+  LeetCode rows, and no migration was allowed. Auto-picked slots are listed in `settings.leetcodeAutoSlugs`
+  instead (jsonb, host-only like `targets` and `leetcodeRerolled`); every other LeetCode slot counts as picked by
+  hand. A hand pick, a removal or a re-roll keeps that list in step.
+- The overlay supports `ratingSource` / `difficultySource` / `tagsSource` (`"owner"` default, `"estimated"`), and
+  extra problems need only `n` and `title` (rating and difficulty optional).
+- The lobby Setup card got a "LeetCode problems" stepper (0..N) next to the auto-pick switch (presets already had
+  the count). The add dialog's catalog tab is called "LeetCode list"; it opens on the room's own list when that has
+  unused entries.
+- "Estimated" labels after the start come from the catalog: a LeetCode slot whose snapshot (title, rating,
+  difficulty, no room-list entry) equals the catalog entry shows the catalog's estimate flags; typed links and
+  room-list entries never do.
+- `targets_far` notices are not shown for LeetCode slots (their positions belong to a separate ladder).
+
+**Refreshing the catalog.** See `src/server/leetcode/NOTICE.md` ("Refreshing the catalog"): `git ls-remote` the
+dataset, download `data.json` at that commit, `pnpm leetcode:catalog --input <path> --commit <sha>`, review the
+diff, `pnpm test`, commit. The overlay is never touched; new contest problems arrive untagged.
 
 ## Appendix: option D in brief (for later)
 

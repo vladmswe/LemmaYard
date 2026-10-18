@@ -329,9 +329,10 @@ expects ~3.6 of 4, the 1250 player ~0.9. Widened w = min(800, 650) = 650 gives t
 | Rating inflation | Mild: problems absorb only 4/24 of each surprise, so a group that improves rises (intended). If the author ratings are systematically high, everyone rises; the slow `adjust` corrects this (±200 cap). |
 
 ### 6.7 What we cannot do (honest)
-- No LeetCode contest ratings of anyone and no LeetCode problem ratings: there is no public API, scraping breaks
-  LeetCode's terms, and our 20 problems are original statements, not LeetCode problems, so the extension's numbers
-  would not apply anyway. The only bridge is the optional self-reported number.
+- No LeetCode contest ratings of anyone: there is no public API and scraping breaks LeetCode's terms. The only bridge
+  is the optional self-reported number. Update (owner decision, 2026-10-18, `leetcode-integration.md`): LeetCode
+  *problems* in rooms may carry the community contest ratings of the MIT zerotrac dataset, committed offline; they
+  are used to pick LeetCode problems and are shown, never to change anyone's Elo.
 - With 20 problems (3 hard), "By rating" cannot always hit targets above ~1700 or below ~1100. The UI shows the
   closest problem and says so.
 
