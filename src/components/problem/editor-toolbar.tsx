@@ -55,7 +55,7 @@ export type RunSubmitProps = {
   variant?: "toolbar" | "bar";
 };
 
-/** Run (secondary) + Submit (primary) with spinners and shortcut tooltips (DESIGN.md §9.4). */
+/** Run (secondary) + Submit (primary) with the ∎ loader and shortcut tooltips (DESIGN.md §13.4). */
 export function RunSubmitButtons({
   busyAction,
   disabled,
@@ -161,7 +161,7 @@ export function EditorToolbar({
         }}
         items={LANGUAGES.map((l) => ({ value: l, label: LANGUAGE_LABELS[l] }))}
       >
-        <SelectTrigger size="sm" aria-label="Language" data-testid="language-select" className="w-auto min-w-32">
+        <SelectTrigger size="sm" aria-label="Language" data-testid="language-select" className="w-auto min-w-32 font-semibold">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -178,15 +178,15 @@ export function EditorToolbar({
           render={
             <Button
               variant="ghost"
-              size="sm"
-              className="after:absolute after:-inset-1"
+              size="icon-sm"
+              aria-label="Reset code"
+              className="text-muted-foreground hover:text-foreground"
               data-testid="reset-button"
               onClick={() => setConfirmOpen(true)}
             />
           }
         >
           <RotateCcwIcon aria-hidden />
-          Reset
         </TooltipTrigger>
         <TooltipContent>Restore the starter code</TooltipContent>
       </Tooltip>

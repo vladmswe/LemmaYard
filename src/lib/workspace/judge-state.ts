@@ -168,6 +168,9 @@ export type ResultView =
       status: FinalStatus;
       /** "13/13 tests passed". */
       summary: string;
+      /** Hidden tests passed / total (the console's test squares). */
+      passed: number;
+      total: number;
       runtimeMs: number | null;
       memoryKb: number | null;
       failedCase: FailedCaseView | null;
@@ -341,6 +344,8 @@ export function submissionView(
     type: "submit",
     status,
     summary: `${passed}/${total} tests passed`,
+    passed,
+    total,
     runtimeMs: submission.runtimeMs,
     memoryKb: submission.memoryKb,
     failedCase,
