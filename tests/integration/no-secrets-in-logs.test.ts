@@ -147,10 +147,10 @@ describe("no user code or password in logs (AC-M7-4)", () => {
     const ok = await login(json("/api/auth/login", { email: user.email, password: PASSWORD }, { "X-Forwarded-For": "203.0.113.22" }));
     expect(ok.status).toBe(200);
 
-    // DB failure on register: 500, logged without the SQL params.
+    // DB failure on register (connection lost: 503 with a plain message), logged without the SQL params.
     state.db = failingDb(getTestDb());
     const failed = await register(json("/api/auth/register", { ...user, email: "other@example.com", username: "other" }, { "X-Forwarded-For": "203.0.113.23" }));
-    expect(failed.status).toBe(500);
+    expect(failed.status).toBe(503);
     expect(await failed.text()).not.toContain(MARKER);
     expect(captured.join("\n")).toContain("auth.register_failed");
 
@@ -200,10 +200,10 @@ describe("no user code or password in logs (AC-M7-4)", () => {
     await processSubmission(getTestDb(), async () => { throw dbError; }, claimed!, jsonLogger, "leak-test");
     expect(captured.join("\n")).toContain("processing failed");
 
-    // Web: the insert fails; 500 and a log line without the SQL params.
+    // Web: the insert fails (connection lost: 503) and a log line without the SQL params.
     state.db = failingDb(getTestDb());
     const failed = await submitRoute(json("/api/problems/two-sum/submit", { language: "python", code: CODE }), params);
-    expect(failed.status).toBe(500);
+    expect(failed.status).toBe(503);
     expect(captured.join("\n")).toContain("submissions.submit_insert_failed");
 
     expectNoMarker();

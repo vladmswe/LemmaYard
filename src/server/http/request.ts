@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { z } from "zod";
 
+import { DATABASE_UNAVAILABLE_MESSAGE, isDatabaseUnavailable } from "@/server/db/availability";
 import { getEnv } from "@/server/env";
 import { logError } from "@/server/log";
 
@@ -16,12 +17,19 @@ export function jsonError(
 }
 
 /**
- * 500 for an unexpected failure (e.g. the database). Logged with logError,
+ * 500 for an unexpected failure (503 when the database is unreachable or not set up). Logged with logError,
  * which keeps only the driver's message: an unhandled Drizzle error would be
  * printed by Next.js with its SQL params, i.e. user code or an email.
  */
 export function internalServerError(event: string, error: unknown): NextResponse {
   logError(event, error);
+  if (isDatabaseUnavailable(error)) {
+    // The database is down, misconfigured or not migrated yet: tell the user
+    // plainly and let clients retry later (503), instead of a vague 500.
+    const response = jsonError(503, DATABASE_UNAVAILABLE_MESSAGE);
+    response.headers.set("Retry-After", "30");
+    return response;
+  }
   return jsonError(500, "Something went wrong. Try again.");
 }
 
