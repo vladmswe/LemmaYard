@@ -1,4 +1,4 @@
-import { HistoryIcon, SearchXIcon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -9,6 +9,7 @@ import { Pagination } from "@/components/pagination";
 import { SubmissionList } from "@/components/submissions/submission-list";
 import { SubmissionsSkeleton } from "@/components/submissions/submissions-skeleton";
 import { buttonVariants } from "@/components/ui/button";
+import { chipClasses } from "@/components/ui/chip";
 import { parseHistoryParams, submissionsHref, type HistoryParams } from "@/lib/submissions/history";
 import { requireUser } from "@/server/auth/session";
 import { getEnv } from "@/server/env";
@@ -27,11 +28,12 @@ export default async function SubmissionsPage({ searchParams }: PageProps<"/subm
   return (
     <>
       <PageHead
+        qed
         crumbs={[{ label: "Home", href: "/" }, { label: "Submissions" }]}
         title="Submissions"
-        subtitle="Your submitted solutions, newest first."
+        subtitle="Your submitted solutions, newest first: verdict, runtime, memory and every test."
       />
-      <div className="container-page py-8">
+      <div className="container-page pt-8 pb-14">
         <Suspense key={`${params.problem ?? ""}:${params.page}`} fallback={<SubmissionsSkeleton />}>
           <History userId={user.id} params={params} />
         </Suspense>
@@ -53,18 +55,22 @@ async function History({ userId, params }: { userId: string; params: HistoryPara
   return (
     <div className="flex flex-col gap-5">
       {filter && (
-        // Same chip as the catalog filters (DESIGN.md §8.4): the whole chip removes the filter.
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Filtered by</span>
+        // A pressed filter chip (DESIGN.md §12): the whole chip removes the filter.
+        <div className="flex flex-wrap items-center gap-2.5 text-sm">
+          <span className="label-mono text-muted-foreground">Problem</span>
           <Link
             href={submissionsHref()}
             aria-label={`Remove filter: ${filter.title ?? filter.slug}`}
             data-testid="problem-filter-chip"
-            className="inline-flex h-7 max-w-full items-center gap-1 rounded-full bg-secondary pr-1.5 pl-2.5 text-[0.8125rem] font-semibold text-secondary-foreground transition-colors duration-120 hover:bg-blue-200 dark:hover:bg-[#24385f]"
+            data-pressed="true"
+            className={chipClasses("max-w-full pr-2.5")}
           >
             <span className="truncate">{filter.title ?? filter.slug}</span>
-            <XIcon aria-hidden className="size-3.5 shrink-0" />
+            <XIcon aria-hidden />
           </Link>
+          <span className="font-mono text-[0.8125rem] text-muted-foreground tabular-nums">
+            {data.total} {data.total === 1 ? "submission" : "submissions"}
+          </span>
         </div>
       )}
       <HistoryBody data={data} now={now} />
@@ -75,76 +81,73 @@ async function History({ userId, params }: { userId: string; params: HistoryPara
 function HistoryBody({ data, now }: { data: Awaited<ReturnType<typeof getSubmissionHistory>>; now: Date }) {
   const filter = data.filter;
   if (data.rows.length === 0) {
+    // Empty results are "unfinished proofs" (DESIGN.md §13.11): what you have, what you want.
     if (data.total > 0) {
       return (
-        <Panel>
-          <EmptyState
-            icon={SearchXIcon}
-            title="This page is empty"
-            action={
-              <Link href={submissionsHref({ problem: filter?.slug })} className={buttonVariants({ variant: "secondary" })}>
-                Go to the first page
-              </Link>
-            }
-          >
-            {`There ${data.total === 1 ? "is only 1 submission" : `are only ${data.total} submissions`} here.`}
-          </EmptyState>
-        </Panel>
+        <EmptyState
+          title="This page is empty"
+          given={`page ${data.page}`}
+          want={`one of ${data.total} submissions`}
+          action={
+            <Link href={submissionsHref({ problem: filter?.slug })} className={buttonVariants({ variant: "secondary" })}>
+              Go to the first page
+            </Link>
+          }
+        >
+          {`There ${data.total === 1 ? "is only 1 submission" : `are only ${data.total} submissions`} here.`}
+        </EmptyState>
       );
     }
     if (filter && filter.title === null) {
       return (
-        <Panel>
-          <EmptyState
-            icon={SearchXIcon}
-            title="No such problem"
-            action={
-              <Link href={submissionsHref()} className={buttonVariants({ variant: "secondary" })}>
-                Show all submissions
-              </Link>
-            }
-          >
-            There is no problem with this address, so there are no submissions to show.
-          </EmptyState>
-        </Panel>
+        <EmptyState
+          title="No such problem"
+          given={`problem “${filter.slug}”`}
+          want="its submissions"
+          action={
+            <Link href={submissionsHref()} className={buttonVariants({ variant: "secondary" })}>
+              Show all submissions
+            </Link>
+          }
+        >
+          There is no problem with this address, so there are no submissions to show.
+        </EmptyState>
       );
     }
     if (filter) {
       return (
-        <Panel>
-          <EmptyState
-            icon={HistoryIcon}
-            title="No submissions for this problem yet"
-            action={
-              <>
-                <Link href={`/problems/${filter.slug}`} className={buttonVariants()}>
-                  Open problem
-                </Link>
-                <Link href={submissionsHref()} className={buttonVariants({ variant: "secondary" })}>
-                  Show all submissions
-                </Link>
-              </>
-            }
-          >
-            Submit a solution to {filter.title} and it will be listed here.
-          </EmptyState>
-        </Panel>
+        <EmptyState
+          title="No submissions for this problem yet"
+          given={filter.title}
+          want="a first submission"
+          action={
+            <>
+              <Link href={`/problems/${filter.slug}`} className={buttonVariants()}>
+                Open problem
+              </Link>
+              <Link href={submissionsHref()} className={buttonVariants({ variant: "secondary" })}>
+                Show all submissions
+              </Link>
+            </>
+          }
+        >
+          Submit a solution to {filter.title} and it will be listed here.
+        </EmptyState>
       );
     }
     return (
-      <Panel>
-        <EmptyState
-          icon={HistoryIcon}
-          title="No submissions yet"
-          action={
-            <Link href="/problems" className={buttonVariants()}>
-              Browse problems
-            </Link>
-          }
-        >
-          Every solution you submit is listed here with its verdict, runtime and memory.
-        </EmptyState>
-      </Panel>
+      <EmptyState
+        title="No submissions yet"
+        given="an empty history"
+        want="your first Accepted"
+        action={
+          <Link href="/problems" className={buttonVariants()}>
+            Browse problems
+          </Link>
+        }
+      >
+        Every solution you submit is listed here with its verdict, runtime, memory and tests.
+      </EmptyState>
     );
   }
 
@@ -160,8 +163,4 @@ function HistoryBody({ data, now }: { data: Awaited<ReturnType<typeof getSubmiss
       />
     </div>
   );
-}
-
-function Panel({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-lg border bg-card shadow-xs">{children}</div>;
 }

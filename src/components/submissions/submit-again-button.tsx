@@ -1,6 +1,6 @@
 "use client";
 
-import { CloudUploadIcon } from "lucide-react";
+import { SquarePenIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { buttonVariants } from "@/components/ui/button";
@@ -8,10 +8,10 @@ import type { Language } from "@/lib/submission-dto";
 import { getBrowserStorage, saveDraft, saveLanguage } from "@/lib/workspace/storage";
 
 /**
- * "Submit again": opens the problem with this submission's code as the
+ * "Open in editor": opens the problem with this submission's code as the
  * editor draft for its language (the same localStorage draft the editor
- * restores, AC-M5-2). A plain link without JS: the problem opens with the
- * current draft.
+ * restores, AC-M5-2), ready to change and submit again. A plain link
+ * without JS: the problem opens with the current draft.
  */
 export function SubmitAgainLink({
   slug,
@@ -29,7 +29,7 @@ export function SubmitAgainLink({
   return (
     <a
       href={href}
-      className={buttonVariants({ variant: "secondary", className })}
+      className={buttonVariants({ variant: "secondary", size: "sm", className })}
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
         event.preventDefault();
@@ -40,9 +40,9 @@ export function SubmitAgainLink({
       }}
       data-testid="submit-again"
     >
-      <CloudUploadIcon aria-hidden />
-      Submit again
-      <span className="sr-only">: opens the problem with this code in the editor</span>
+      <SquarePenIcon aria-hidden />
+      Open in editor
+      <span className="sr-only">: opens the problem with this code as your draft</span>
     </a>
   );
 }
