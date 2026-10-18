@@ -13,12 +13,10 @@ import {
   type CatalogStatus,
   escapeLike,
 } from "@/lib/catalog/filters";
+// Submit statuses left out of acceptance: internal errors and pending jobs (PLAN §4).
 import { NOT_COUNTED_STATUSES } from "@/lib/progress";
 import { type Db, getDb } from "@/server/db";
 import { problems, problemTags, submissions, tags } from "@/server/db/schema";
-
-/** Submit statuses left out of acceptance: internal errors and pending jobs (PLAN §4). */
-export { NOT_COUNTED_STATUSES };
 
 export type CatalogTag = { slug: string; name: string; count: number };
 

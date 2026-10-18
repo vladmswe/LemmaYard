@@ -163,9 +163,13 @@ with `pnpm db:export-sql` whenever a migration is added.
 
 ### Row level security
 
-Migration `0002_enable_rls` enables row level security on every app table
-(`users`, `problems`, `tags`, `problem_tags`, `test_cases`, `submissions`)
-**without any policies**. Supabase exposes the `public` schema through its
+Row level security is on for all 13 application tables, **without any
+policies**: migration `0002_enable_rls` covers `users`, `problems`, `tags`,
+`problem_tags`, `test_cases` and `submissions`; migration `0003_rooms` creates
+`rooms`, `room_members`, `room_sessions`, `room_session_problems`,
+`room_session_participants`, `room_session_results` and `room_events` with RLS
+enabled. Every table added later must enable it too
+(`tests/integration/rls.test.ts` fails otherwise). Supabase exposes the `public` schema through its
 REST API (with the public `anon` key); without RLS, anyone with that key could
 read `users`, including password hashes. With RLS on and no policies, the
 REST roles (`anon`, `authenticated`) see nothing. The app connects as

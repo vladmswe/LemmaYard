@@ -1,0 +1,91 @@
+# CI: static checks, unit tests, production build, and the integration tests
+# that need only Postgres.
+#
+# Not covered yet (follow-ups):
+# - Docker sandbox suites (tests/integration/sandbox-*.test.ts,
+#   worker-docker, worker-storage, submissions-docker) and `pnpm problems:verify`:
+#   they need `pnpm sandbox:build` and a Docker daemon on the runner.
+# - Playwright e2e (`pnpm test:e2e`, AC-M7-1): wired once the e2e harness
+#   (isolated e2e DB, web + worker started by Playwright) lands.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Placeholder values for CI only: no real secret or database is involved.
+env:
+  AUTH_SECRET: ci-only-not-a-secret-0123456789abcdefghijklmnopqrstuv
+  AUTH_URL: http://localhost:3000
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  checks:
+    name: Lint, typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Read by getEnv() at build time; nothing connects to it during the build.
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      # Version from package.json `packageManager`.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  integration-db:
+    name: Integration tests (Postgres only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      # tests/helpers/db.ts creates and migrates its own test database
+      # (name ends in TEST_DB_SUFFIX) on this server.
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      TEST_DB_SUFFIX: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Every suite except the ones that start Docker sandbox containers.
+      - run: >-
+          pnpm test:integration
+          --exclude '**/sandbox-*.test.ts'
+          --exclude '**/worker-docker.test.ts'
+          --exclude '**/worker-storage.test.ts'
+          --exclude '**/submissions-docker.test.ts'

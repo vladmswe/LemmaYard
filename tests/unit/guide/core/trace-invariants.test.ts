@@ -126,10 +126,14 @@ describe("checkTraceInvariants", () => {
     const big: Trace<S> = { ...t, frames: [...t.frames, ...Array.from({ length: 100 - t.frames.length }, () => ({ ...last, key: false }))] };
     const model = modelFor(big);
     for (let i = 0; i < 20; i++) checkTraceInvariants(big, model, { input }); // warm up
-    const runs = 200;
-    const start = performance.now();
-    for (let i = 0; i < runs; i++) checkTraceInvariants(big, model, { input });
     // Guards against pathological slowness only: 2 ms flaked when the host was loaded by parallel agents.
-    expect((performance.now() - start) / runs).toBeLessThanOrEqual(10);
+    // The best of 5 batches of 40 is what the code costs; a load spike only slows some batches.
+    const batches = Array.from({ length: 5 }, () => {
+      const runs = 40;
+      const start = performance.now();
+      for (let i = 0; i < runs; i++) checkTraceInvariants(big, model, { input });
+      return (performance.now() - start) / runs;
+    });
+    expect(Math.min(...batches)).toBeLessThanOrEqual(10);
   });
 });

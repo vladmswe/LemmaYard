@@ -22,6 +22,7 @@ import {
 import { refBalanced, refOpenAfter } from "@/lib/guide/traces/stack/reference";
 
 import { checkRenderer } from "../complexity-basics/render-check";
+import { coverageSample } from "../helpers/coverage";
 
 const model = stackBracketsModel;
 const COURSE_LINE = "if (x * (y + z[1]) < 137) { x = 1; }";
@@ -35,25 +36,41 @@ const mixedArb = textArb("()[]{}ab ");
  * edit (drop, swap or add a character), so every failure kind (closer on an
  * empty stack, wrong kind, leftover openers) is reached next to the valid case.
  */
+const EDITS = ["none", "drop-first", "drop-last", "swap", "add-closer", "add-opener"] as const;
+type NearBalancedSpec = { pairs: string[]; nest: boolean[]; edit: (typeof EDITS)[number]; filler: string };
+
+function nearBalanced({ pairs, nest, edit, filler }: NearBalancedSpec): BracketsInput {
+  let s = "";
+  pairs.forEach((p, k) => {
+    s = nest[k] ? `${p[0]}${filler}${s}${p[1]}` : `${s}${p}${filler}`;
+  });
+  if (edit === "drop-first") s = s.slice(1);
+  else if (edit === "drop-last") s = s.slice(0, -1);
+  else if (edit === "swap" && s.length >= 2) s = s[1]! + s[0]! + s.slice(2);
+  else if (edit === "add-closer") s = `)${s}`;
+  else if (edit === "add-opener") s = `${s}[`;
+  return { text: s.slice(0, BRACKETS_MAX_LENGTH) };
+}
+
 const nearBalancedArb: fc.Arbitrary<BracketsInput> = fc
   .record({
     pairs: fc.array(fc.constantFrom("()", "[]", "{}"), { minLength: 1, maxLength: 6 }),
     nest: fc.array(fc.boolean(), { maxLength: 6 }),
-    edit: fc.constantFrom("none", "drop-first", "drop-last", "swap", "add-closer", "add-opener"),
+    edit: fc.constantFrom(...EDITS),
     filler: fc.constantFrom("", "a", " b "),
   })
-  .map(({ pairs, nest, edit, filler }) => {
-    let s = "";
-    pairs.forEach((p, k) => {
-      s = nest[k] ? `${p[0]}${filler}${s}${p[1]}` : `${s}${p}${filler}`;
-    });
-    if (edit === "drop-first") s = s.slice(1);
-    else if (edit === "drop-last") s = s.slice(0, -1);
-    else if (edit === "swap" && s.length >= 2) s = s[1]! + s[0]! + s.slice(2);
-    else if (edit === "add-closer") s = `)${s}`;
-    else if (edit === "add-opener") s = `${s}[`;
-    return { text: s.slice(0, BRACKETS_MAX_LENGTH) };
-  });
+  .map(nearBalanced);
+
+/** One fixed near-balanced string per verdict line, built like the arbitrary's values. */
+const NEAR_BALANCED_EXAMPLES: ReadonlyArray<[BracketsInput, string]> = [
+  [nearBalanced({ pairs: ["()", "[]"], nest: [false, true], edit: "none", filler: "a" }), "brackets.end"], // "[a()a]", valid
+  [nearBalanced({ pairs: ["()", "{}"], nest: [], edit: "add-closer", filler: "" }), "brackets.empty"], // ")(){}"
+  [nearBalanced({ pairs: ["[]", "()"], nest: [false, true], edit: "swap", filler: "" }), "brackets.match"], // "[(])"
+  [nearBalanced({ pairs: ["{}"], nest: [], edit: "add-opener", filler: " b " }), "brackets.end"], // "{} b [", leftover
+];
+
+const verdictLine = (input: BracketsInput) =>
+  model.generate(input).frames.find((f) => f.state.verdict !== null)?.line ?? "none";
 
 /** Every frame before the verdict: the stack is exactly the unmatched openers of the text read so far. */
 function checkFrames(input: BracketsInput, frames: readonly Frame<BracketsState>[]) {
@@ -100,16 +117,21 @@ describe("AC-G-4-10: stack.brackets agrees with a reference checker", () => {
   });
 
   it("near-balanced strings reach every failure kind next to the valid case (S2a)", () => {
-    const kinds = new Set<string>();
-    fc.assert(
-      fc.property(nearBalancedArb, (input) => {
-        agrees(input);
-        const t = model.generate(input);
-        kinds.add(t.frames.find((f) => f.state.verdict !== null)?.line ?? "none");
-      }),
-      { numRuns: numRuns(200) },
-    );
-    expect([...kinds].sort()).toEqual(["brackets.empty", "brackets.end", "brackets.match"]);
+    const ALL = ["brackets.empty", "brackets.end", "brackets.match"];
+    // The fixed examples hit every verdict line, valid and leftover included.
+    expect(NEAR_BALANCED_EXAMPLES.map(([input]) => input.text)).toEqual(["[a()a]", ")(){}", "[(])", "{} b ["]);
+    expect(NEAR_BALANCED_EXAMPLES.map(([input]) => verdictLine(input))).toEqual(NEAR_BALANCED_EXAMPLES.map(([, line]) => line));
+    expect(NEAR_BALANCED_EXAMPLES.map(([input]) => refBalanced(input.text))).toEqual([true, false, false, false]);
+    // The arbitrary itself reaches every verdict line: checked on a fixed-seed sample, so it cannot flake.
+    expect([...new Set(coverageSample(nearBalancedArb).map(verdictLine))].sort()).toEqual(ALL);
+    // Agreement: the fixed examples first, then fresh random near-balanced strings.
+    fc.assert(fc.property(nearBalancedArb, (input) => {
+      agrees(input);
+      expect(ALL).toContain(verdictLine(input));
+    }), {
+      numRuns: numRuns(200),
+      examples: NEAR_BALANCED_EXAMPLES.map(([input]) => [input]),
+    });
   });
 
   it("the course presets )()(, ()), ([)], (( are unbalanced, each for its own reason", () => {
