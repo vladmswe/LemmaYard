@@ -221,6 +221,32 @@ profiles, the guide and room lobbies work. The plan (PLAN.md §13) is a Vercel S
 existing `Executor` interface (isolated microVMs, started from Vercel
 Functions), or alternatively a small VPS running only the worker.
 
+### Enabling a judge with a worker host (not yet tried in production)
+
+The worker is the same process as locally; it only needs Docker and the
+database:
+
+1. On a Linux host with Docker, Node 22 and pnpm: clone the repository,
+   `pnpm install`, `cp .env.example .env`, then `pnpm sandbox:build`.
+2. In that `.env` set `DATABASE_URL` to the Supabase **session pooler** string
+   (port 5432; the worker is a long-lived process with its own pool) and
+   `DATABASE_POOL_MAX` to a small value (e.g. `3`; it needs about
+   `WORKER_CONCURRENCY` + 1 connections). `AUTH_SECRET` must be any value of at
+   least 32 characters (the worker does not use it, but the env schema
+   requires it).
+3. Run `pnpm worker` under a process manager (systemd, pm2, ...). At start it
+   checks Docker and both images and logs `worker started`.
+4. On Vercel set `JUDGE_ENABLED=1` and redeploy; `/api/health` then reports
+   `"judge":"enabled"`.
+
+Every Run and Submit then waits in `submissions` until the worker claims it.
+If the worker stops, the UI reports "Judge is unavailable, try again later"
+after `QUEUED_TIMEOUT_MS`, but the rows stay `queued` and count against each
+user's active-submission cap (`MAX_ACTIVE_PER_USER`) until a worker claims
+them. When it comes back it judges them and its sweep marks rows left
+`running` by a crash as `internal_error`. Set `JUDGE_ENABLED` back to unset or
+`0` if the host goes away for good.
+
 ## 8. Troubleshooting
 
 | Symptom | Likely cause | Fix |
