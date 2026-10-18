@@ -1,5 +1,5 @@
 import type { CatalogDifficulty } from "@/lib/catalog/filters";
-import type { SubmissionKind, SubmissionStatus } from "@/lib/submission-dto";
+import type { Language, SubmissionKind, SubmissionStatus } from "@/lib/submission-dto";
 
 /** Fill percentage for a progress bar, clamped to 0..100; 0 when max <= 0. */
 export function progressPercent(value: number, max: number): number {
@@ -32,6 +32,8 @@ export type SubmissionGroup = {
   count: number;
   /** Earliest `created_at` in the group. */
   firstAt: Date;
+  /** Set when the rows are also grouped by language (profile). */
+  language?: Language;
 };
 
 export type SolvedProblem = {
@@ -102,4 +104,45 @@ export function summarizeUserStats(
     acceptance: submits > 0 ? accepted / submits : null,
     recentSolved,
   };
+}
+
+export type ProfileExtras = {
+  /** Unique published problems with counted submits but no accepted one, by difficulty. */
+  attempted: Record<CatalogDifficulty, number>;
+  /** Language of each solved problem's first accepted submit (by slug). */
+  solvedLanguage: Record<string, Language>;
+  /** The language with the most counted submits; null without any (ties: the first in order). */
+  mainLanguage: Language | null;
+};
+
+/**
+ * Profile-only details from the same groups (grouped by language too): the
+ * proof sheet's "attempted" squares, the language of each first accepted
+ * submit and the main language. Same counting rules as `summarizeUserStats`.
+ */
+export function summarizeProfileExtras(groups: readonly SubmissionGroup[]): ProfileExtras {
+  const attempted: Record<CatalogDifficulty, number> = { easy: 0, medium: 0, hard: 0 };
+  const solved = new Map<string, { at: Date; language?: Language; slug: string }>();
+  const tried = new Map<string, CatalogDifficulty>();
+  const perLanguage = new Map<Language, number>();
+
+  for (const g of groups) {
+    if (g.kind !== "submit" || !g.published || g.count <= 0) continue;
+    if (isCountedStatus(g.status)) {
+      tried.set(g.problemId, g.difficulty);
+      if (g.language) perLanguage.set(g.language, (perLanguage.get(g.language) ?? 0) + g.count);
+    }
+    if (g.status !== "accepted") continue;
+    const prev = solved.get(g.problemId);
+    if (!prev || g.firstAt < prev.at) solved.set(g.problemId, { at: g.firstAt, language: g.language, slug: g.slug });
+  }
+  for (const [problemId, difficulty] of tried) if (!solved.has(problemId)) attempted[difficulty] += 1;
+
+  const solvedLanguage: Record<string, Language> = {};
+  for (const { slug, language } of solved.values()) if (language) solvedLanguage[slug] = language;
+
+  let mainLanguage: Language | null = null;
+  for (const [language, n] of perLanguage) if (mainLanguage === null || n > perLanguage.get(mainLanguage)!) mainLanguage = language;
+
+  return { attempted, solvedLanguage, mainLanguage };
 }

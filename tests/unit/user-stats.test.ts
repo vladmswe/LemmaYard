@@ -1,7 +1,7 @@
 // Counting rules of the profile / landing statistics (AC-M6-4, AC-M6-5).
 import { describe, expect, it } from "vitest";
 
-import { isCountedStatus, summarizeUserStats, type SubmissionGroup } from "@/lib/progress";
+import { isCountedStatus, summarizeProfileExtras, summarizeUserStats, type SubmissionGroup } from "@/lib/progress";
 
 const day = (n: number) => new Date(Date.UTC(2026, 9, n, 12));
 
@@ -131,5 +131,32 @@ describe("summarizeUserStats", () => {
     expect(isCountedStatus("internal_error")).toBe(false);
     expect(isCountedStatus("queued")).toBe(false);
     expect(isCountedStatus("running")).toBe(false);
+  });
+});
+
+describe("summarizeProfileExtras (profile proof sheet)", () => {
+  it("counts attempted problems once, never solved ones, and only counted submits", () => {
+    const extras = summarizeProfileExtras([
+      group({ problemId: "a", status: "wrong_answer", difficulty: "medium" }),
+      group({ problemId: "a", status: "time_limit", difficulty: "medium" }),
+      group({ problemId: "b", status: "wrong_answer" }),
+      group({ problemId: "b", status: "accepted" }),
+      group({ problemId: "c", status: "internal_error", difficulty: "hard" }),
+      group({ problemId: "d", status: "wrong_answer", kind: "run", difficulty: "hard" }),
+      group({ problemId: "e", status: "wrong_answer", published: false, difficulty: "hard" }),
+    ]);
+    expect(extras.attempted).toEqual({ easy: 0, medium: 1, hard: 0 });
+  });
+
+  it("keeps the language of the first accepted submit and picks the main language", () => {
+    const extras = summarizeProfileExtras([
+      group({ problemId: "a", slug: "a", language: "javascript", firstAt: day(5), count: 1 }),
+      group({ problemId: "a", slug: "a", language: "python", firstAt: day(2), count: 1 }),
+      group({ problemId: "b", slug: "b", language: "javascript", status: "wrong_answer", count: 4 }),
+      group({ problemId: "c", slug: "c", language: "python", status: "internal_error", count: 9 }),
+    ]);
+    expect(extras.solvedLanguage).toEqual({ a: "python" });
+    expect(extras.mainLanguage).toBe("javascript");
+    expect(summarizeProfileExtras([]).mainLanguage).toBeNull();
   });
 });
