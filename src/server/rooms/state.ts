@@ -131,9 +131,13 @@ async function loadSnapshot(
         tags: sql<string[]>`coalesce((
           SELECT array_agg(t.slug ORDER BY t.slug) FROM problem_tags pt JOIN tags t ON t.id = pt.tag_id
           WHERE pt.problem_id = "problems"."id"), '{}')`,
+        // LeetCode slots (rooms-external-problems §1.2): no problem row, a snapshot instead.
+        externalSlug: roomSessionProblems.externalSlug,
+        externalTitle: roomSessionProblems.externalTitle,
+        externalRating: roomSessionProblems.externalRating,
       })
       .from(roomSessionProblems)
-      .innerJoin(problems, eq(problems.id, roomSessionProblems.problemId))
+      .leftJoin(problems, eq(problems.id, roomSessionProblems.problemId))
       .where(eq(roomSessionProblems.sessionId, sessionId)),
     db
       .select({
@@ -165,7 +169,24 @@ async function loadSnapshot(
       problemCount: gate.problemCount,
       hostId: gate.hostId,
     },
-    problems: slotRows.map((s) => ({ ...s, difficulty: s.difficulty as Difficulty })),
+    problems: slotRows.map((s) =>
+      s.externalSlug !== null
+        ? {
+            position: s.position,
+            slug: null,
+            title: s.externalTitle ?? s.externalSlug,
+            difficulty: s.difficulty as Difficulty | null,
+            tags: [],
+            external: { slug: s.externalSlug, rating: s.externalRating },
+          }
+        : {
+            position: s.position,
+            slug: s.slug ?? "",
+            title: s.title ?? "",
+            difficulty: s.difficulty as Difficulty,
+            tags: s.tags,
+          },
+    ),
     participants: participantRows.map((p) => ({
       ...p,
       results: p.results.map((r) => ({

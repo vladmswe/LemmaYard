@@ -3,7 +3,7 @@
 // src/lib/rooms/selection.ts (difficulty mode) and src/lib/rooms/rating.ts
 // (rating mode); this file gathers their inputs, writes the slots and builds
 // the lobby view. Callers hold the room and session locks.
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import {
   drawSlotsByRating,
@@ -31,8 +31,21 @@ import {
   type Slot,
 } from "@/lib/rooms/selection";
 import type { ResolvedSettings } from "@/lib/rooms/session-schemas";
-import { noticeView, type DrawErrorView, type LobbyExpectationView, type LobbyView } from "@/lib/rooms/session-view";
-import { mixOf, selectionModeOf, type Difficulty, type Mix, type RoomSessionSettings } from "@/lib/rooms/types";
+import {
+  noticeView,
+  type DrawErrorView,
+  type LobbyExpectationView,
+  type LobbySlotView,
+  type LobbyView,
+} from "@/lib/rooms/session-view";
+import {
+  externalCountOf,
+  mixOf,
+  selectionModeOf,
+  type Difficulty,
+  type Mix,
+  type RoomSessionSettings,
+} from "@/lib/rooms/types";
 import {
   problems,
   roomMembers,
@@ -85,14 +98,17 @@ export async function loadCalibration(tx: Pick<Tx, "execute">, roomId: string): 
       ORDER BY started_at DESC
       LIMIT 6
     ), active AS (
+      -- Judged problems only: LeetCode slots (problem_id NULL) are self-reported and never calibrate.
       SELECT DISTINCT res.session_id, res.user_id
       FROM room_session_results res JOIN recent ON recent.id = res.session_id
+      JOIN room_session_problems sp0
+        ON sp0.session_id = res.session_id AND sp0.position = res.position AND sp0.problem_id IS NOT NULL
       WHERE res.attempts > 0
     )
     SELECT sp.difficulty, count(*)::int AS pairs, count(res.first_accepted_at)::int AS solved,
            (SELECT count(*)::int FROM recent) AS sessions
     FROM active a
-    JOIN room_session_problems sp ON sp.session_id = a.session_id
+    JOIN room_session_problems sp ON sp.session_id = a.session_id AND sp.problem_id IS NOT NULL
     LEFT JOIN room_session_results res
       ON res.session_id = a.session_id AND res.user_id = a.user_id AND res.position = sp.position
          AND res.attempts > 0
@@ -139,7 +155,7 @@ export async function loadDrawContext(
   const usage = await tx.execute<{ problem_id: string; last_used: Date | string }>(sql`
       SELECT sp.problem_id, max(s.started_at) AS last_used
       FROM room_sessions s JOIN room_session_problems sp ON sp.session_id = s.id
-      WHERE s.room_id = ${session.roomId} AND s.status IN ('live', 'finished')
+      WHERE s.room_id = ${session.roomId} AND s.status IN ('live', 'finished') AND sp.problem_id IS NOT NULL
       GROUP BY sp.problem_id
     `);
   // Q8: expected participants with an accepted submit, per problem.
@@ -171,6 +187,7 @@ export async function loadDrawContext(
 
 export type SlotRow = Slot & { slug: string; title: string; published: boolean; tags: string[]; rating: number };
 
+/** The session's slots with one of OUR problems (LeetCode slots: `loadExternalSlots`). */
 export async function loadSlots(tx: Tx, sessionId: string): Promise<SlotRow[]> {
   const rows = await tx
     .select({
@@ -188,14 +205,84 @@ export async function loadSlots(tx: Tx, sessionId: string): Promise<SlotRow[]> {
     })
     .from(roomSessionProblems)
     .innerJoin(problems, eq(problems.id, roomSessionProblems.problemId))
-    .where(eq(roomSessionProblems.sessionId, sessionId))
+    .where(and(eq(roomSessionProblems.sessionId, sessionId), isNotNull(roomSessionProblems.problemId)))
     .orderBy(asc(roomSessionProblems.position));
-  return rows.map((r) => ({ ...r, rating: Number(r.rating) }));
+  // Inner join on problem_id: an internal slot always has both (CHECK room_session_problems_kind).
+  return rows.map((r) => ({ ...r, problemId: r.problemId!, difficulty: r.difficulty!, rating: Number(r.rating) }));
 }
 
-/** Replaces the session's slots with `slots` (positions 1..N, one problem each). */
+/** A LeetCode slot of a session (rooms-external-problems §1.2): the snapshot taken when it was filled. */
+export type ExternalSlotRow = {
+  position: number;
+  slug: string;
+  title: string;
+  difficulty: Difficulty | null;
+  rating: number | null;
+  bankId: string | null;
+};
+
+export async function loadExternalSlots(tx: Pick<Tx, "select">, sessionId: string): Promise<ExternalSlotRow[]> {
+  const rows = await tx
+    .select({
+      position: roomSessionProblems.position,
+      slug: roomSessionProblems.externalSlug,
+      title: roomSessionProblems.externalTitle,
+      difficulty: roomSessionProblems.difficulty,
+      rating: roomSessionProblems.externalRating,
+      bankId: roomSessionProblems.externalProblemId,
+    })
+    .from(roomSessionProblems)
+    .where(and(eq(roomSessionProblems.sessionId, sessionId), isNull(roomSessionProblems.problemId)))
+    .orderBy(asc(roomSessionProblems.position));
+  // CHECK room_session_problems_kind: a row without problem_id has a slug and a title.
+  return rows.map((r) => ({ ...r, slug: r.slug!, title: r.title! }));
+}
+
+/** Row values of a LeetCode slot. */
+export function externalSlotValues(sessionId: string, position: number, e: Omit<ExternalSlotRow, "position">) {
+  return {
+    sessionId,
+    position,
+    problemId: null,
+    difficulty: e.difficulty,
+    pinned: false,
+    externalProblemId: e.bankId,
+    externalSlug: e.slug,
+    externalTitle: e.title,
+    externalRating: e.rating,
+  };
+}
+
+/**
+ * Keeps the first `keep` LeetCode slots (in position order) and moves them
+ * right after the drawn ones: positions `drawn + 1 …`. Extra LeetCode slots
+ * beyond `keep` are dropped. Runs before the internal slots are rewritten.
+ */
+export async function placeExternalSlots(tx: Tx, sessionId: string, drawn: number, keep: number): Promise<void> {
+  const externals = await loadExternalSlots(tx, sessionId);
+  const kept = externals.slice(0, keep);
+  const unchanged = kept.length === externals.length && kept.every((e, i) => e.position === drawn + 1 + i);
+  if (unchanged) return;
+  await tx
+    .delete(roomSessionProblems)
+    .where(and(eq(roomSessionProblems.sessionId, sessionId), isNull(roomSessionProblems.problemId)));
+  // Internal rows may still sit at these positions: clear them, the caller rewrites them next.
+  if (kept.length > 0) {
+    await tx
+      .delete(roomSessionProblems)
+      .where(and(eq(roomSessionProblems.sessionId, sessionId), sql`${roomSessionProblems.position} > ${drawn}`));
+    await tx.insert(roomSessionProblems).values(kept.map((e, i) => externalSlotValues(sessionId, drawn + 1 + i, e)));
+  }
+}
+
+/**
+ * Replaces the session's internal slots with `slots` (positions 1..N − E,
+ * one problem each). LeetCode slots sit after them and are left alone.
+ */
 export async function writeSlots(tx: Tx, sessionId: string, slots: readonly Slot[]): Promise<void> {
-  await tx.delete(roomSessionProblems).where(eq(roomSessionProblems.sessionId, sessionId));
+  await tx
+    .delete(roomSessionProblems)
+    .where(and(eq(roomSessionProblems.sessionId, sessionId), isNotNull(roomSessionProblems.problemId)));
   if (slots.length === 0) return;
   await tx.insert(roomSessionProblems).values(
     slots.map((s) => ({
@@ -218,6 +305,9 @@ async function saveDraw(
   settings: RoomSessionSettings,
   rerolledIds: readonly string[],
 ): Promise<void> {
+  // LeetCode slots first: they move to the end of the new count (the internal positions are rewritten next).
+  const external = externalCountOf(settings);
+  await placeExternalSlots(tx, session.id, resolved.problemCount - external, external);
   await writeSlots(tx, session.id, slots);
   await tx
     .update(roomSessions)
@@ -264,9 +354,11 @@ export async function drawByRating(
   const context = ctx ?? (await loadDrawContext(tx, session, resolved.settings.tags));
   const current = await loadSlots(tx, session.id);
   const pinned: RatedSlot[] = current.filter((s) => s.pinned).map((s) => ({ ...toSlot(s), rating: s.rating }));
+  const drawn = drawnCount(resolved);
+  if (drawn === 0) return saveWithoutDraw(tx, session, resolved, pinned, context);
   const people = await expectedRatings(tx, session.roomId, context.expectedUserIds);
   const result = drawSlotsByRating({
-    problemCount: resolved.problemCount,
+    problemCount: drawn,
     pool: context.pool,
     pinned,
     rerolledIds: session.rerolledProblemIds,
@@ -307,11 +399,13 @@ export async function drawAndSave(
 
   const current = await loadSlots(tx, session.id);
   const pinned = current.filter((s) => s.pinned).map(toSlot);
+  const drawn = drawnCount(resolved);
+  if (drawn === 0) return saveWithoutDraw(tx, session, resolved, pinned, ctx);
   if (mode === "manual") {
-    if (pinned.length > resolved.problemCount) {
+    if (pinned.length > drawn) {
       return { ok: false, code: "too_many_pinned", counts: mixOf([...ctx.pool, ...pinned]) };
     }
-    const placed = placePinnedSlots(pinned, resolved.problemCount).pinned;
+    const placed = placePinnedSlots(pinned, drawn).pinned;
     const mix = mixOf(placed);
     await saveDraw(tx, session, resolved, placed, { ...settingsWithoutTargets(resolved.settings), mix }, session.rerolledProblemIds);
     return { ok: true, notices: [], mix };
@@ -321,7 +415,7 @@ export async function drawAndSave(
   let mix = resolved.settings.mix;
   if (resolved.settings.mixMode === "suggested") {
     const suggestion = suggestMix({
-      problemCount: resolved.problemCount,
+      problemCount: drawn,
       rates: ctx.calibration.rates,
       challenge: resolved.settings.challenge,
       available: mixOf(ctx.pool.filter((p) => !pinnedIds.has(p.id))),
@@ -331,7 +425,7 @@ export async function drawAndSave(
     mix = suggestion.mix;
   }
   const result = drawSlots({
-    problemCount: resolved.problemCount,
+    problemCount: drawn,
     mix,
     pool: ctx.pool,
     pinned,
@@ -342,6 +436,25 @@ export async function drawAndSave(
   if (!result.ok) return result;
   await saveDraw(tx, session, resolved, result.slots, { ...settingsWithoutTargets(resolved.settings), mix }, result.rerolledIds);
   return { ok: true, notices: result.notices, mix };
+}
+
+/** Slots the draw fills: all of them minus the LeetCode slots at the end. */
+export function drawnCount(resolved: Pick<ResolvedSettings, "problemCount" | "settings">): number {
+  return Math.max(0, resolved.problemCount - externalCountOf(resolved.settings));
+}
+
+/** Only LeetCode slots (nothing to draw): pinned problems would not fit, so they must go first. */
+async function saveWithoutDraw(
+  tx: Tx,
+  session: RoomSessionRow,
+  resolved: ResolvedSettings,
+  pinned: readonly Slot[],
+  ctx: DrawContext,
+): Promise<DrawOutcome> {
+  if (pinned.length > 0) return { ok: false, code: "too_many_pinned", counts: mixOf([...ctx.pool, ...pinned]) };
+  const mix = { easy: 0, medium: 0, hard: 0 };
+  await saveDraw(tx, session, resolved, [], { ...settingsWithoutTargets(resolved.settings), mix }, session.rerolledProblemIds);
+  return { ok: true, notices: [], mix };
 }
 
 export function toSlot(s: Slot): Slot {
@@ -425,7 +538,19 @@ export async function buildLobbyView(
   extra: { notices?: DrawNotice[]; drawError?: DrawErrorView } = {},
 ): Promise<LobbyView> {
   const slots = await loadSlots(tx, session.id);
+  const externals = await loadExternalSlots(tx, session.id);
   const mode = selectionModeOf(session.settings);
+  const drawn = drawnCount(session);
+  // LeetCode slots (always last): the host sees what they are; everyone else
+  // only that a LeetCode problem is there, never its title, slug or rating
+  // before the start (AC-V2-SEL-4, rooms-external-problems §4).
+  const externalViews: LobbySlotView[] = externals.map((e) => ({
+    position: e.position,
+    difficulty: e.difficulty,
+    pinned: false,
+    tags: [],
+    external: canManage ? { slug: e.slug, title: e.title, rating: e.rating, bankId: e.bankId } : {},
+  }));
   const base: LobbyView = {
     sessionId: session.id,
     roomId: session.roomId,
@@ -447,7 +572,7 @@ export async function buildLobbyView(
     rated: session.rated,
   };
   const needsContext = canManage || (mode === "rating" && slots.length > 0);
-  if (!needsContext) return base;
+  if (!needsContext) return { ...base, slots: [...base.slots, ...externalViews] };
 
   const ctx = await loadDrawContext(tx, session, session.settings.tags);
   const rating = mode === "rating" && slots.length > 0 ? await ratingLobbyParts(tx, session, slots, ctx.expectedUserIds) : null;
@@ -455,25 +580,26 @@ export async function buildLobbyView(
     // Non-hosts: the solve chance only, never the rating, title or slug.
     return {
       ...base,
-      slots: base.slots.map((s) => {
-        const r = rating?.slotRatings.get(s.position);
-        return r ? { ...s, rating: { chance: r.chance } } : s;
-      }),
+      slots: [
+        ...base.slots.map((s) => {
+          const r = rating?.slotRatings.get(s.position);
+          return r ? { ...s, rating: { chance: r.chance } } : s;
+        }),
+        ...externalViews,
+      ],
     };
   }
 
   const info = new Map(ctx.catalog.map((p) => [p.id, p]));
   const pinnedIds = new Set(slots.filter((s) => s.pinned).map((s) => s.problemId));
   const suggestion = suggestMix({
-    problemCount: session.problemCount,
+    problemCount: Math.max(1, drawn),
     rates: ctx.calibration.rates,
     challenge: session.settings.challenge,
     available: mixOf(ctx.pool.filter((p) => !pinnedIds.has(p.id))),
     pinned: mixOf(slots.filter((s) => s.pinned)),
   });
-  return {
-    ...base,
-    slots: slots.map((s, i) => {
+  const internalViews: LobbySlotView[] = slots.map((s, i) => {
       const c = info.get(s.problemId);
       const r = rating?.slotRatings.get(s.position);
       return {
@@ -496,14 +622,17 @@ export async function buildLobbyView(
             }
           : {}),
       };
-    }),
+    });
+  return {
+    ...base,
+    slots: [...internalViews, ...externalViews],
     calibration: {
       sessions: ctx.calibration.sessions,
       counts: ctx.calibration.counts,
       rates: ctx.calibration.rates,
       target: CHALLENGE_TARGETS[session.settings.challenge],
-      suggested: suggestion.ok ? suggestion.mix : null,
-      expectedSolved: suggestion.ok ? suggestion.evaluation.expected * session.problemCount : null,
+      suggested: suggestion.ok && drawn > 0 ? suggestion.mix : null,
+      expectedSolved: suggestion.ok && drawn > 0 ? suggestion.evaluation.expected * drawn : null,
     },
     pool: { available: mixOf(ctx.pool), unused: unusedCounts(ctx.pool) },
     ...(rating ? { expected: rating.expected } : {}),

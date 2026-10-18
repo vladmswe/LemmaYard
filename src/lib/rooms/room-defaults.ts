@@ -12,6 +12,7 @@ import {
   DEFAULT_DURATION_MIN,
   DEFAULT_PROBLEM_COUNT,
   DEFAULT_SELECTION_MODE,
+  MAX_PROBLEM_COUNT,
   mixSchema,
   mixTotal,
   SELECTION_MODES,
@@ -47,6 +48,11 @@ export type SessionTemplate = {
   mix?: Mix;
   avoidSolved: boolean;
   rated: boolean;
+  /**
+   * LeetCode slots to fill in the lobby (docs/specs/rooms-external-problems.md
+   * §4): the last `external` of `problemCount` slots. Absent = 0.
+   */
+  external?: number;
 };
 
 export type RoomSchedule = {
@@ -73,6 +79,13 @@ export const roomColorSchema = z
 
 export const presetIdSchema = z.string().regex(PRESET_ID, "Unknown preset");
 
+/** LeetCode slots of a preset (0..8; also ≤ problemCount, checked on the whole preset). */
+export const presetExternalSchema = z
+  .number("Choose how many LeetCode problems")
+  .int("Use a whole number")
+  .min(0, `Use 0–${MAX_PROBLEM_COUNT}`)
+  .max(MAX_PROBLEM_COUNT, `Use 0–${MAX_PROBLEM_COUNT}`);
+
 export const presetNameSchema = z
   .string("Name the preset")
   .trim()
@@ -92,13 +105,18 @@ export const sessionTemplateSchema = z
     mix: mixSchema.optional(),
     avoidSolved: z.boolean(),
     rated: z.boolean(),
+    external: presetExternalSchema.optional(),
   })
   .superRefine((t, ctx) => {
+    const external = t.external ?? 0;
+    if (external > t.problemCount) {
+      ctx.addIssue({ code: "custom", path: ["external"], message: `Use at most ${t.problemCount} LeetCode problems` });
+    }
     if (t.mix === undefined) return;
     if (t.mode !== "difficulty") {
       ctx.addIssue({ code: "custom", path: ["mix"], message: "A custom mix is only used by the difficulty mode" });
-    } else if (mixTotal(t.mix) !== t.problemCount) {
-      ctx.addIssue({ code: "custom", path: ["mix"], message: `The custom mix must add up to ${t.problemCount}` });
+    } else if (mixTotal(t.mix) !== t.problemCount - external) {
+      ctx.addIssue({ code: "custom", path: ["mix"], message: `The custom mix must add up to ${t.problemCount - external}` });
     }
   });
 
@@ -160,6 +178,7 @@ export const presetInputSchema = z.strictObject({
   mix: mixSchema.optional(),
   avoidSolved: z.boolean(),
   rated: z.boolean(),
+  external: presetExternalSchema.optional(),
 });
 export type PresetInput = z.infer<typeof presetInputSchema>;
 
@@ -230,6 +249,8 @@ export function applyPresetsAction(
   if (body.action === "save") {
     const { id, ...fields } = body.preset;
     if (fields.mix !== undefined && fields.mode !== "difficulty") delete fields.mix;
+    // 0 LeetCode slots is stored as absent, so old and new presets read the same.
+    if (fields.external === 0) delete fields.external;
     let preset: SessionTemplate;
     let next: SessionTemplate[];
     if (id !== undefined) {

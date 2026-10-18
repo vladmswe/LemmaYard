@@ -87,9 +87,16 @@ export function noticeView(n: DrawNotice): DrawNoticeView {
 
 export type LobbySlotView = {
   position: number;
-  difficulty: Difficulty;
+  /** Null only for a LeetCode slot without a difficulty. */
+  difficulty: Difficulty | null;
   pinned: boolean;
   tags: string[];
+  /**
+   * A LeetCode slot (rooms-external-problems §4). Everyone learns that the
+   * slot is a LeetCode problem; slug, title, rating and the bank entry are
+   * for the host/owner only until the session starts.
+   */
+  external?: { slug?: string; title?: string; rating?: number | null; bankId?: string | null };
   /** Host/owner only: titles are revealed to everyone at start. */
   problem?: { slug: string; title: string; published: boolean };
   /** Host/owner only: why this problem was drawn (§2.4 muted note). */
@@ -178,7 +185,15 @@ export type SnapshotInput = {
     problemCount: number;
     hostId: string | null;
   };
-  problems: { position: number; slug: string; title: string; difficulty: Difficulty; tags: string[] }[];
+  /** Internal problems carry `slug`; LeetCode slots carry `external` instead (slug null). */
+  problems: {
+    position: number;
+    slug: string | null;
+    title: string;
+    difficulty: Difficulty | null;
+    tags: string[];
+    external?: { slug: string; rating: number | null };
+  }[];
   participants: {
     userId: string;
     username: string;
@@ -235,9 +250,13 @@ export function buildSessionSnapshot(input: SnapshotInput): SessionSnapshot {
       .sort((a, b) => a.position - b.position)
       .map((p) => ({
         position: p.position,
-        ...(input.revealTitles ? { slug: p.slug, title: p.title } : {}),
+        ...(input.revealTitles ? { ...(p.slug !== null ? { slug: p.slug } : {}), title: p.title } : {}),
         difficulty: p.difficulty,
         tags: [...p.tags],
+        // A LeetCode slot says so to everyone; which one only once titles are revealed.
+        ...(p.external
+          ? { external: input.revealTitles ? { slug: p.external.slug, rating: p.external.rating } : {} }
+          : {}),
       })),
     participants: participants.map((p) => ({
       userId: p.userId,

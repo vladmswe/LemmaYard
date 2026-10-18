@@ -15,6 +15,8 @@ import { cn } from "cn";
 
 import { DifficultyBadge } from "@/components/problems/difficulty-badge";
 import { Avatar } from "@/components/ui/avatar";
+
+import { LeetCodeLink, LeetCodeTag, SelfReportedTag } from "../external/leetcode-bits";
 import {
   axisTicks,
   chipsSrText,
@@ -125,7 +127,13 @@ export function MatrixCell({
 
   if (cell.state === "solved") {
     return (
-      <div key={key} data-cell-state="solved" data-position={cell.position} className={cn(box, "bg-success-bg room-flash")}>
+      <div
+        key={key}
+        data-cell-state="solved"
+        data-position={cell.position}
+        data-self-reported={cell.selfReported || undefined}
+        className={cn(box, "bg-success-bg room-flash", cell.selfReported && "border border-dashed border-success/70")}
+      >
         <span className="sr-only">{cell.srText}</span>
         <span aria-hidden className={cn(l1, "text-foreground")}>
           <CheckIcon className="size-3.5 shrink-0 text-success" strokeWidth={3} />
@@ -134,6 +142,7 @@ export function MatrixCell({
         </span>
         <span className={cn(l2, "text-foreground-secondary")}>
           <span aria-hidden className="contents">
+            {cell.selfReported && <SelfReportedTag />}
             {cell.split ? (
               <span className="text-success" title="Time since this person's previous solve">
                 {cell.split}
@@ -206,7 +215,7 @@ function MobileCell({ cell, n, final, extra }: { cell: CellView; n: number; fina
   let body: ReactNode;
   let cls = "";
   if (cell.state === "solved") {
-    cls = "bg-success-bg";
+    cls = cn("bg-success-bg", cell.selfReported && "border border-dashed border-success/70");
     body = (
       <>
         <span className={cn(line, "text-foreground")}>
@@ -215,6 +224,7 @@ function MobileCell({ cell, n, final, extra }: { cell: CellView; n: number; fina
           {cell.firstSolver && <span className="text-primary" title="First to solve it">★</span>}
         </span>
         <span className="flex flex-wrap gap-x-1.5 font-mono text-[0.65625rem] font-medium">
+          {cell.selfReported && <span className="font-semibold text-foreground-secondary">SELF</span>}
           {cell.split && <span className="text-success">{cell.split}</span>}
           {cell.wrong > 0 && <span className="text-warning">{cell.wrong}w</span>}
           {final && cell.solvedBefore && <span className="text-muted-foreground">seen</span>}
@@ -279,8 +289,16 @@ function ColumnHeader({
         >
           {problem.position}
         </span>
-        <DifficultyBadge difficulty={problem.difficulty} className={cn(compact && "px-1.5 text-[0.6875rem]")} />
+        {problem.external && <LeetCodeTag />}
+        {problem.difficulty && (
+          <DifficultyBadge difficulty={problem.difficulty} className={cn(compact && "px-1.5 text-[0.6875rem]")} />
+        )}
         {rating !== undefined && <span className={TAG}>{rating}</span>}
+        {problem.external?.rating != null && (
+          <span className={TAG} title="Rating entered by the room owner (display only)">
+            {problem.external.rating}
+          </span>
+        )}
       </span>
       <span className="mt-2 block truncate text-sm/5 font-semibold text-foreground" title={problem.title}>
         <span className="sr-only">{problemLabel(problem.position)}: </span>
@@ -295,6 +313,15 @@ function ColumnHeader({
             Open<span className="sr-only"> {problemLabel(problem.position)}</span>
             <ArrowRightIcon aria-hidden className="ml-0.5 inline size-3.5" />
           </Link>
+        )}
+        {!final && problem.external?.slug && (
+          <LeetCodeLink
+            slug={problem.external.slug}
+            className="relative shrink-0 font-sans text-[0.8125rem] font-semibold after:absolute after:-inset-2"
+            testId={`leetcode-open-${problem.position}`}
+          >
+            Open<span className="sr-only"> {problemLabel(problem.position)} on LeetCode</span>
+          </LeetCodeLink>
         )}
       </span>
       {layout.axis && (
@@ -477,7 +504,8 @@ export function ScoreMatrix({
               return (
                 <li key={p.position} className="flex min-w-0 items-center gap-2">
                   <span className="font-mono text-xs text-muted-foreground">P{p.position}</span>
-                  <DifficultyBadge difficulty={p.difficulty} />
+                  {p.external && <LeetCodeTag />}
+                  {p.difficulty && <DifficultyBadge difficulty={p.difficulty} />}
                   <span className="relative min-w-0 flex-1 truncate" title={p.title}>
                     <span className="sr-only">{problemLabel(p.position)}: </span>
                     {p.title ?? problemLabel(p.position)}
@@ -486,6 +514,11 @@ export function ScoreMatrix({
                     <Link href={href} className="relative shrink-0 px-1 py-2 font-semibold text-link hover:underline">
                       Open<span className="sr-only"> {problemLabel(p.position)}</span>
                     </Link>
+                  )}
+                  {!final && p.external?.slug && (
+                    <LeetCodeLink slug={p.external.slug} className="relative shrink-0 px-1 py-2 font-semibold">
+                      Open<span className="sr-only"> {problemLabel(p.position)} on LeetCode</span>
+                    </LeetCodeLink>
                   )}
                 </li>
               );
@@ -544,7 +577,7 @@ export function ScoreMatrix({
 }
 
 /** One-line legend under the matrix (§12 copy). */
-export function MatrixLegend({ className }: { className?: string }) {
+export function MatrixLegend({ className, selfReported = false }: { className?: string; selfReported?: boolean }) {
   const sw = "inline-block size-3.5 shrink-0 rounded";
   return (
     <div className={cn("flex flex-col gap-1.5 text-[0.8125rem] text-muted-foreground", className)} data-testid="matrix-legend">
@@ -567,6 +600,12 @@ export function MatrixLegend({ className }: { className?: string }) {
         <li className="flex items-center gap-2">
           <span aria-hidden>★</span> First = first to solve it
         </li>
+        {selfReported && (
+          <li className="flex items-center gap-2" data-testid="legend-self-reported">
+            <SelfReportedTag />
+            <span>= marked solved by the participant on LeetCode (self-reported, not checked by the judge)</span>
+          </li>
+        )}
       </ul>
       <p>Ranking: solved, then time + 5 min per wrong attempt before a solve</p>
     </div>

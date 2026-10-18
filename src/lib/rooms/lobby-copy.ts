@@ -4,7 +4,16 @@ import { PRIOR_RATES, PRIOR_WEIGHT } from "./selection";
 import type { CalibrationView, LobbySlotView, LobbyView } from "./session-view";
 import { mixLabel } from "./session-view";
 import type { SessionSettingsBody } from "./session-schemas";
-import { DIFFICULTIES, mixTotal, selectionModeOf, type Challenge, type Difficulty, type Mix, type SelectionMode } from "./types";
+import {
+  DIFFICULTIES,
+  externalCountOf,
+  mixTotal,
+  selectionModeOf,
+  type Challenge,
+  type Difficulty,
+  type Mix,
+  type SelectionMode,
+} from "./types";
 
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
 
@@ -108,8 +117,13 @@ export function formatShortDate(iso: string, timeZone?: string): string {
 }
 
 /** Lobby slot line for everyone: "Problem 2 · Medium · Dynamic programming". */
-export function slotSummary(slot: Pick<LobbySlotView, "position" | "difficulty" | "tags">, tagName: (slug: string) => string) {
-  const parts = [`Problem ${slot.position}`, DIFFICULTY_LABEL[slot.difficulty]];
+export function slotSummary(
+  slot: Pick<LobbySlotView, "position" | "difficulty" | "tags" | "external">,
+  tagName: (slug: string) => string,
+) {
+  const parts = [`Problem ${slot.position}`];
+  if (slot.external) parts.push("LeetCode");
+  if (slot.difficulty) parts.push(DIFFICULTY_LABEL[slot.difficulty]);
   if (slot.tags.length > 0) parts.push(slot.tags.map(tagName).join(", "));
   return parts.join(" · ");
 }
@@ -134,6 +148,8 @@ export type LobbyForm = {
   mode: SelectionMode;
   /** v2: the results change ratings. */
   rated: boolean;
+  /** LeetCode slots at the end (set by preset tiles; the slot list adds and removes them). */
+  external: number;
 };
 
 /** `datetime-local` value in the viewer's zone for an ISO time ("" for none). */
@@ -156,6 +172,7 @@ export function formFromLobby(lobby: LobbyView): LobbyForm {
     plannedFor: toLocalInput(lobby.plannedFor),
     mode: lobby.mode ?? selectionModeOf(lobby.settings),
     rated: lobby.rated ?? true,
+    external: externalCountOf(lobby.settings),
   };
 }
 
@@ -175,9 +192,11 @@ export function settingsDiff(lobby: LobbyView, form: LobbyForm): SessionSettings
   if (!sameTags(form.tags, before.tags)) body.tags = [...form.tags].sort();
   if (form.challenge !== before.challenge) body.challenge = form.challenge;
   if (form.avoidSolved !== before.avoidSolved) body.avoidSolved = form.avoidSolved;
+  if (form.external !== before.external) body.external = form.external;
+  const countChanged = body.problemCount !== undefined || body.external !== undefined;
   if (form.mode === "difficulty") {
     if (form.mixMode !== before.mixMode) body.mixMode = form.mixMode;
-    if (form.mixMode === "manual" && (form.mixMode !== before.mixMode || !sameMix(form.mix, before.mix) || body.problemCount !== undefined)) {
+    if (form.mixMode === "manual" && (form.mixMode !== before.mixMode || !sameMix(form.mix, before.mix) || countChanged)) {
       body.mixMode = "manual";
       body.mix = { ...form.mix };
     }
@@ -185,7 +204,7 @@ export function settingsDiff(lobby: LobbyView, form: LobbyForm): SessionSettings
   } else {
     // Rating / manual mode ignore the mix, but a stored custom mix would still
     // have to add up to a new count: drop it back to "suggested".
-    if (before.mixMode === "manual" && (form.mode !== before.mode || body.problemCount !== undefined)) body.mixMode = "suggested";
+    if (before.mixMode === "manual" && (form.mode !== before.mode || countChanged)) body.mixMode = "suggested";
     // A mix field without a mode reads as the difficulty mode on the server.
     if (form.mode !== before.mode || body.mixMode !== undefined) body.mode = form.mode;
   }
@@ -198,10 +217,16 @@ export function settingsDiff(lobby: LobbyView, form: LobbyForm): SessionSettings
 
 /** Client-side check of a custom mix before sending (the server enforces the same rule). */
 export function mixError(form: LobbyForm): string | null {
+  if (form.external > form.problemCount) {
+    return `This session has ${form.external} LeetCode problem${form.external === 1 ? "" : "s"}; choose at least ${form.external} problems`;
+  }
   if (form.mixMode !== "manual") return null;
   const total = mixTotal(form.mix);
-  if (total !== form.problemCount) {
-    return `The custom mix adds up to ${total}; it must add up to ${form.problemCount} problem${form.problemCount === 1 ? "" : "s"}`;
+  // LeetCode slots are not drawn: the mix covers the rest.
+  const drawn = form.problemCount - form.external;
+  if (total !== drawn) {
+    const extra = form.external > 0 ? ` (${form.external} more from LeetCode)` : "";
+    return `The custom mix adds up to ${total}; it must add up to ${drawn} problem${drawn === 1 ? "" : "s"}${extra}`;
   }
   return null;
 }

@@ -22,11 +22,21 @@ import {
   timelineMarks,
   type SolutionAccess,
 } from "@/lib/rooms/history";
-import { axisTicks, columnStats, matrixRows, problemLabel, type CellView, type ScoreRow } from "@/lib/rooms/live-view";
+import {
+  axisTicks,
+  columnStats,
+  hasExternalProblems,
+  matrixRows,
+  problemLabel,
+  selfReportedPositions,
+  type CellView,
+  type ScoreRow,
+} from "@/lib/rooms/live-view";
 import { formatScoreTime } from "@/lib/rooms/scoring";
 import { mixLabel } from "@/lib/rooms/session-view";
 import type { FinishedResults, ResultParticipant } from "@/server/rooms/results";
 
+import { LeetCodeLink, LeetCodeTag } from "./external/leetcode-bits";
 import { LocalTime } from "./local-time";
 import { MatrixLegend, ScoreMatrix, type MatrixRating } from "./matrix/score-matrix";
 
@@ -45,7 +55,11 @@ export function resultRows(results: FinishedResults): ScoreRow[] {
   return matrixRows(
     results.participants,
     results.problems.map((p) => p.position),
-    { viewerId: results.viewer.userId, durationSec: results.session.durationMin * 60 },
+    {
+      viewerId: results.viewer.userId,
+      durationSec: results.session.durationMin * 60,
+      selfReported: selfReportedPositions(results.problems),
+    },
   );
 }
 
@@ -176,13 +190,14 @@ export function FinalScoreboard({ results, rows }: { results: FinishedResults; r
           nameExtra={(r) => (byUser.get(r.userId)?.isMember === false ? <span className="text-sm text-muted-foreground">(left)</span> : null)}
           cellExtra={(r, cell) => {
             const p = byUser.get(r.userId);
-            return p ? <SolutionLink results={results} participant={p} cell={cell} /> : null;
+            // A self-reported LeetCode solve has no code here.
+            return p && !cell.selfReported ? <SolutionLink results={results} participant={p} cell={cell} /> : null;
           }}
           ratings={ratingMap(results)}
           problemRatings={problemRatingMap(results)}
         />
       </div>
-      <MatrixLegend className="mt-1" />
+      <MatrixLegend className="mt-1" selfReported={hasExternalProblems(results.problems)} />
     </section>
   );
 }
@@ -230,8 +245,12 @@ export function SessionTimeline({ results, rows }: { results: FinishedResults; r
                   key={m.position}
                   data-testid="timeline-mark"
                   data-left={m.left.toFixed(4)}
-                  title={`${problemLabel(m.position)} at ${formatScoreTime(m.solveSeconds)}`}
-                  className="absolute top-1/2 grid size-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[7px] bg-success-bg font-mono text-[0.6875rem] font-bold text-success ring-[1.5px] ring-success ring-inset"
+                  title={`${problemLabel(m.position)} at ${formatScoreTime(m.solveSeconds)}${m.selfReported ? " (self-reported)" : ""}`}
+                  data-self-reported={m.selfReported || undefined}
+                  className={cn(
+                    "absolute top-1/2 grid size-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[7px] bg-success-bg font-mono text-[0.6875rem] font-bold text-success",
+                    m.selfReported ? "border-[1.5px] border-dashed border-success" : "ring-[1.5px] ring-success ring-inset",
+                  )}
                   style={{ left: `${(m.left * 100).toFixed(2)}%` }}
                 >
                   {m.position}
@@ -265,7 +284,10 @@ export function SessionTimeline({ results, rows }: { results: FinishedResults; r
               timelineMarks(r.cells, durationSec).map((m) => (
                 <tr key={`${r.userId}-${m.position}`}>
                   <td>{r.username}</td>
-                  <td>{problemLabel(m.position)}</td>
+                  <td>
+                    {problemLabel(m.position)}
+                    {m.selfReported ? " (LeetCode, self-reported)" : ""}
+                  </td>
                   <td>{formatScoreTime(m.solveSeconds)}</td>
                 </tr>
               )),
@@ -295,14 +317,27 @@ export function ProblemSummaryList({ results, rows }: { results: FinishedResults
             <li key={p.position} className="flex flex-col gap-1.5 py-3.5" data-position={p.position}>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                 <span className="font-mono text-base/6 text-muted-foreground tabular-nums">{p.position}</span>
-                {p.published ? (
+                {p.external ? (
+                  <LeetCodeLink slug={p.external.slug} className="min-w-0 font-medium break-words">
+                    {p.title}
+                  </LeetCodeLink>
+                ) : p.published && p.slug ? (
                   <Link href={`/problems/${p.slug}`} className={tableLinkClasses("min-w-0 break-words")}>
                     {p.title}
                   </Link>
                 ) : (
                   <span className="font-medium">{p.title}</span>
                 )}
-                <DifficultyBadge difficulty={p.difficulty} />
+                {p.external && <LeetCodeTag />}
+                {p.difficulty && <DifficultyBadge difficulty={p.difficulty} />}
+                {p.external?.rating != null && (
+                  <span
+                    className="rounded-sm border border-border-strong px-1.5 font-mono text-xs text-muted-foreground"
+                    title="Rating entered by the room owner (display only)"
+                  >
+                    {p.external.rating}
+                  </span>
+                )}
                 {p.pinned && <Badge variant="outline">Pinned</Badge>}
                 {p.rating && (
                   <span className="rounded-sm border border-border-strong px-1.5 font-mono text-xs text-muted-foreground">
@@ -311,7 +346,7 @@ export function ProblemSummaryList({ results, rows }: { results: FinishedResults
                 )}
               </div>
               <p className="text-sm text-foreground-secondary">
-                Solved by {s.solvedBy} of {s.participants}
+                {p.external ? "Marked solved (self-reported) by" : "Solved by"} {s.solvedBy} of {s.participants}
                 {s.attemptedBy > s.solvedBy && <> · {s.attemptedBy - s.solvedBy} tried without a solve</>}
                 {s.firstSolvers.length > 0 && (
                   <>
@@ -350,7 +385,10 @@ export function ProblemSummaryList({ results, rows }: { results: FinishedResults
 export function RatingChangeCard({ results, rows }: { results: FinishedResults; rows: ScoreRow[] }) {
   const rated = results.participants.filter((p) => p.ratingChange !== undefined);
   if (rated.length === 0) return null;
-  const n = results.problems.length;
+  // LeetCode problems are self-reported and never rated (rooms-external-problems §6).
+  const judged = new Set(results.problems.filter((p) => !p.external).map((p) => p.position));
+  const n = judged.size;
+  const externals = results.problems.length - n;
   const rowById = new Map(rows.map((r) => [r.userId, r]));
   const sorted = [...results.participants].sort((a, b) => (b.ratingChange?.delta ?? -1e9) - (a.ratingChange?.delta ?? -1e9));
   return (
@@ -363,6 +401,7 @@ export function RatingChangeCard({ results, rows }: { results: FinishedResults; 
           Expected = the sum of each problem&apos;s solve chance from your rating vs. the problem&apos;s rating. Solving more
           than expected raises your rating.
           {n < 4 && ` With ${plural(n, "problem")} the change is scaled down (${n} of 4).`}
+          {externals > 0 && ` LeetCode problems (self-reported) do not count toward ratings.`}
         </p>
       </div>
       <div className="overflow-x-auto" role="region" aria-label="Rating change per member" tabIndex={0}>
@@ -387,7 +426,10 @@ export function RatingChangeCard({ results, rows }: { results: FinishedResults; 
                     {p.username}
                   </th>
                   <td className="px-3 py-3 font-mono">
-                    {r?.cells.map((cell) => (cell.state === "solved" ? cell.position : null)).filter((x) => x !== null).join(" ") || "—"}
+                    {r?.cells
+                      .map((cell) => (cell.state === "solved" && judged.has(cell.position) ? cell.position : null))
+                      .filter((x) => x !== null)
+                      .join(" ") || "—"}
                   </td>
                   <td className="px-3 py-3 text-right font-mono">{c ? c.expected.toFixed(1) : "—"}</td>
                   <td className="px-3 py-3 text-right font-mono">{c ? c.before : "—"}</td>
@@ -442,6 +484,13 @@ export function SessionDetails({ results }: { results: FinishedResults }) {
     ["Topics", results.topics.length > 0 ? results.topics.join(", ") : "Any"],
     ["Avoid solved problems", settings.avoidSolved ? "On" : "Off"],
   ];
+  const externals = results.problems.filter((p) => p.external).length;
+  if (externals > 0) {
+    rows.push([
+      "LeetCode problems",
+      `${externals} (self-reported; never change ratings${externals === results.problems.length ? ", so this session was unrated" : ""})`,
+    ]);
+  }
   return (
     <Card>
       <CardHeader>

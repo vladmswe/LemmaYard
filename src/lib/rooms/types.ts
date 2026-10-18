@@ -63,8 +63,19 @@ export const roomSessionSettingsSchema = z.strictObject({
   presetId: z.string().max(16).optional(),
   /** v2, rating mode: the target rating per position (index = position − 1); null for pinned slots. */
   targets: z.array(z.int().nullable()).max(MAX_PROBLEM_COUNT).optional(),
+  /**
+   * LeetCode slots (docs/specs/rooms-external-problems.md §1.2): the last
+   * `external` positions are LeetCode problems (filled or still empty); the
+   * draw fills the first `problemCount − external`. Absent = 0.
+   */
+  external: z.int().min(0).max(MAX_PROBLEM_COUNT).optional(),
 });
 export type RoomSessionSettings = z.infer<typeof roomSessionSettingsSchema>;
+
+/** LeetCode slots reserved at the end of the session (0 when absent). */
+export function externalCountOf(settings: Pick<RoomSessionSettings, "external">): number {
+  return settings.external ?? 0;
+}
 
 /** The selection mode of stored settings; rows without one predate v2 and used the difficulty draw. */
 export function selectionModeOf(settings: Pick<RoomSessionSettings, "mode">): SelectionMode {

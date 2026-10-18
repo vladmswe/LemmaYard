@@ -17,6 +17,7 @@ import {
   mixSchema,
   mixTotal,
   SELECTION_MODES,
+  externalCountOf,
   selectionModeOf,
   type Mix,
   type RoomSessionSettings,
@@ -71,6 +72,13 @@ export const sessionSettingsBodySchema = z.strictObject({
   mode: z.enum(SELECTION_MODES).optional(),
   /** v2: whether the results change ratings. */
   rated: z.boolean().optional(),
+  /** LeetCode slots at the end of the session (rooms-external-problems §1.2). */
+  external: z
+    .number("Choose how many LeetCode problems")
+    .int("Use a whole number")
+    .min(0, `Use 0–${MAX_PROBLEM_COUNT}`)
+    .max(MAX_PROBLEM_COUNT, `Use 0–${MAX_PROBLEM_COUNT}`)
+    .optional(),
 });
 export type SessionSettingsBody = z.infer<typeof sessionSettingsBodySchema>;
 
@@ -89,7 +97,7 @@ export function ratedByDefault(durationMin: number, problemCount: number, preset
 }
 
 /** Body fields whose change re-draws the unpinned slots (§2.5 "Re-draw"). */
-export const DRAW_FIELDS = ["problemCount", "tags", "mixMode", "mix", "challenge", "avoidSolved", "mode"] as const;
+export const DRAW_FIELDS = ["problemCount", "tags", "mixMode", "mix", "challenge", "avoidSolved", "mode", "external"] as const;
 
 export function touchesDraw(body: SessionSettingsBody): boolean {
   return DRAW_FIELDS.some((k) => body[k] !== undefined);
@@ -145,6 +153,7 @@ export function settingsFromTemplate(template: SessionTemplate): ResolvedSetting
     mode: template.mode,
   };
   if (template.id !== "default") settings.presetId = template.id;
+  if (template.external) settings.external = Math.min(template.external, template.problemCount);
   return {
     problemCount: template.problemCount,
     durationMin: template.durationMin,
@@ -182,13 +191,26 @@ export function resolveSettings(
   const mode: SelectionMode =
     body.mode ?? (body.mixMode !== undefined || body.mix !== undefined ? "difficulty" : selectionModeOf(base.settings));
   const mixMode = body.mixMode ?? (body.mix !== undefined ? "manual" : base.settings.mixMode);
+  // LeetCode slots stay at the end; the draw fills the rest (rooms-external-problems §1.2).
+  const external = body.external ?? externalCountOf(base.settings);
+  if (external > problemCount) {
+    return {
+      status: 400,
+      error: `This session has ${external} LeetCode problem${external === 1 ? "" : "s"}; remove one first or choose more problems`,
+      field: "problemCount",
+    };
+  }
+  const drawn = problemCount - external;
   let mix: Mix = base.settings.mix;
   if (mixMode === "manual") {
     mix = body.mix ?? base.settings.mix;
-    if (mixTotal(mix) !== problemCount) {
+    if (mixTotal(mix) !== drawn) {
       return {
         status: 400,
-        error: `The custom mix must add up to ${problemCount} problem${problemCount === 1 ? "" : "s"}`,
+        error:
+          external > 0
+            ? `The custom mix must add up to ${drawn} problem${drawn === 1 ? "" : "s"} (${problemCount} minus ${external} from LeetCode)`
+            : `The custom mix must add up to ${problemCount} problem${problemCount === 1 ? "" : "s"}`,
         field: "mix",
       };
     }
@@ -211,6 +233,7 @@ export function resolveSettings(
   if (base.settings.mode !== undefined || body.mode !== undefined || mode !== "difficulty") settings.mode = mode;
   if (base.settings.presetId !== undefined) settings.presetId = base.settings.presetId;
   if (mode === "rating" && base.settings.targets !== undefined) settings.targets = [...base.settings.targets];
+  if (external > 0) settings.external = external;
   // New sessions: short ones are unrated unless the body says otherwise; existing ones keep their flag.
   const rated =
     body.rated ?? (current ? current.rated : ratedByDefault(durationMin, problemCount, template ? template.rated : true));
