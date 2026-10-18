@@ -9,7 +9,7 @@ What runs where:
 | Part | Where | Notes |
 | --- | --- | --- |
 | Web app (Next.js pages + API routes) | Vercel Functions | Reads/writes Postgres through the Supabase transaction pooler. |
-| Database | Supabase Postgres | Migrations and the problem import are run from your machine. |
+| Database | Supabase Postgres | Migrations and the problem import are run from your machine, or pasted into the SQL Editor (section 5). |
 | Judge worker (`pnpm worker`) | **Not deployed** | Needs Docker; see "What does not work yet". |
 
 ## 1. Supabase: which connection strings to copy
@@ -145,21 +145,39 @@ Re-run both commands after pulling new migrations in `drizzle/` or changing
 `problems/`. Do not run `problems:import --prune` against production unless
 you mean to unpublish problems.
 
-### Alternative: create the tables in the Supabase SQL Editor
+### Alternative: no credentials, only the Supabase SQL Editor
 
-If you do not want to run migrations from your machine, open
-[`docs/supabase/schema.sql`](supabase/schema.sql) (generated from `drizzle/*.sql`
-by `pnpm db:export-sql`), copy the whole file, then in Supabase go to
-**SQL Editor → New query**, paste it and press **Run**. Use it on an EMPTY
-project only: it refuses to run if the tables already exist. It creates all 13
-tables, indexes and CHECKs, enables RLS on each table (no policies) and records
-the 5 migrations in `drizzle.__drizzle_migrations`, so a later
+If you do not want to type the database password into a shell, set up the
+database with two generated SQL files instead of section 5. In Supabase open
+**SQL Editor → New query**, then:
+
+1. Paste the whole of [`docs/supabase/schema.sql`](supabase/schema.sql) and
+   press **Run**. The result lists every table with `rls = true`.
+2. Open a new query, paste the whole of
+   [`docs/supabase/problems.sql`](supabase/problems.sql) and press **Run**. The
+   result shows `published_problems` and `test_cases` with the counts named in
+   the file's header comment (currently 20 and 275).
+
+Then open `https://<production domain>/api/health` (section 6): it must answer
+`200 {"ok":true,"db":"up",...}`, and `/` shows the problem count.
+
+`schema.sql` (generated from `drizzle/*.sql` by `pnpm db:export-sql`) is for an
+EMPTY project only: it refuses to run if the tables already exist. It creates
+all 13 tables, indexes and CHECKs, enables RLS on each table (no policies) and
+records the 5 migrations in `drizzle.__drizzle_migrations`, so a later
 `pnpm db:migrate` applies only migrations added after the file was generated.
-The result shows each table with `rls = true`. The file creates no data: load the
-20 problems afterwards with
-`DATABASE_URL_DIRECT='<session pooler>' pnpm problems:import`. A unit test
-(`tests/unit/supabase-sql.test.ts`) fails when the file is stale; regenerate it
-with `pnpm db:export-sql` whenever a migration is added.
+
+`problems.sql` (generated from `problems/` by `pnpm problems:export-sql`, with
+the same validation and the same rows as `pnpm problems:import`) is idempotent:
+it upserts every problem by slug (published, with its author rating), its tags
+and its test cases in one transaction, so it is safe to run again after the
+problems change; it never unpublishes problems. It contains the hidden test
+cases too, which are already public in `problems/*/tests.json`. The file is
+about 1.9 MB; if the editor struggles with it, use `pnpm problems:import`
+(section 5) instead. Unit tests (`tests/unit/supabase-sql.test.ts`,
+`tests/unit/problems-sql.test.ts`) fail when either file is stale; regenerate
+with `pnpm db:export-sql` after adding a migration and with
+`pnpm problems:export-sql` after changing `problems/`.
 
 ### Row level security
 

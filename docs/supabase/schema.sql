@@ -4,7 +4,8 @@
 -- enables Row Level Security on every table (no policies: only the owner role the
 -- app connects with can read or write) and records the migrations in
 -- drizzle.__drizzle_migrations so `pnpm db:migrate` later applies only newer ones.
--- Seed the 20 problems afterwards with: DATABASE_URL_DIRECT='<session pooler>' pnpm problems:import
+-- Seed the problems afterwards: run docs/supabase/problems.sql the same way
+-- (or DATABASE_URL_DIRECT='<session pooler>' pnpm problems:import).
 
 BEGIN;
 

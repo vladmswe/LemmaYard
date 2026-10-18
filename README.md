@@ -214,6 +214,7 @@ docs/               deploy guide, specs, generated Supabase SQL, images
 | `pnpm db:generate` | drizzle-kit: new migration after editing `src/server/db/schema.ts`. |
 | `pnpm db:migrate` | Applies migrations (`DATABASE_URL_DIRECT`, else `DATABASE_URL`). |
 | `pnpm db:export-sql` | Regenerates `docs/supabase/schema.sql` from `drizzle/*.sql`. |
+| `pnpm problems:export-sql` | Regenerates `docs/supabase/problems.sql` (the problem catalog as one idempotent SQL script) from `problems/`; `--check` exits 1 when it is stale. |
 | `pnpm db:seed` | `db:migrate` + `problems:import`. |
 | `pnpm problems:import` | Validates and upserts `problems/` (`--dir <path>`, `--prune`). |
 | `pnpm problems:verify` | Runs every reference solution in the real sandbox; must all be Accepted (`--dir`, `--only <slug>`, `--concurrency <n>`). |
@@ -484,8 +485,10 @@ open a public issue. A dedicated contact will be added.
 ## Deployment
 
 The owner guide is [docs/DEPLOY.md](docs/DEPLOY.md): Vercel for the web app,
-Supabase Postgres (pooler URLs, TLS, migrating from your machine or pasting
-[`docs/supabase/schema.sql`](docs/supabase/schema.sql) into the SQL Editor),
+Supabase Postgres (pooler URLs, TLS, migrating and seeding from your machine,
+or without credentials by running
+[`docs/supabase/schema.sql`](docs/supabase/schema.sql) and then
+[`docs/supabase/problems.sql`](docs/supabase/problems.sql) in the SQL Editor),
 environment variables, region, `/api/health` and troubleshooting.
 
 - **Without a judge (the Vercel default):** `JUDGE_ENABLED` unset on Vercel
