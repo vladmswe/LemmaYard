@@ -2,7 +2,7 @@
 
 import { CheckIcon, CopyIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -33,11 +33,23 @@ const LazyMonaco = dynamic<CodeViewerMonacoProps>(() => import("./code-viewer-mo
 });
 
 /**
- * The submitted code in a read-only Monaco (DESIGN.md §9.6), height
+ * The submitted code in a read-only Monaco on the editor background with
+ * its line-number gutter (DESIGN.md §13.6), height
  * min(content, 70vh), with a "Copy code" button. Server-rendered as plain
  * text, so the code is readable before (or without) the editor bundle.
  */
-export function CodeViewer({ id, language, code }: { id: string; language: Language; code: string }) {
+export function CodeViewer({
+  id,
+  language,
+  code,
+  actions,
+}: {
+  id: string;
+  language: Language;
+  code: string;
+  /** Extra header actions before "Copy code" (e.g. "Open in editor"). */
+  actions?: ReactNode;
+}) {
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -63,18 +75,19 @@ export function CodeViewer({ id, language, code }: { id: string; language: Langu
   }
 
   return (
-    <section aria-labelledby="code-heading" className="overflow-hidden rounded-lg border bg-card shadow-xs">
-      <div className="flex h-12 items-center justify-between gap-3 border-b px-4">
-        <h2 id="code-heading" className="text-[1.0625rem]/6 font-semibold">
+    <section aria-labelledby="code-heading" className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div className="flex min-h-13 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-2 sm:px-5">
+        <h2 id="code-heading" className="flex items-baseline gap-2.5 text-lg/7 font-semibold">
           Code
-          <span className="ml-2 font-mono text-xs font-normal text-muted-foreground">
-            {MONACO_LANGUAGE[language].file}
-          </span>
+          <span className="font-mono text-xs font-normal text-muted-foreground">{MONACO_LANGUAGE[language].file}</span>
         </h2>
-        <Button variant="ghost" size="sm" onClick={copy} data-testid="copy-code">
-          {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}
-          {copied ? "Copied" : "Copy code"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {actions}
+          <Button variant="ghost" size="sm" onClick={copy} data-testid="copy-code" className="max-sm:h-10">
+            {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}
+            {copied ? "Copied" : "Copy code"}
+          </Button>
+        </div>
       </div>
       <div className="relative" style={{ height }} data-testid="code-viewer">
         {/* The plain text stays underneath until Monaco paints over it (no blank flash). */}

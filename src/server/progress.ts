@@ -7,7 +7,7 @@ import { summarizeUserStats, type SubmissionGroup, type UserStats } from "@/lib/
 import { type Db, getDb } from "@/server/db";
 import { problems, submissions } from "@/server/db/schema";
 
-/** The user's submit rows grouped by problem and status (one query). */
+/** The user's submit rows grouped by problem, status and language (one query). */
 export async function getSubmissionGroups(userId: string, db: Db = getDb()): Promise<SubmissionGroup[]> {
   const rows = await db
     .select({
@@ -18,6 +18,7 @@ export async function getSubmissionGroups(userId: string, db: Db = getDb()): Pro
       published: problems.published,
       kind: submissions.kind,
       status: submissions.status,
+      language: submissions.language,
       count: sql<number>`count(*)::int`,
       firstAt: min(submissions.createdAt),
     })
@@ -32,6 +33,7 @@ export async function getSubmissionGroups(userId: string, db: Db = getDb()): Pro
       problems.published,
       submissions.kind,
       submissions.status,
+      submissions.language,
     );
   return rows.map((r) => ({ ...r, firstAt: r.firstAt ?? new Date(0) }));
 }

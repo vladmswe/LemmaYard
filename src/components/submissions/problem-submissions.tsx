@@ -49,7 +49,7 @@ export async function ProblemSubmissions({ slug, userId }: { slug: string; userI
         <span className="tabular-nums">
           {rows.length >= PROBLEM_TAB_LIMIT ? `Latest ${PROBLEM_TAB_LIMIT}` : `${rows.length} ${rows.length === 1 ? "submission" : "submissions"}`}
         </span>
-        <Link href={submissionsHref({ problem: slug })} className="font-medium text-link underline-offset-4 hover:underline">
+        <Link href={submissionsHref({ problem: slug })} className="inline-flex min-h-10 items-center font-medium text-link underline-offset-4 hover:underline">
           View all
         </Link>
       </div>

@@ -10,7 +10,9 @@ import { JUDGE_DISABLED_SHORT } from "@/lib/judge-availability";
 import type { Signature } from "@/lib/problems/schema";
 import { pollSubmission, startRun, startSubmit } from "@/lib/submission-client";
 import { isFinalStatus, LANGUAGES, type Language, type PollingConfig } from "@/lib/submission-dto";
+import { MONACO_TAB_SIZE } from "@/lib/monaco-themes";
 import { generateTemplate } from "@/lib/templates";
+import { LANGUAGE_LABELS } from "@/lib/workspace/languages";
 import { buffersReducer, currentCode, initBuffers, type Buffers } from "@/lib/workspace/buffers";
 import {
   customInputSummary,
@@ -200,7 +202,6 @@ export function SolveWorkspace({
   const [mobileTab, setMobileTab] = useState<MobileTab>("description");
   const abortRef = useRef<AbortController | null>(null);
   const busyRef = useRef(false);
-  const consoleRef = useRef<HTMLDivElement | null>(null);
   const paramOrder = useMemo(() => signature.params.map((p) => p.name), [signature]);
 
   // --- Room session context of Submit (Rooms §3.4; only Submit, never Run) --
@@ -321,9 +322,8 @@ export function SolveWorkspace({
 
   const startFromBar = useCallback(
     (action: JudgeAction) => {
-      // Mobile: show the console where the result appears.
-      setMobileTab("code");
-      requestAnimationFrame(() => consoleRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+      // Mobile: show the console tab, where the result appears.
+      setMobileTab("console");
       void start(action);
     },
     [start],
@@ -375,9 +375,13 @@ export function SolveWorkspace({
           }
           statusBar={
             <>
-              <span data-testid="draft-status">{saved ? "Saved locally" : ""}</span>
               <span className="tabular-nums" data-testid="cursor-position">
                 Ln {cursor.line}, Col {cursor.column}
+              </span>
+              <span className="max-sm:hidden">{LANGUAGE_LABELS[language]}</span>
+              <span className="max-sm:hidden">Spaces: {MONACO_TAB_SIZE[language]}</span>
+              <span className="ml-auto" data-testid="draft-status">
+                {saved ? "Saved locally" : ""}
               </span>
             </>
           }
@@ -394,7 +398,7 @@ export function SolveWorkspace({
         </EditorPane>
       }
       console={
-        <div ref={consoleRef} className="h-full scroll-mt-14">
+        <div className="h-full">
           <ConsolePane
             tab={consoleTab}
             onTabChange={setConsoleTab}

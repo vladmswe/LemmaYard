@@ -1,6 +1,5 @@
 "use client";
 
-import { FlaskConicalIcon, TerminalIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "cn";
 
@@ -9,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export type ConsoleTab = "testcase" | "result";
 
 /**
- * Console slot of the problem workspace (DESIGN.md §8.22), M5 contract:
+ * Console slot of the problem workspace (DESIGN.md §13.4), M5 contract:
  *
  * - `testcase`: body of the Testcase tab (custom input editor).
  * - `result`: body of the Result tab (verdict, cases). The tab body is the
@@ -18,7 +17,7 @@ export type ConsoleTab = "testcase" | "result";
  *   run starts). Uncontrolled (starts on "testcase") when `tab` is omitted.
  *
  * Omitted bodies render the idle placeholders. Both tab bodies stay mounted
- * and scroll inside the pane (`p-4 md:px-5`).
+ * and scroll inside the pane. Tabs are 42px (DESIGN.md §12).
  */
 export type ConsolePaneProps = {
   testcase?: ReactNode;
@@ -38,16 +37,14 @@ export function ConsolePane({ testcase, result, tab, onTabChange, className }: C
       className={cn("flex h-full min-h-0 flex-col gap-0 bg-card", className)}
     >
       <TabsList aria-label="Console" className="shrink-0 px-2">
-        <TabsTrigger value="testcase">
-          <FlaskConicalIcon aria-hidden />
+        <TabsTrigger value="testcase" className="h-[42px]">
           Testcase
         </TabsTrigger>
-        <TabsTrigger value="result">
-          <TerminalIcon aria-hidden />
+        <TabsTrigger value="result" className="h-[42px]">
           Result
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="testcase" keepMounted className="min-h-0 overflow-auto p-4 md:px-5">
+      <TabsContent value="testcase" keepMounted className="min-h-0 overflow-auto px-4 pt-4 pb-6 md:px-5">
         {testcase ?? (
           <p className="text-sm text-muted-foreground">
             Custom test input will be editable here once running code is available.
@@ -58,7 +55,7 @@ export function ConsolePane({ testcase, result, tab, onTabChange, className }: C
         value="result"
         keepMounted
         aria-live="polite"
-        className="min-h-0 overflow-auto p-4 md:px-5"
+        className="min-h-0 overflow-auto px-4 pt-4 pb-6 md:px-5"
       >
         {result ?? <p className="text-sm text-muted-foreground">Run your code to see results here.</p>}
       </TabsContent>

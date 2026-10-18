@@ -18,6 +18,9 @@ export type HistoryRow = {
   status: SubmissionStatus;
   runtimeMs: number | null;
   memoryKb: number | null;
+  /** Hidden tests passed / total (the row's test squares). */
+  passedCount: number;
+  totalCount: number;
   problem: { slug: string; title: string; published: boolean };
 };
 
@@ -92,6 +95,8 @@ export async function getSubmissionHistory({
       status: submissions.status,
       runtimeMs: submissions.runtimeMs,
       memoryKb: submissions.memoryKb,
+      passedCount: submissions.passedCount,
+      totalCount: submissions.totalCount,
       slug: problems.slug,
       title: problems.title,
       published: problems.published,
@@ -114,6 +119,8 @@ export async function getSubmissionHistory({
       status: rows.status,
       runtimeMs: rows.runtimeMs,
       memoryKb: rows.memoryKb,
+      passedCount: rows.passedCount,
+      totalCount: rows.totalCount,
       slug: rows.slug,
       title: rows.title,
       published: rows.published,
@@ -135,6 +142,8 @@ export async function getSubmissionHistory({
               status: r.status!,
               runtimeMs: r.runtimeMs,
               memoryKb: r.memoryKb,
+              passedCount: r.passedCount ?? 0,
+              totalCount: r.totalCount ?? 0,
               problem: { slug: r.slug!, title: r.title!, published: r.published! },
             },
           ],
@@ -166,6 +175,8 @@ export async function getProblemSubmissions({
       status: submissions.status,
       runtimeMs: submissions.runtimeMs,
       memoryKb: submissions.memoryKb,
+      passedCount: submissions.passedCount,
+      totalCount: submissions.totalCount,
       slug: problems.slug,
       title: problems.title,
       published: problems.published,

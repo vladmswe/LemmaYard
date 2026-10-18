@@ -43,11 +43,18 @@ export function PageSkeleton({
         ) : (
           <>
             {filters && (
-              <div className="mb-5 grid grid-cols-3 gap-3 md:grid-cols-[minmax(0,1fr)_repeat(3,9.5rem)]">
-                <Skeleton className="col-span-3 h-11 md:col-span-1" />
-                <Skeleton className="h-11 rounded-full" />
-                <Skeleton className="h-11 rounded-full" />
-                <Skeleton className="h-11 rounded-full" />
+              // The catalog tool row (search, two segmented controls) and the topic chips.
+              <div className="mb-5">
+                <div className="flex flex-wrap gap-3">
+                  <Skeleton className="h-11 w-full min-[961px]:w-[22rem]" />
+                  <Skeleton className="h-11 w-64 rounded-full" />
+                  <Skeleton className="h-11 w-80 max-w-full rounded-full" />
+                </div>
+                <div className="mt-4 flex gap-2 overflow-hidden">
+                  {[96, 80, 88, 120, 72, 104].map((w, i) => (
+                    <Skeleton key={i} className="h-[34px] shrink-0 rounded-full" style={{ width: w }} />
+                  ))}
+                </div>
               </div>
             )}
             <div className="overflow-hidden rounded-lg border bg-card">

@@ -11,9 +11,12 @@ import type { ProblemPageData } from "@/server/problem-page";
 import { Markdown } from "./markdown";
 
 /**
- * Left pane body of the problem page (DESIGN.md §9.4): serif title with the
- * number, difficulty + status + tags, the statement, then the sample tests as
- * "Example N" blocks placed before the "Constraints" section.
+ * Left pane body of the problem page (DESIGN.md §13.4): serif 40px title
+ * with the number, difficulty pill + topic tags (status pill on the right),
+ * the statement at 16/26, then the sample tests as "Example N" blocks
+ * (mono rule-heads; sunken IO blocks with a 2px primary rule and a 76px
+ * label column) placed before the "Constraints" section, whose list items
+ * carry ∎ markers.
  */
 export function ProblemDescription({ problem }: { problem: ProblemPageData }) {
   const { before, after } = splitAtConstraints(problem.descriptionMd);
@@ -21,39 +24,44 @@ export function ProblemDescription({ problem }: { problem: ProblemPageData }) {
   const status = problem.status === "solved" || problem.status === "attempted" ? problem.status : null;
 
   return (
-    <article className="px-5 pt-5 pb-10 md:px-6">
-      <h1 className="font-display text-[1.75rem]/[2.125rem] tracking-[-0.005em] text-balance">
+    <article className="px-4 pt-5 pb-10 md:px-7 md:pt-6">
+      <h1 className="font-display text-[2.125rem]/[1.05] tracking-[-0.005em] text-balance md:text-[2.5rem]">
         <span className="tabular-nums">{problem.number}.</span> {problem.title}
       </h1>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-3.5 flex flex-wrap items-center gap-2">
         <DifficultyBadge difficulty={problem.difficulty} />
-        {status && <ProblemStatusBadge status={status} />}
         {problem.tags.length > 0 && (
-          <>
-            <span aria-hidden className="mx-0.5 h-4 w-px bg-border-strong" />
-            <ul aria-label="Topics" className="flex flex-wrap gap-1.5">
-              {problem.tags.map((t) => (
-                <li key={t.slug}>
-                  <Badge variant="tag" render={<Link href={catalogHref({ page: 1 }, { tag: t.slug })} />}>
-                    {formatTagLabel(t.name)}
-                  </Badge>
-                </li>
-              ))}
-            </ul>
-          </>
+          <ul aria-label="Topics" className="contents">
+            {problem.tags.map((t) => (
+              <li key={t.slug} className="flex">
+                <Badge
+                  variant="tag"
+                  className="relative after:absolute after:-inset-x-0.5 after:-inset-y-2"
+                  render={<Link href={catalogHref({ page: 1 }, { tag: t.slug })} />}
+                >
+                  {formatTagLabel(t.name)}
+                </Badge>
+              </li>
+            ))}
+          </ul>
         )}
+        {status && <ProblemStatusBadge status={status} className="ml-auto" />}
       </div>
 
-      <div className="prose-problem mt-5">
+      <div className="prose-problem mt-6">
         <Markdown>{before}</Markdown>
         {problem.samples.map((sample, i) => (
           <section key={i} aria-labelledby={`example-${i + 1}`}>
             <h2 id={`example-${i + 1}`}>Example {i + 1}</h2>
-            <pre className="mt-3">
-              <span className="sample-label">Input:</span>{" "}
-              {formatSampleInput(problem.signature, sample.input)}
-              {"\n"}
-              <span className="sample-label">Output:</span> {formatValue(sample.expected)}
+            <pre className="sample">
+              <span className="sample-row">
+                <span className="sample-label">Input</span>
+                <span>{formatSampleInput(problem.signature, sample.input)}</span>
+              </span>
+              <span className="sample-row">
+                <span className="sample-label">Output</span>
+                <span>{formatValue(sample.expected)}</span>
+              </span>
             </pre>
           </section>
         ))}

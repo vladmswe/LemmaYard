@@ -5,6 +5,7 @@ import { useId } from "react";
 import { cn } from "cn";
 
 import { Button } from "@/components/ui/button";
+import { Segmented } from "@/components/ui/segmented";
 import { FieldError } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { formatValue } from "@/lib/problems/samples";
@@ -27,44 +28,42 @@ export type ConsoleTestcaseProps = {
   validation: CustomInputResult;
 };
 
-/** Pill buttons (DESIGN.md §8.22): h-8, bordered; selected = soft blue. */
-export function pillClasses(selected: boolean) {
+/**
+ * Case pills (DESIGN.md §13.4): 32px (40px on touch layouts), radius 8,
+ * mono 13px; selected = ink border + a 3px halo (`tone="fail"`: danger).
+ */
+export function pillClasses(selected: boolean, tone: "fail" | null = null) {
   return cn(
-    "inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors duration-120",
+    "inline-flex h-8 items-center gap-2 rounded-[8px] border bg-card px-3 font-mono text-[0.8125rem] font-medium transition-[color,border-color,box-shadow] duration-120 max-md:h-10",
     selected
-      ? "border-blue-300 bg-secondary text-secondary-foreground dark:border-blue-700"
-      : "border-border bg-card text-foreground-secondary hover:bg-accent hover:text-foreground",
+      ? tone === "fail"
+        ? "border-verdict-wrong text-foreground shadow-[0_0_0_3px_var(--verdict-wrong-bg)]"
+        : "border-foreground-secondary text-foreground shadow-[0_0_0_3px_var(--highlight)]"
+      : "border-border text-foreground-secondary hover:border-border-strong hover:text-foreground",
   );
 }
 
-/** Mono value block (IO style). */
+/** Mono value block (IO style): sunken, hairline, radius 8. */
 export const valueBlockClasses =
-  "rounded-md border bg-surface-sunken px-3 py-2 font-mono text-[13px]/5 whitespace-pre-wrap break-all text-foreground";
+  "rounded-[8px] border bg-surface-sunken px-3 py-2 font-mono text-[0.8125rem]/[1.6] whitespace-pre-wrap break-all text-foreground md:text-sm/[1.6]";
+
+/** Mono uppercase label above an IO block ("INPUT", "EXPECTED"). */
+export const ioLabelClasses = "label-mono text-muted-foreground";
 
 export function ConsoleTestcase(props: ConsoleTestcaseProps) {
   const { mode, onModeChange, samples } = props;
   return (
     <div className="flex flex-col gap-4" data-testid="console-testcase">
-      <div role="group" aria-label="Test input" className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          aria-pressed={mode === "samples"}
-          className={pillClasses(mode === "samples")}
-          onClick={() => onModeChange("samples")}
-          data-testid="mode-samples"
-        >
-          Sample cases ({samples.length})
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === "custom"}
-          className={pillClasses(mode === "custom")}
-          onClick={() => onModeChange("custom")}
-          data-testid="mode-custom"
-        >
-          Custom input
-        </button>
-      </div>
+      <Segmented
+        label="Test input"
+        className="self-start"
+        value={mode}
+        onValueChange={onModeChange}
+        options={[
+          { value: "samples", label: `Sample cases (${samples.length})` },
+          { value: "custom", label: "Custom input" },
+        ]}
+      />
       {mode === "samples" ? <SamplesView {...props} /> : <CustomInputView {...props} />}
     </div>
   );
@@ -94,9 +93,9 @@ function SamplesView({ signature, samples, selectedSample, onSelectSample, onUse
         ))}
       </div>
       {signature.params.map((p) => (
-        <div key={p.name} className="flex flex-col gap-1">
-          <span className="text-xs font-semibold text-muted-foreground">
-            <span className="font-mono">{p.name}</span> =
+        <div key={p.name} className="flex flex-col gap-1.5">
+          <span className={ioLabelClasses}>
+            <span className="normal-case">{p.name}</span> =
           </span>
           <div className={valueBlockClasses}>{formatValue(sample.input[p.name])}</div>
         </div>

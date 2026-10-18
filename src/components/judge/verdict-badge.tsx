@@ -45,12 +45,15 @@ export function VerdictBadge({
 /**
  * Verdict name as a display word (Instrument Serif, 28px by default: the
  * serif is never smaller), e.g. the console result or the submission head.
+ * `size="lg"`: 34px word with a 26px icon (console verdict row, submission head).
  */
 export function VerdictLabel({
   status,
+  size = "md",
   className,
 }: {
   status: SubmissionStatus;
+  size?: "md" | "lg";
   className?: string;
 }) {
   const v = VERDICTS[status];
@@ -58,12 +61,13 @@ export function VerdictLabel({
     <span
       data-status={status}
       className={cn(
-        "inline-flex items-center gap-2.5 font-display text-[1.75rem]/[1.1] font-normal tracking-[-0.005em]",
+        "inline-flex items-center font-display font-normal tracking-[-0.005em]",
+        size === "lg" ? "gap-2.5 text-[2.125rem]/none" : "gap-2.5 text-[1.75rem]/[1.1]",
         v.text,
         className,
       )}
     >
-      <VerdictIcon status={status} className="size-5.5" />
+      <VerdictIcon status={status} className={size === "lg" ? "size-6.5" : "size-5.5"} />
       {v.label}
     </span>
   );

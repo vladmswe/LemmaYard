@@ -1,6 +1,5 @@
 "use client";
 
-import { CodeIcon, FileTextIcon, HistoryIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { cn } from "cn";
@@ -12,22 +11,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DESKTOP_QUERY, useMediaQuery } from "./use-media-query";
 
 /**
- * Problem page layout (DESIGN.md §8.21, §9.4; AC-M3-4, AC-M3-6). Slots:
+ * Problem page layout (DESIGN.md §13.4; AC-M3-4, AC-M3-6). Slots:
  *
  * - `description`: left "Description" tab (server-rendered statement).
  * - `submissions`: left "Submissions" tab (M6 fills it).
- * - `editor`: right top, normally an `<EditorPane>` (M5: Monaco + toolbar).
- * - `console`: right bottom, normally a `<ConsolePane>` (M5: run results).
- * - `footer`: optional mobile-only fixed bar under the content (M5: Run /
+ * - `editor`: right top, normally an `<EditorPane>` (Monaco + toolbar).
+ * - `console`: right bottom, normally a `<ConsolePane>` (run results).
+ * - `footer`: optional mobile-only fixed bar under the content (the Run /
  *   Submit action bar). When set, the mobile panels get bottom padding.
  * - `mobileTab` / `onMobileTabChange`: optional control of the mobile tab
- *   (Run/Submit in the action bar switch to "code"). Uncontrolled otherwise.
+ *   (Run/Submit in the action bar switch to "console"). Uncontrolled otherwise.
  *
- * >= 768px: resizable split, description 45% (30–65%) | editor 58% (min 25%)
- * over console 42% (min 20%, collapsible); sizes persist in localStorage.
- * < 768px: tabs Description | Code, the Code tab stacks editor (55dvh) and
- * console. The layout is chosen on the client, so each slot mounts once;
- * during SSR/hydration a static fallback shows the description.
+ * >= 768px: an 8px sunken canvas with three 14px-radius panes and 8px
+ * resizers: description 44% (30–65%) | editor 58% (min 25%) over console
+ * 42% (min 20%, collapsible); sizes persist in localStorage.
+ * < 768px: tabs Problem | Code | Console under the header (44px), each
+ * filling the screen. The layout is chosen on the client, so each slot
+ * mounts once; during SSR/hydration a static fallback shows the description.
  */
 export type ProblemWorkspaceProps = {
   description: ReactNode;
@@ -39,9 +39,9 @@ export type ProblemWorkspaceProps = {
   onMobileTabChange?: (tab: MobileTab) => void;
 };
 
-export type MobileTab = "description" | "code";
+export type MobileTab = "description" | "code" | "console";
 
-const paneClasses = "h-full min-h-0 overflow-hidden rounded-lg border bg-card shadow-xs";
+const paneClasses = "h-full min-h-0 overflow-hidden rounded-lg border bg-card shadow-sm";
 
 export function ProblemWorkspace(props: ProblemWorkspaceProps) {
   const desktop = useMediaQuery(DESKTOP_QUERY);
@@ -49,17 +49,15 @@ export function ProblemWorkspace(props: ProblemWorkspaceProps) {
   return desktop ? <DesktopWorkspace {...props} /> : <MobileWorkspace {...props} />;
 }
 
-/** Left pane tabs: Description | Submissions. */
+/** Left pane tabs: Description | Submissions (42px, DESIGN.md §12 Tabs). */
 function LeftTabs({ description, submissions }: Pick<ProblemWorkspaceProps, "description" | "submissions">) {
   return (
     <Tabs defaultValue="description" className="h-full min-h-0 gap-0">
       <TabsList aria-label="Problem" className="shrink-0 px-2">
-        <TabsTrigger value="description">
-          <FileTextIcon aria-hidden />
+        <TabsTrigger value="description" className="h-[42px]">
           Description
         </TabsTrigger>
-        <TabsTrigger value="submissions">
-          <HistoryIcon aria-hidden />
+        <TabsTrigger value="submissions" className="h-[42px]">
           Submissions
         </TabsTrigger>
       </TabsList>
@@ -84,13 +82,13 @@ function DesktopWorkspace({ description, submissions, editor, console }: Problem
         defaultLayout={outer.defaultLayout}
         onLayoutChanged={outer.onLayoutChanged}
       >
-        <ResizablePanel id="left" defaultSize="45%" minSize="30%" maxSize="65%">
+        <ResizablePanel id="left" defaultSize="44%" minSize="30%" maxSize="65%">
           <div className={paneClasses}>
             <LeftTabs description={description} submissions={submissions} />
           </div>
         </ResizablePanel>
         <ResizableHandle aria-label="Resize description and editor" />
-        <ResizablePanel id="right" defaultSize="55%" minSize="35%">
+        <ResizablePanel id="right" defaultSize="56%" minSize="35%">
           <ResizablePanelGroup
             orientation="vertical"
             defaultLayout={inner.defaultLayout}
@@ -110,6 +108,12 @@ function DesktopWorkspace({ description, submissions, editor, console }: Problem
   );
 }
 
+const MOBILE_TABS: { value: MobileTab; label: string }[] = [
+  { value: "description", label: "Problem" },
+  { value: "code", label: "Code" },
+  { value: "console", label: "Console" },
+];
+
 function MobileWorkspace({
   description,
   submissions,
@@ -119,6 +123,8 @@ function MobileWorkspace({
   mobileTab,
   onMobileTabChange,
 }: ProblemWorkspaceProps) {
+  // The fixed action bar is ~72px (+ the judge-off note): keep content clear of it.
+  const clear = footer ? "pb-24" : undefined;
   return (
     <div className="flex h-full min-h-0 flex-col">
       <Tabs
@@ -127,35 +133,28 @@ function MobileWorkspace({
         onValueChange={onMobileTabChange ? (value) => onMobileTabChange(value as MobileTab) : undefined}
         className="min-h-0 flex-1 gap-0"
       >
-        <TabsList aria-label="Problem" className="sticky top-0 z-10 shrink-0 bg-card">
-          <TabsTrigger value="description" className="h-11 flex-1">
-            <FileTextIcon aria-hidden />
-            Description
-          </TabsTrigger>
-          <TabsTrigger value="code" className="h-11 flex-1">
-            <CodeIcon aria-hidden />
-            Code
-          </TabsTrigger>
+        <TabsList aria-label="Problem" className="sticky top-0 z-10 shrink-0 bg-background px-2">
+          {MOBILE_TABS.map(({ value, label }) => (
+            <TabsTrigger key={value} value={value} className="h-11 flex-1">
+              {label}
+            </TabsTrigger>
+          ))}
         </TabsList>
-        <TabsContent
-          value="description"
-          keepMounted
-          className={cn("min-h-0 overflow-y-auto bg-card", footer && "pb-24")}
-        >
+        <TabsContent value="description" keepMounted className={cn("min-h-0 overflow-y-auto bg-card", clear)}>
           {description}
           <div className="border-t">{submissions}</div>
         </TabsContent>
-        <TabsContent
-          value="code"
-          keepMounted
-          className={cn("flex min-h-0 flex-col gap-2 overflow-y-auto bg-surface-sunken p-2", footer && "pb-24")}
-        >
-          <div className="h-[55dvh] shrink-0 overflow-hidden rounded-lg border bg-card">{editor}</div>
-          <div className="min-h-64 shrink-0 overflow-hidden rounded-lg border bg-card">{console}</div>
+        <TabsContent value="code" keepMounted className={cn("flex min-h-0 flex-col bg-editor", clear)}>
+          <div className="min-h-0 flex-1 overflow-hidden">{editor}</div>
+        </TabsContent>
+        <TabsContent value="console" keepMounted className={cn("flex min-h-0 flex-col bg-card", clear)}>
+          <div className="min-h-0 flex-1 overflow-hidden">{console}</div>
         </TabsContent>
       </Tabs>
       {footer && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-card p-2.5 px-4 shadow-md">{footer}</div>
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          {footer}
+        </div>
       )}
     </div>
   );
@@ -165,23 +164,24 @@ function MobileWorkspace({
 function WorkspaceFallback({ description }: { description: ReactNode }) {
   return (
     <div className="flex h-full min-h-0 flex-col md:flex-row md:gap-2 md:p-2">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card md:flex-none md:basis-[calc(45%-4px)] md:rounded-lg md:border md:shadow-xs">
-        <div className="flex h-10 shrink-0 items-stretch border-b px-2 max-md:h-11" aria-hidden>
-          <span className="inline-flex items-center gap-1.5 px-3 text-sm font-semibold text-foreground shadow-[inset_0_-2px_0_var(--primary)] max-md:flex-1 max-md:justify-center">
-            <FileTextIcon className="size-4" />
-            Description
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card md:flex-none md:basis-[calc(44%-4px)] md:rounded-lg md:border md:shadow-sm">
+        <div className="flex h-11 shrink-0 items-stretch border-b px-2 md:h-[42px]" aria-hidden>
+          <span className="inline-flex items-center gap-1.5 px-3.5 text-sm font-semibold text-foreground shadow-[inset_0_-2px_0_var(--primary)] max-md:flex-1 max-md:justify-center">
+            <span className="max-md:hidden">Description</span>
+            <span className="md:hidden">Problem</span>
           </span>
-          <span className="inline-flex items-center gap-1.5 px-3 text-sm font-medium text-muted-foreground max-md:flex-1 max-md:justify-center">
-            <HistoryIcon className="size-4 max-md:hidden" />
-            <CodeIcon className="size-4 md:hidden" />
+          <span className="inline-flex items-center gap-1.5 px-3.5 text-sm font-medium text-muted-foreground max-md:flex-1 max-md:justify-center">
             <span className="max-md:hidden">Submissions</span>
             <span className="md:hidden">Code</span>
+          </span>
+          <span className="inline-flex flex-1 items-center justify-center gap-1.5 px-3.5 text-sm font-medium text-muted-foreground md:hidden">
+            Console
           </span>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">{description}</div>
       </div>
       <div aria-hidden className="hidden min-w-0 flex-1 flex-col gap-2 md:flex">
-        <div className="flex-[58] rounded-lg border bg-card p-4">
+        <div className="flex-[58] rounded-lg border bg-editor p-4">
           <Skeleton className="h-full w-full" />
         </div>
         <div className="flex-[42] rounded-lg border bg-card p-4">
