@@ -5,25 +5,23 @@ import { cn } from "cn";
 import { EmptyState } from "@/components/empty-state";
 import { Reveal } from "@/components/motion/reveal";
 import { DIFFICULTIES, DIFFICULTY_ORDER } from "@/components/problems/difficulty";
-import { DifficultyBadge } from "@/components/problems/difficulty-badge";
+import { DifficultyGlyph } from "@/components/problems/difficulty-badge";
 import { Progress } from "@/components/ui/progress";
 import { tableLinkClasses } from "@/components/ui/table";
-import { formatPercent, formatShortDate } from "@/lib/format";
-import {
-  progressSeries,
-  sessionResultsHref,
-  solvedProblemLabel,
-  timelineTotals,
-  type TimelineSession,
-} from "@/lib/rooms/history";
+import { formatPercent } from "@/lib/format";
+import { sessionResultsHref, timelineTotals, type TimelineSession } from "@/lib/rooms/history";
+import { formatSplit, problemLabel, splitsByPosition } from "@/lib/rooms/live-view";
+import { formatScoreTime } from "@/lib/rooms/scoring";
 import type { MemberTimeline } from "@/server/rooms/history";
 
 import { LocalDate } from "./local-date";
 
-/** Sessions shown in the progress chart (newest N, oldest first). */
-const CHART_SESSIONS = 20;
-
-/** Member timeline body (spec §5.2): header stats, progress chart, dated list. */
+/**
+ * Member timeline body (spec §5.2, rooms-v2 §2.4): header stats, solve rate
+ * by difficulty and, per session, one chip per problem with the solve time
+ * from the start, the split since their previous solve, wrong attempts and
+ * ★ First (the v1 one-bar "Progress over time" chart is gone).
+ */
 export function MemberTimelineView({ roomId, timeline }: { roomId: string; timeline: MemberTimeline }) {
   const { sessions, member } = timeline;
   if (sessions.length === 0) {
@@ -51,8 +49,24 @@ export function MemberTimelineView({ roomId, timeline }: { roomId: string; timel
         </Stat>
       </dl>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <Reveal as="section" index={3} aria-labelledby="rate-heading" className="rounded-xl border bg-card p-6 shadow-sm">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <section aria-labelledby="timeline-heading" className="flex min-w-0 flex-col gap-3 lg:order-1">
+          <h2 id="timeline-heading" className="text-lg/7 font-semibold">
+            Sessions
+          </h2>
+          <ol className="flex flex-col gap-3" data-testid="timeline-list">
+            {sessions.map((s) => (
+              <TimelineItem key={s.sessionId} roomId={roomId} session={s} />
+            ))}
+          </ol>
+          <p className="text-sm text-muted-foreground">
+            Times are from each session&apos;s start; +split = time since their previous solve. ★ = first to solve it.
+          </p>
+          {timeline.truncated && (
+            <p className="text-sm text-muted-foreground">Showing the latest {sessions.length} sessions.</p>
+          )}
+        </section>
+        <Reveal as="section" index={3} aria-labelledby="rate-heading" className="rounded-xl border bg-card p-6 shadow-sm lg:order-2">
           <h2 id="rate-heading" className="text-lg/7 font-semibold">
             Solve rate by difficulty
           </h2>
@@ -83,27 +97,7 @@ export function MemberTimelineView({ roomId, timeline }: { roomId: string; timel
             })}
           </div>
         </Reveal>
-        <Reveal as="section" index={4} aria-labelledby="chart-heading" className="rounded-xl border bg-card p-6 shadow-sm">
-          <h2 id="chart-heading" className="text-lg/7 font-semibold">
-            Progress over time
-          </h2>
-          <ProgressChart sessions={sessions} />
-        </Reveal>
       </div>
-
-      <section aria-labelledby="timeline-heading" className="flex flex-col gap-3">
-        <h2 id="timeline-heading" className="text-lg/7 font-semibold">
-          Sessions
-        </h2>
-        <ol className="flex flex-col gap-3" data-testid="timeline-list">
-          {sessions.map((s) => (
-            <TimelineItem key={s.sessionId} roomId={roomId} session={s} />
-          ))}
-        </ol>
-        {timeline.truncated && (
-          <p className="text-sm text-muted-foreground">Showing the latest {sessions.length} sessions.</p>
-        )}
-      </section>
     </div>
   );
 }
@@ -117,58 +111,24 @@ function Stat({ label, index, children }: { label: string; index: number; childr
   );
 }
 
-/**
- * Solved share per session as bars (CSS/SVG only, DESIGN tokens via
- * fill-*). The SVG is decorative; the caption and the list carry the data.
- */
-function ProgressChart({ sessions }: { sessions: TimelineSession[] }) {
-  const series = progressSeries(sessions).slice(-CHART_SESSIONS);
-  const W = 100;
-  const H = 40;
-  const gap = series.length > 12 ? 0.8 : 1.6;
-  const barW = (W - gap * (series.length - 1)) / series.length;
-  const summary = series
-    .map((p) => `${formatShortDate(p.startedAt)}: ${p.solved} of ${p.offered}${p.rank === 1 ? ", won" : ""}`)
-    .join("; ");
-  const first = series[0];
-  const last = series[series.length - 1];
-  return (
-    <figure className="mt-4 flex flex-col gap-2" data-testid="progress-chart">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        aria-hidden
-        className="h-32 w-full overflow-visible"
-      >
-        {series.map((p, i) => {
-          const x = i * (barW + gap);
-          const share = p.offered ? p.solved / p.offered : 0;
-          const h = Math.max(share * H, share > 0 ? 1 : 0);
-          return (
-            <g key={p.sessionId}>
-              <rect x={x} y={0} width={barW} height={H} rx={0.6} className="fill-muted" />
-              <rect x={x} y={H - h} width={barW} height={h} rx={0.6} className="fill-primary" />
-            </g>
-          );
-        })}
-      </svg>
-      <div aria-hidden className="flex justify-between text-xs text-muted-foreground tabular-nums">
-        <span>{formatShortDate(first.startedAt)}</span>
-        {series.length > 1 && <span>{formatShortDate(last.startedAt)}</span>}
-      </div>
-      <figcaption className="text-sm text-muted-foreground">
-        Share of each session&apos;s problems solved, oldest first
-        {sessions.length > CHART_SESSIONS ? ` (latest ${CHART_SESSIONS} sessions)` : ""}.
-        <span className="sr-only"> {summary}.</span>
-      </figcaption>
-    </figure>
-  );
+function chipSr(p: TimelineSession["problems"][number], split: number | null): string {
+  const head = `${problemLabel(p.position)}, ${p.title}: `;
+  if (p.solveSeconds !== null) {
+    const parts = [`solved at ${formatScoreTime(p.solveSeconds)}`];
+    if (split !== null) parts.push(`${formatSplit(split)} after the previous solve`);
+    if (p.wrongBefore > 0) parts.push(`${p.wrongBefore} wrong`);
+    if (p.firstSolver) parts.push("first to solve it");
+    return head + parts.join(", ");
+  }
+  if (p.attempts > 0) return `${head}not solved, ${p.attempts} ${p.attempts === 1 ? "try" : "tries"}`;
+  return `${head}not attempted`;
 }
 
-/** "Oct 24 · rank 1 of 3 · solved Valid Anagram (6:10), …; not solved: Edit Distance" (spec §5.2). */
+/** "Sat, Oct 24 · rank 1 of 3 · 3/4 solved" + one chip per problem (rooms-v2 §2.4). */
 function TimelineItem({ roomId, session: s }: { roomId: string; session: TimelineSession }) {
-  const solved = s.problems.filter((p) => p.solveSeconds !== null);
-  const unsolved = s.problems.filter((p) => p.solveSeconds === null);
+  const splits = splitsByPosition(
+    s.problems.map((p) => ({ ...p, solvedBefore: false })),
+  );
   return (
     <li className="rounded-xl border bg-card p-4 shadow-sm sm:p-5" data-session={s.sessionId}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -178,50 +138,48 @@ function TimelineItem({ roomId, session: s }: { roomId: string; session: Timelin
           </Link>
         </h3>
         <p className="text-sm text-muted-foreground tabular-nums">
-          {s.rank !== null ? `Rank ${s.rank} of ${s.participants}` : `${s.participants} participants`} · {s.solvedCount}/
+          {s.rank !== null ? `Rank ${s.rank} of ${s.participants}` : `${s.participants} participants`} · {s.solvedCount} of{" "}
           {s.problems.length} solved
         </p>
       </div>
-      <dl className="mt-3 grid grid-cols-[minmax(0,6rem)_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-        <dt className="font-semibold text-success">Solved</dt>
-        <dd className="min-w-0">
-          {solved.length === 0 ? (
-            <span className="text-muted-foreground">Nothing this time</span>
-          ) : (
-            <ProblemItems problems={solved} label={solvedProblemLabel} />
-          )}
-        </dd>
-        {unsolved.length > 0 && (
-          <>
-            <dt className="font-semibold text-foreground-secondary">Not solved</dt>
-            <dd className="min-w-0 text-foreground-secondary">
-              <ProblemItems
-                problems={unsolved}
-                label={(p) => `${p.title}${p.attempts > 0 ? ` (${p.attempts} ${p.attempts === 1 ? "try" : "tries"})` : ""}`}
-              />
-            </dd>
-          </>
-        )}
-      </dl>
+      <ul className="mt-3 flex flex-wrap gap-2" data-testid="timeline-chips">
+        {s.problems.map((p) => {
+          const solved = p.solveSeconds !== null;
+          const split = splits.get(p.position) ?? null;
+          return (
+            <li
+              key={p.position}
+              data-position={p.position}
+              data-state={solved ? "solved" : p.attempts > 0 ? "attempted" : "untouched"}
+              className={cn(
+                "flex min-w-0 max-w-full items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-[0.8125rem]",
+                solved ? "bg-success-bg" : p.attempts > 0 ? "border border-dashed border-border-strong" : "border",
+              )}
+            >
+              <span className="sr-only">{chipSr(p, split)}</span>
+              <span aria-hidden className="flex min-w-0 items-center gap-2">
+                <DifficultyGlyph difficulty={p.difficulty} className={DIFFICULTIES[p.difficulty].text} />
+                <span className="max-w-[12rem] truncate font-medium" title={p.title}>
+                  {p.position} · {p.title}
+                </span>
+                {solved ? (
+                  <span className="flex items-center gap-1.5 font-mono font-semibold whitespace-nowrap tabular-nums">
+                    <span className="text-success">✓</span>
+                    {formatScoreTime(p.solveSeconds!)}
+                    {split !== null && <span className="font-medium text-success">{formatSplit(split)}</span>}
+                    {p.wrongBefore > 0 && <span className="font-medium text-warning">{p.wrongBefore}w</span>}
+                    {p.firstSolver && <span className="text-primary">★</span>}
+                  </span>
+                ) : p.attempts > 0 ? (
+                  <span className="font-mono font-semibold whitespace-nowrap text-danger">✗ {p.attempts}</span>
+                ) : (
+                  <span className="font-mono text-faint">—</span>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </li>
-  );
-}
-
-function ProblemItems({
-  problems,
-  label,
-}: {
-  problems: TimelineSession["problems"];
-  label: (p: TimelineSession["problems"][number]) => string;
-}) {
-  return (
-    <ul className="flex flex-wrap gap-x-4 gap-y-1">
-      {problems.map((p) => (
-        <li key={p.position} className="inline-flex items-baseline gap-1.5">
-          <span>{label(p)}</span>
-          <DifficultyBadge difficulty={p.difficulty} variant="text" className="text-xs" />
-        </li>
-      ))}
-    </ul>
   );
 }

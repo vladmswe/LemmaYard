@@ -40,10 +40,9 @@ export function parseLeaderboardRange(value: unknown): LeaderboardRange {
   return LEADERBOARD_RANGES.includes(v as LeaderboardRange) ? (v as LeaderboardRange) : DEFAULT_LEADERBOARD_RANGE;
 }
 
+/** v2: the standings live in the Members tab (`?tab=leaderboard` redirects there). */
 export function leaderboardHref(roomId: string, range: LeaderboardRange): string {
-  return range === DEFAULT_LEADERBOARD_RANGE
-    ? `/rooms/${roomId}?tab=leaderboard`
-    : `/rooms/${roomId}?tab=leaderboard&range=${range}`;
+  return membersHref(roomId, range);
 }
 
 // --- Leaderboard aggregation (§5.2, query Q5) ---
@@ -302,6 +301,8 @@ export type TimelineProblem = {
   solveSeconds: number | null;
   wrongBefore: number;
   attempts: number;
+  /** v2: first to solve it in that session (ties: each). */
+  firstSolver: boolean;
 };
 
 export type TimelineSession = {
@@ -347,15 +348,159 @@ export function solvedProblemLabel(p: Pick<TimelineProblem, "title" | "solveSeco
   return `${p.title} (${formatScoreTime(p.solveSeconds)}${extra})`;
 }
 
-/** Points of the progress chart, oldest first: share of the session's problems solved. */
-export function progressSeries(sessions: readonly TimelineSession[]) {
-  return [...sessions]
-    .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime())
-    .map((s) => ({
-      sessionId: s.sessionId,
-      startedAt: s.startedAt,
-      solved: s.solvedCount,
-      offered: s.problems.length,
-      rank: s.rank,
-    }));
+// --- Results page v2 (docs/specs/rooms-v2.md §2.2) ---
+
+/** The cells/rows the results helpers read (a live-view ScoreRow fits). */
+export type FactRow = {
+  userId: string;
+  username: string;
+  rank: number | null;
+  solved: number;
+  penaltySec: number;
+  cells: readonly {
+    position: number;
+    solveSeconds: number | null;
+    splitSeconds: number | null;
+    firstSolver: boolean;
+  }[];
+};
+
+export type ResultFacts = {
+  /** Rank 1 with at least one solve (several on a tie). */
+  winners: { username: string; solved: number; penaltySec: number }[];
+  /** First solves per person, most first (ties by username); empty without solves. */
+  firstSolves: { username: string; count: number }[];
+  /**
+   * Shortest time spent on one solve: the split since the person's previous
+   * solve, or the solve time for their first one. Ties: earlier position, name.
+   */
+  fastest: { username: string; position: number; seconds: number } | null;
+};
+
+export function resultFacts(rows: readonly FactRow[]): ResultFacts {
+  const winners = rows
+    .filter((r) => r.rank === 1 && r.solved > 0)
+    .map((r) => ({ username: r.username, solved: r.solved, penaltySec: r.penaltySec }));
+  const firsts = new Map<string, number>();
+  let fastest: ResultFacts["fastest"] = null;
+  for (const r of rows) {
+    for (const c of r.cells) {
+      if (c.solveSeconds === null) continue;
+      if (c.firstSolver) firsts.set(r.username, (firsts.get(r.username) ?? 0) + 1);
+      const seconds = c.splitSeconds ?? c.solveSeconds;
+      const better =
+        !fastest ||
+        seconds < fastest.seconds ||
+        (seconds === fastest.seconds &&
+          (c.position < fastest.position || (c.position === fastest.position && r.username < fastest.username)));
+      if (better) fastest = { username: r.username, position: c.position, seconds };
+    }
+  }
+  const firstSolves = [...firsts]
+    .map(([username, count]) => ({ username, count }))
+    .sort((a, b) => b.count - a.count || cmp(a.username, b.username));
+  return { winners, firstSolves, fastest };
+}
+
+export type TimelineMark = { position: number; solveSeconds: number; /** 0..1 */ left: number };
+
+/** One marker per solve at `left = solveSeconds / duration` (AC-V2-MX-6), in time order. */
+export function timelineMarks(
+  cells: readonly { position: number; solveSeconds: number | null }[],
+  durationSec: number,
+): TimelineMark[] {
+  return cells
+    .filter((c) => c.solveSeconds !== null)
+    .map((c) => ({
+      position: c.position,
+      solveSeconds: c.solveSeconds!,
+      left: durationSec > 0 ? Math.min(1, Math.max(0, c.solveSeconds! / durationSec)) : 0,
+    }))
+    .sort((a, b) => a.solveSeconds - b.solveSeconds || a.position - b.position);
+}
+
+// --- Members tab (docs/specs/rooms-v2.md §2.4) ---
+
+/** Attendance squares cover the room's last 8 finished sessions. */
+export const ATTENDANCE_WINDOW = 8;
+
+/** One square: played, missed, or the session was before the person joined. */
+export type AttendanceMark = "played" | "missed" | "before";
+
+export type Attendance = {
+  /** Oldest first, `ATTENDANCE_WINDOW` at most. */
+  marks: AttendanceMark[];
+  played: number;
+  /** Sessions they could have played (played, or held after they joined). */
+  of: number;
+  /** Consecutive played sessions up to the newest. */
+  streak: number;
+  /** Some sessions of the window were before they joined: "2 of 2 since joining". */
+  sinceJoining: boolean;
+};
+
+/**
+ * `sessions`: the room's latest finished sessions, newest first. A session
+ * counts as "before" when it started before the person (last) joined and they
+ * did not play it.
+ */
+export function attendance(
+  sessions: readonly { startedAt: Date; participants: ReadonlySet<string> }[],
+  member: { userId: string; joinedAt: Date | null },
+): Attendance {
+  const window = sessions.slice(0, ATTENDANCE_WINDOW);
+  const newestFirst: AttendanceMark[] = window.map((s) => {
+    if (s.participants.has(member.userId)) return "played";
+    if (member.joinedAt && s.startedAt.getTime() < member.joinedAt.getTime()) return "before";
+    return "missed";
+  });
+  let streak = 0;
+  for (const m of newestFirst) {
+    if (m !== "played") break;
+    streak += 1;
+  }
+  const played = newestFirst.filter((m) => m === "played").length;
+  const of = newestFirst.filter((m) => m !== "before").length;
+  return { marks: [...newestFirst].reverse(), played, of, streak, sinceJoining: of < window.length };
+}
+
+/** "7 of last 8 · streak 5" · "2 of 2 since joining" · "No sessions yet" (§12 copy). */
+export function attendanceText(a: Attendance): string {
+  if (a.marks.length === 0) return "No sessions yet";
+  if (a.sinceJoining) return `${a.played} of ${a.of} since joining`;
+  const base = `${a.played} of last ${a.of}`;
+  return a.streak > 1 ? `${base} · streak ${a.streak}` : base;
+}
+
+export type MemberStatsInput = {
+  userId: string;
+  username: string;
+  /** Still a member of the room ("(left)" otherwise). */
+  isMember: boolean;
+  solved: number;
+  firstSolves: number;
+  wins: number;
+};
+
+/**
+ * Members tab order (rooms-v2 §2.4, the ranking that replaces the v1
+ * leaderboard): current members first, then wins, problems solved and first
+ * solves (all desc), then username.
+ */
+export function sortMemberStats<T extends MemberStatsInput>(rows: readonly T[]): T[] {
+  return [...rows].sort(
+    (a, b) =>
+      Number(b.isMember) - Number(a.isMember) ||
+      b.wins - a.wins ||
+      b.solved - a.solved ||
+      b.firstSolves - a.firstSolves ||
+      byName(a, b),
+  );
+}
+
+/** Members tab URL keeping the period (`?range=`). */
+export function membersHref(roomId: string, range: LeaderboardRange): string {
+  return range === DEFAULT_LEADERBOARD_RANGE
+    ? `/rooms/${roomId}?tab=members`
+    : `/rooms/${roomId}?tab=members&range=${range}`;
 }

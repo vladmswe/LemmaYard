@@ -8,7 +8,6 @@ import {
   parseLeaderboardRange,
   parsePageParam,
   penaltyBreakdown,
-  progressSeries,
   rankLeaderboard,
   roomHistoryHref,
   sessionRunMinutes,
@@ -54,8 +53,9 @@ describe("query params", () => {
   it("hrefs keep the tab; defaults are omitted", () => {
     expect(roomHistoryHref("r", 1)).toBe("/rooms/r");
     expect(roomHistoryHref("r", 2)).toBe("/rooms/r?page=2");
-    expect(leaderboardHref("r", "3m")).toBe("/rooms/r?tab=leaderboard");
-    expect(leaderboardHref("r", "all")).toBe("/rooms/r?tab=leaderboard&range=all");
+    // v2: the standings live in the Members tab.
+    expect(leaderboardHref("r", "3m")).toBe("/rooms/r?tab=members");
+    expect(leaderboardHref("r", "all")).toBe("/rooms/r?tab=members&range=all");
   });
 });
 
@@ -212,6 +212,7 @@ describe("timeline helpers", () => {
       solveSeconds,
       wrongBefore,
       attempts: wrongBefore + (solveSeconds === null ? 0 : 1),
+      firstSolver: false,
     })),
   });
   const sample = session("s1", 24, 1, [
@@ -242,14 +243,6 @@ describe("timeline helpers", () => {
         hard: { solved: 1, offered: 2 },
       },
     });
-  });
-
-  it("progressSeries is oldest first", () => {
-    const earlier = session("s0", 17, 2, [["Two Sum", "easy", 100, 0]]);
-    expect(progressSeries([sample, earlier]).map((p) => [p.sessionId, p.solved, p.offered])).toEqual([
-      ["s0", 1, 1],
-      ["s1", 3, 4],
-    ]);
   });
 
   it("sessionRunMinutes: actual run time, capped at the planned duration", () => {

@@ -115,7 +115,7 @@ test.afterAll(async () => {
   await pool.end();
 });
 
-test("members browse history, results, solutions, leaderboard and a timeline", async ({ browser, baseURL }) => {
+test("members browse history, results, solutions, member stats and a timeline", async ({ browser, baseURL }) => {
   const suffix = Date.now().toString(36).slice(-6);
   const { user: ann, context: annCtx } = await register(browser, baseURL!, `ann_${suffix}`);
   const { user: ben, context: benCtx } = await register(browser, baseURL!, `ben_${suffix}`);
@@ -147,20 +147,29 @@ test("members browse history, results, solutions, leaderboard and a timeline", a
   const errors: string[] = [];
   pb.on("pageerror", (e) => errors.push(String(e)));
   await pb.goto(roomPath);
-  const table = pb.getByTestId("history-table");
-  await expect(table.getByRole("row")).toHaveCount(3); // header + 2
-  await expect(table.getByRole("row").nth(1)).toContainText(ann.username); // newest: ann won
-  await expect(table.getByRole("row").nth(1)).toContainText("1/2, rank 3");
+  // v2: one card per session with a person × problem mini-matrix.
+  const cards = pb.getByTestId("history-cards").locator(":scope > li");
+  await expect(cards).toHaveCount(2);
+  const newest = cards.first();
+  await expect(newest.getByTestId("mini-matrix").locator("tbody tr").first()).toContainText(ann.username); // newest: ann won
+  const benMini = newest.locator(`tr[data-user="${ben.username}"]`);
+  await expect(benMini).toContainText("1 · #3");
+  await expect(benMini.locator('[data-cell-state="solved"]')).toHaveCount(1);
+  await expect(benMini.locator('[data-cell-state="attempted"]')).toContainText("✗ 1");
+  await expect(pb.getByText("Room difficulty profile")).toHaveCount(0);
   await bothThemes(pb, () => expectNoSeriousAxe(pb));
 
   // Results: open the newest session from the list.
-  await table.getByRole("row").nth(1).getByRole("link").first().click();
+  await newest.getByRole("link", { name: /Results/ }).click();
   await expect(pb).toHaveURL(new RegExp(`${resultsPath}$`));
   await expect(pb.getByRole("heading", { level: 1 })).toContainText("Results");
   const results = pb.getByTestId("results-table");
   const annRow = results.locator(`tr[data-user="${ann.username}"]`);
   await expect(annRow).toContainText("35:40"); // 370 + 1470 + 300 = 2140 s
-  await expect(annRow.getByTestId("penalty-breakdown")).toContainText("5:00 for 1 wrong attempt");
+  await expect(annRow).toContainText("1 wrong attempt"); // row meta; the 5:00 penalty is in the total
+  await expect(annRow.locator('[data-position="2"]')).toContainText("+18:20"); // split since the previous solve
+  await expect(pb.getByTestId("session-timeline").getByTestId("timeline-mark")).toHaveCount(5);
+  await expect(pb.getByTestId("fact-winner")).toContainText(ann.username);
   await expect(results.locator(`tr[data-user="${ben.username}"]`).getByTestId("first-solver")).toHaveCount(1);
   // Cat opted out: no link, a visible reason.
   const catRow = results.locator(`tr[data-user="${cat.username}"]`);
@@ -185,23 +194,30 @@ test("members browse history, results, solutions, leaderboard and a timeline", a
   const own = await pc.goto(`${roomPath}/sessions/${latest}/solutions/${cat.username}/1`);
   expect(own?.status()).toBe(200);
 
-  // Leaderboard: ann 3 solved over 2 sessions, ben 3 too but lower rate? (ann 3/4, ben 3/4 → tie).
+  // Members (v2; the old Leaderboard tab redirects here): ann and ben 1 win, 3 solved and 2 first
+  // solves each (tie → by name), cat played 1 of 1 since joining.
   await pb.goto(`${roomPath}?tab=leaderboard`);
-  const lb = pb.getByTestId("leaderboard-table");
-  await expect(lb.locator(`tr[data-user="${ann.username}"]`)).toContainText("75%");
-  await expect(lb.locator(`tr[data-user="${cat.username}"]`)).toContainText("100%");
-  await expect(pb.getByTestId("difficulty-profile")).toBeVisible();
+  await expect(pb).toHaveURL(/tab=members/);
+  const lb = pb.getByTestId("members-table");
+  await expect(lb.locator("tbody tr").first()).toHaveAttribute("data-user", ann.username);
+  await expect(lb.locator(`tr[data-user="${ann.username}"]`)).toContainText("2/2");
+  // Cat joined (row inserted) after the older session: it counts as "before joining", not missed.
+  await expect(lb.locator(`tr[data-user="${cat.username}"]`)).toContainText("1/1");
+  await expect(pb.getByTestId("difficulty-profile")).toHaveCount(0);
   await pb.getByTestId("leaderboard-range").click();
   await pb.getByRole("option", { name: "All time" }).click();
   await expect(pb).toHaveURL(/range=all/);
   await bothThemes(pb, () => expectNoSeriousAxe(pb));
 
   // Timeline.
-  await lb.getByRole("link", { name: ann.username }).click();
+  await lb.locator(`tr[data-user="${ann.username}"]`).getByRole("link", { name: /History/ }).click();
   await expect(pb).toHaveURL(new RegExp(`${roomPath}/members/${ann.username}$`));
   await expect(pb.getByRole("heading", { level: 1 })).toHaveText(ann.username);
-  await expect(pb.getByTestId("timeline-list").getByRole("listitem").first()).toContainText("(24:30, 1 wrong)");
-  await expect(pb.getByTestId("progress-chart")).toBeVisible();
+  const day1 = pb.getByTestId("timeline-list").locator(":scope > li").first();
+  await expect(day1.locator('[data-position="2"]')).toContainText("24:30");
+  await expect(day1.locator('[data-position="2"]')).toContainText("1w");
+  await expect(pb.getByTestId("progress-chart")).toHaveCount(0);
+  await expect(pb.getByText("Progress over time")).toHaveCount(0);
   await bothThemes(pb, () => expectNoSeriousAxe(pb));
 
   // Outsider: 404 everywhere.

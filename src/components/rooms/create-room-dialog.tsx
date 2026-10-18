@@ -47,7 +47,7 @@ export function CreateRoomDialog({ variant = "default" }: { variant?: "default" 
     const res = await postJson<{ id: string }>("/api/rooms", { name: parsed.data });
     if (res.ok) {
       toast.success(`Room "${parsed.data}" created`, { description: "Invite your friends with a link." });
-      router.push(`/rooms/${res.data.id}?tab=members`);
+      router.push(`/rooms/${res.data.id}?tab=settings`);
       return; // stay disabled while navigating
     }
     setPending(false);

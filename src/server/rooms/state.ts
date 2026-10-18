@@ -2,8 +2,8 @@
 // (docs/specs/rooms.md §3.2, §3.3, §7.2). The one endpoint the live UI polls.
 //
 // Queries: (1) the signed-in user, (2) membership + session + server clock +
-// latest event id + pending judging in one statement (Q0 merged with the
-// session read and Q10), (3) events after the cursor (Q6, skipped when the
+// latest event id + pending judging (count, and the v2 per-cell `pending`
+// list) in one statement (Q0 merged with the session read and Q10), (3) events after the cursor (Q6, skipped when the
 // cursor is already the latest). A snapshot adds two (problems; participants
 // with their result cells, Q11). A due lazy close adds one transaction.
 import { and, asc, eq, gt, sql } from "drizzle-orm";
@@ -15,6 +15,7 @@ import {
   encodeCursor,
   EVENT_PAGE_SIZE,
   toRoomEvent,
+  type PendingCell,
   type RoomEvent,
   type SessionSnapshot,
   type StateResponse,
@@ -67,6 +68,15 @@ async function loadGate(db: Db, roomId: string, sessionId: string, userId: strin
       latest: sql<string | null>`(SELECT max(e.id) FROM room_events e WHERE e.session_id = ${roomSessions.id})::text`,
       pending: sql<number>`(SELECT count(*) FROM submissions x
         WHERE x.room_session_id = ${roomSessions.id} AND x.status IN ('queued', 'running'))::int`,
+      // v2 §9.2: who has a session submit in flight for which problem. Only
+      // ids, positions and counts: no verdict, code or timing leaves here.
+      pendingCells: sql<PendingCell[]>`(SELECT coalesce(json_agg(json_build_object(
+          'userId', g.user_id, 'position', g.position, 'count', g.n) ORDER BY g.position, g.user_id), '[]'::json)
+        FROM (SELECT x.user_id, sp.position, count(*)::int AS n
+          FROM submissions x
+          JOIN room_session_problems sp ON sp.session_id = x.room_session_id AND sp.problem_id = x.problem_id
+          WHERE x.room_session_id = ${roomSessions.id} AND x.status IN ('queued', 'running') AND x.kind = 'submit'
+          GROUP BY x.user_id, sp.position) g)`,
     })
     .from(roomSessions)
     .innerJoin(roomMembers, and(eq(roomMembers.roomId, roomSessions.roomId), eq(roomMembers.userId, userId)))
@@ -231,6 +241,11 @@ export async function computeSessionState(
     events,
     hasMore,
     pendingJudging: gate.pending,
+    pending: gate.status === "lobby" ? [] : gate.pendingCells.map((p) => ({
+      userId: p.userId,
+      position: Number(p.position),
+      count: Number(p.count),
+    })),
     viewer: { isParticipant: gate.isParticipant, canManage },
   };
   if (!valid || fetched > 0 || wantSnapshot) {

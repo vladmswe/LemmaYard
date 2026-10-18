@@ -2,7 +2,7 @@
 // copy, Activity feed lines, batching after a background/reconnect burst,
 // de-duplication, the browser-notification decision and the per-browser
 // preferences. Pure module (storage is injected); the React side only renders.
-import type { RoomEvent } from "./events";
+import type { PendingCell, RoomEvent } from "./events";
 import { formatScoreTime } from "./scoring";
 import { problemLabel } from "./live-view";
 
@@ -63,11 +63,7 @@ export function eventNotice(event: RoomEvent, ctx: NoticeContext, live: boolean)
       };
     case "attempt_failed":
       if (!ctx.showAttempts || event.actor.userId === ctx.viewerId) return null;
-      return {
-        id: event.id,
-        kind: "attempt",
-        title: `${event.actor.username} made an attempt on ${problemLabel(event.payload.position)}`,
-      };
+      return { id: event.id, kind: "attempt", title: attemptFailedText(event.actor.username, event.payload.position) };
     case "participant_joined":
       if (!live || event.actor.userId === ctx.viewerId) return null;
       return { id: event.id, kind: "joined", title: `${event.actor.username} joined the session` };
@@ -111,11 +107,16 @@ export function batchNotices(notices: readonly Notice[], scoreboardHref: string)
   ];
 }
 
+/** v2 §9.2 toast and feed copy: "bob's attempt on Problem 2 was not accepted". */
+export function attemptFailedText(username: string, position: number): string {
+  return `${username}'s attempt on ${problemLabel(position)} was not accepted`;
+}
+
 export type FeedLine = {
   id: string;
   /** Event time (ISO), shown as the session clock or local time. */
   at: string;
-  kind: "solved" | "attempt" | "joined" | "started" | "ended" | "cancelled";
+  kind: "solved" | "attempt" | "joined" | "started" | "ended" | "cancelled" | "judging";
   text: string;
   /** Session clock ("23:41") for events during the live window. */
   clock: string | null;
@@ -146,7 +147,7 @@ export function feedLine(event: RoomEvent, ctx: Pick<NoticeContext, "titles">, s
       };
     }
     case "attempt_failed":
-      return { ...base, kind: "attempt", text: `${event.actor.username} made an attempt on ${problemLabel(event.payload.position)}` };
+      return { ...base, kind: "attempt", text: attemptFailedText(event.actor.username, event.payload.position) };
     case "participant_joined":
       return { ...base, kind: "joined", text: `${event.actor.username} joined the session` };
     case "session_started":
@@ -164,6 +165,49 @@ export function feedLine(event: RoomEvent, ctx: Pick<NoticeContext, "titles">, s
   }
 }
 
+// --- "Judging…" lines (v2 §9.2: client-only, never stored, never toasted) ---
+
+export type JudgingEntry = PendingCell & { username: string; since: string };
+
+/** Stable key of a (participant, problem) pair. */
+export function pendingKey(p: Pick<PendingCell, "userId" | "position">): string {
+  return `${p.userId}:${p.position}`;
+}
+
+/**
+ * Next list of in-flight judging entries: pairs still pending keep the time
+ * they were first seen (`since`), new pairs start at `now`, finished ones drop
+ * out (their verdict arrives as a stored event). Pairs whose participant is
+ * unknown (not in the snapshot yet) are skipped until they are.
+ */
+export function nextJudgingEntries(
+  prev: readonly JudgingEntry[],
+  pending: readonly PendingCell[],
+  usernames: ReadonlyMap<string, string>,
+  now: string,
+): JudgingEntry[] {
+  const before = new Map(prev.map((e) => [pendingKey(e), e]));
+  const next: JudgingEntry[] = [];
+  for (const p of pending) {
+    const username = usernames.get(p.userId);
+    if (!username) continue;
+    const old = before.get(pendingKey(p));
+    next.push({ ...p, username, since: old?.since ?? now });
+  }
+  return next.sort((a, b) => (a.since < b.since ? 1 : a.since > b.since ? -1 : a.position - b.position));
+}
+
+/** "carol submitted Problem 4 · judging…" with the session clock of when it was first seen. */
+export function judgingFeedLine(entry: JudgingEntry, startedAt: string | null): FeedLine {
+  return {
+    id: `judging-${pendingKey(entry)}`,
+    at: entry.since,
+    kind: "judging",
+    clock: sessionClock(entry.since, startedAt),
+    text: `${entry.username} submitted ${problemLabel(entry.position)} · judging…`,
+  };
+}
+
 /** True when an event belongs to history that existed before the page loaded (no announcements). */
 export function isHistoryEvent(eventId: string, initialCursor: string | null): boolean {
   if (initialCursor === null) return false;
@@ -176,7 +220,10 @@ export function isHistoryEvent(eventId: string, initialCursor: string | null): b
 
 // --- Preferences (per browser, localStorage, versioned) ---------------------
 
-export const NOTIFICATION_PREFS_KEY = "lemmayard:room-notifications:v1";
+/** v2 §9.2: failed attempts are announced by default from this key on. */
+export const NOTIFICATION_PREFS_KEY = "lemmayard:room-notifications:v2";
+/** The v1 key, read once to carry the person's explicit choices over. */
+export const NOTIFICATION_PREFS_KEY_V1 = "lemmayard:room-notifications:v1";
 
 export type NotificationPrefs = {
   /** In-app toasts on the problem page (the mute switch). */
@@ -185,7 +232,7 @@ export type NotificationPrefs = {
   sound: boolean;
   /** System notifications while this tab is in the background. */
   browser: boolean;
-  /** Announce other people's failed attempts. */
+  /** Announce other people's failed attempts (v2 default: on). */
   showAttempts: boolean;
 };
 
@@ -193,10 +240,19 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   toasts: true,
   sound: false,
   browser: false,
-  showAttempts: false,
+  showAttempts: true,
 };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
+
+/**
+ * v1 → v2 (§9.2 item 3): the v1 value is migrated field by field, except
+ * `showAttempts`, which takes the new default (on). Malformed or missing v1
+ * data gives the v2 defaults.
+ */
+export function migrateNotificationPrefsV1(raw: string | null): NotificationPrefs {
+  return { ...parseNotificationPrefs(raw), showAttempts: DEFAULT_NOTIFICATION_PREFS.showAttempts };
+}
 
 /** Parses stored prefs; anything malformed falls back to the defaults field by field. */
 export function parseNotificationPrefs(raw: string | null): NotificationPrefs {
@@ -213,9 +269,19 @@ export function parseNotificationPrefs(raw: string | null): NotificationPrefs {
   return { toasts: pick("toasts"), sound: pick("sound"), browser: pick("browser"), showAttempts: pick("showAttempts") };
 }
 
+/**
+ * Reads the v2 key; without it, migrates the v1 key (and stores the result
+ * under v2, so a later mute of failed attempts sticks).
+ */
 export function loadNotificationPrefs(storage: StorageLike | null): NotificationPrefs {
   try {
-    return parseNotificationPrefs(storage?.getItem(NOTIFICATION_PREFS_KEY) ?? null);
+    const raw = storage?.getItem(NOTIFICATION_PREFS_KEY) ?? null;
+    if (raw !== null) return parseNotificationPrefs(raw);
+    const v1 = storage?.getItem(NOTIFICATION_PREFS_KEY_V1) ?? null;
+    if (v1 === null) return { ...DEFAULT_NOTIFICATION_PREFS };
+    const migrated = migrateNotificationPrefsV1(v1);
+    saveNotificationPrefs(storage, migrated);
+    return migrated;
   } catch {
     return { ...DEFAULT_NOTIFICATION_PREFS };
   }

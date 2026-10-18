@@ -62,6 +62,12 @@ export type ResultParticipant = {
   breakdown: ReturnType<typeof penaltyBreakdown>;
   /** One per session problem, by position (an untouched problem has attempts 0). */
   cells: ResultCell[];
+  /**
+   * Rooms v2 rating slot (§2.2 "Rating change"): filled by the rating module
+   * once the session is rated; absent → the results page shows no rating UI.
+   * `null` = not rated (no submissions).
+   */
+  ratingChange?: { before: number; delta: number; expected: number; provisional?: boolean } | null;
 };
 
 export type ResultProblem = {
@@ -71,6 +77,8 @@ export type ResultProblem = {
   difficulty: Difficulty;
   published: boolean;
   pinned: boolean;
+  /** Rooms v2 rating slot: the problem's rating before → after the session (absent: not shown). */
+  rating?: { before: number; after: number };
 };
 
 export type FinishedResults = {

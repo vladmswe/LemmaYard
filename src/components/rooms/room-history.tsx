@@ -1,33 +1,36 @@
-import { ArrowRightIcon, HistoryIcon, SearchXIcon, TrophyIcon } from "lucide-react";
+import { ArrowRightIcon, HistoryIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 import { cn } from "cn";
 
 import { EmptyState } from "@/components/empty-state";
 import { Pagination } from "@/components/pagination";
+import { DifficultyGlyph } from "@/components/problems/difficulty-badge";
 import { DIFFICULTIES } from "@/components/problems/difficulty";
+import { Avatar } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, tableLinkClasses } from "@/components/ui/table";
-import {
-  formatMinutes,
-  roomHistoryHref,
-  sessionResultsHref,
-  sessionScreenHref,
-} from "@/lib/rooms/history";
-import { mixLabel } from "@/lib/rooms/session-view";
-import { mixOf } from "@/lib/rooms/types";
+import { formatMinutes, roomHistoryHref, sessionResultsHref, sessionScreenHref } from "@/lib/rooms/history";
+import { formatMinuteMark, matrixRows, problemLabel, type CellView } from "@/lib/rooms/live-view";
 import type { HistorySessionItem, OpenSessionItem, RoomHistory } from "@/server/rooms/history";
 
 import { LocalDate } from "./local-date";
 import { LocalTime } from "./local-time";
 import { SessionStatusBadge } from "./session-status-badge";
 
-const DATE_OPTIONS: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric", year: "numeric" };
+const DATE_OPTIONS: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" };
 
-/** Sessions tab (spec §5.2): open session pinned, then the finished/cancelled list. */
-export function RoomHistoryPanel({ roomId, history }: { roomId: string; history: RoomHistory }) {
+/** Sessions tab (rooms-v2 §2.4): open session pinned, then one card per past session with its mini-matrix. */
+export function RoomHistoryPanel({
+  roomId,
+  history,
+  viewerId,
+}: {
+  roomId: string;
+  history: RoomHistory;
+  viewerId?: string;
+}) {
   const { open, sessions, total, page, pageSize } = history;
   return (
-    <section aria-labelledby="history-heading" className="flex flex-col gap-5" data-testid="room-history">
+    <section aria-labelledby="history-heading" className="flex flex-col gap-4" data-testid="room-history">
       <h2 id="history-heading" className="sr-only">
         Session history
       </h2>
@@ -54,21 +57,21 @@ export function RoomHistoryPanel({ roomId, history }: { roomId: string; history:
             </EmptyState>
           ) : (
             <EmptyState icon={HistoryIcon} title="No sessions yet">
-              Finished sessions are listed here with their problems, who took part and who won.
+              Finished sessions are listed here with who solved which problem, and when.
             </EmptyState>
           )}
         </div>
       ) : (
-        <div>
-          <HistoryTable roomId={roomId} sessions={sessions} />
-          <HistoryCards roomId={roomId} sessions={sessions} />
-          <Pagination
-            className="mt-5"
-            page={page}
-            pageSize={pageSize}
-            totalItems={total}
-            hrefFor={(p) => roomHistoryHref(roomId, p)}
-          />
+        <div className="flex flex-col gap-3.5">
+          <ol aria-label="Past sessions, newest first" className="flex flex-col gap-3.5" data-testid="history-cards">
+            {sessions.map((s) => (
+              <SessionCard key={s.id} roomId={roomId} session={s} viewerId={viewerId ?? null} />
+            ))}
+          </ol>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">Times are from each session&apos;s start. ★ = first to solve.</p>
+            <Pagination page={page} pageSize={pageSize} totalItems={total} hrefFor={(p) => roomHistoryHref(roomId, p)} />
+          </div>
         </div>
       )}
     </section>
@@ -108,157 +111,170 @@ function OpenSessionRow({ roomId, session }: { roomId: string; session: OpenSess
   );
 }
 
-function ProblemTitles({ session }: { session: HistorySessionItem }) {
-  if (session.problems.length === 0) return <span className="text-muted-foreground">—</span>;
-  return (
-    <span className="flex flex-col gap-0.5">
-      <span className="line-clamp-2 text-sm">
-        {session.problems.map((p, i) => (
-          <span key={p.position}>
-            {i > 0 && <span aria-hidden className="text-muted-foreground"> · </span>}
-            <span className={cn("font-medium", DIFFICULTIES[p.difficulty].text)}>{p.title}</span>
-            <span className="sr-only"> ({DIFFICULTIES[p.difficulty].label})</span>
-          </span>
-        ))}
-      </span>
-      <span aria-hidden className="text-xs text-muted-foreground">
-        {mixLabel(mixOf(session.problems))}
-      </span>
-    </span>
-  );
-}
-
-function DateCell({ roomId, session }: { roomId: string; session: HistorySessionItem }) {
-  const date = <LocalDate iso={session.date} options={DATE_OPTIONS} />;
-  if (session.status === "cancelled") return <span className="text-muted-foreground">{date}</span>;
-  return (
-    <Link href={sessionResultsHref(roomId, session.id)} className={tableLinkClasses()}>
-      {date}
-      <span className="sr-only"> results</span>
-    </Link>
-  );
-}
-
 function durationText(s: HistorySessionItem): string {
-  if (s.status === "cancelled") return "—";
   if (s.endReason === "host" && s.runMinutes < s.durationMin) {
     return `${formatMinutes(s.runMinutes)} of ${s.durationMin}`;
   }
   return formatMinutes(s.durationMin);
 }
 
-function Winners({ session }: { session: HistorySessionItem }) {
-  if (session.status === "cancelled" || session.winners.length === 0) {
-    return <span className="text-muted-foreground">—</span>;
+function sessionMeta(s: HistorySessionItem): string {
+  const problems = `${s.problemCount} ${s.problemCount === 1 ? "problem" : "problems"}`;
+  const people = `${s.participants} ${s.participants === 1 ? "person" : "people"}`;
+  return `${problems} · ${durationText(s)} · ${people}`;
+}
+
+function SessionCard({ roomId, session: s, viewerId }: { roomId: string; session: HistorySessionItem; viewerId: string | null }) {
+  const cancelled = s.status === "cancelled";
+  const date = <LocalDate iso={s.date} options={DATE_OPTIONS} />;
+  return (
+    <li
+      data-status={s.status}
+      data-session={s.id}
+      className={cn("rounded-xl border bg-card px-4 py-4 shadow-sm sm:px-5", cancelled && "text-muted-foreground")}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h3 className="min-w-0 text-[0.9375rem]">
+          <span className="font-semibold text-foreground">{date}</span>
+          <span className="text-muted-foreground"> · {cancelled ? "Cancelled before it started" : sessionMeta(s)}</span>
+        </h3>
+        {cancelled ? (
+          <SessionStatusBadge status="cancelled" />
+        ) : (
+          <Link
+            href={sessionResultsHref(roomId, s.id)}
+            className="relative text-sm font-semibold text-link after:absolute after:-inset-2 hover:underline"
+          >
+            Results<span className="sr-only"> of this session</span>
+            <ArrowRightIcon aria-hidden className="ml-1 inline size-3.5" />
+          </Link>
+        )}
+      </div>
+      {!cancelled && s.standings.length > 0 && <MiniMatrix session={s} viewerId={viewerId} />}
+    </li>
+  );
+}
+
+/** Person × problem: `✓ 24:30 ★`, `✗ 2`, `—`; minutes (`25′`) below sm. A real table for screen readers. */
+function MiniMatrix({ session: s, viewerId }: { session: HistorySessionItem; viewerId: string | null }) {
+  const positions = s.problems.map((p) => p.position);
+  const rows = matrixRows(
+    s.standings.map((p) => ({ ...p, isHost: false })),
+    positions,
+    { viewerId, durationSec: s.durationMin * 60 },
+  );
+  return (
+    <div className="relative mt-3 overflow-x-auto" data-testid="mini-matrix">
+      <table className="w-full table-fixed border-separate border-spacing-1 text-[0.8125rem]">
+        <caption className="sr-only">Who solved which problem, and when</caption>
+        <colgroup>
+          <col className="w-[5.5rem] sm:w-[7.5rem]" />
+          {positions.map((p) => (
+            <col key={p} className={cn(positions.length <= 4 && "lg:w-[12.5rem]")} />
+          ))}
+          {positions.length <= 4 && <col className="hidden lg:table-column" />}
+          <col className="w-9 sm:w-[4.5rem]" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">
+              <span className="sr-only">Participant</span>
+            </th>
+            {s.problems.map((p) => (
+              <th
+                key={p.position}
+                scope="col"
+                className="truncate px-1 text-left font-mono text-[0.6875rem] font-medium text-muted-foreground"
+                title={p.title}
+              >
+                <DifficultyGlyph difficulty={p.difficulty} className={cn("mr-1", DIFFICULTIES[p.difficulty].text)} />
+                <span aria-hidden>{p.position}</span>
+                <span className="hidden sm:inline" aria-hidden>
+                  {" "}
+                  · {p.title}
+                </span>
+                <span className="sr-only">
+                  {problemLabel(p.position)}: {p.title} ({DIFFICULTIES[p.difficulty].label})
+                </span>
+              </th>
+            ))}
+            {positions.length <= 4 && <td aria-hidden className="hidden lg:table-cell" />}
+            <th scope="col" className="px-1 text-right font-mono text-[0.6875rem] font-medium text-muted-foreground">
+              solved
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.userId} data-user={r.username}>
+              <th scope="row" className="truncate text-left font-semibold">
+                <span className="flex min-w-0 items-center gap-2">
+                  <Avatar name={r.username} className="hidden size-6 rounded-[7px] text-[10px] sm:inline-grid" />
+                  <span className="truncate">{r.username}</span>
+                  {r.isViewer && <span className="sr-only"> (you)</span>}
+                </span>
+              </th>
+              {r.cells.map((c) => (
+                <td key={c.position} className="p-0">
+                  <MiniCell cell={c} />
+                </td>
+              ))}
+              {positions.length <= 4 && <td aria-hidden className="hidden lg:table-cell" />}
+              <td className="px-1 text-right font-mono font-semibold whitespace-nowrap tabular-nums">
+                {r.solved}
+                <span className="hidden font-normal text-muted-foreground sm:inline">
+                  {" "}
+                  · #{r.rank ?? "—"}
+                </span>
+                <span className="sr-only">
+                  {" "}
+                  solved{r.rank !== null ? `, rank ${r.rank}` : ""}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MiniCell({ cell }: { cell: CellView }) {
+  const box = "flex h-[1.875rem] min-w-0 items-center gap-1 overflow-hidden rounded-[7px] px-1.5 font-mono text-[0.71875rem] font-medium whitespace-nowrap sm:px-2 sm:text-[0.78125rem]";
+  const sr = <span className="sr-only">{cell.srText}</span>;
+  if (cell.state === "solved") {
+    return (
+      <span className={cn(box, "bg-success-bg text-foreground")} data-cell-state="solved">
+        {sr}
+        <span aria-hidden className="hidden text-success sm:inline">
+          ✓
+        </span>
+        <span aria-hidden className="hidden sm:inline">
+          {cell.time}
+        </span>
+        <span aria-hidden className="sm:hidden">
+          {formatMinuteMark(cell.solveSeconds ?? 0)}
+        </span>
+        {cell.firstSolver && (
+          <span aria-hidden className="text-primary">
+            ★
+          </span>
+        )}
+      </span>
+    );
+  }
+  if (cell.state === "attempted") {
+    return (
+      <span className={cn(box, "text-danger ring-1 ring-border-strong ring-inset")} data-cell-state="attempted">
+        {sr}
+        <span aria-hidden>✗ {cell.attempts}</span>
+      </span>
+    );
   }
   return (
-    <span className="inline-flex max-w-full min-w-0 items-center gap-1.5">
-      <TrophyIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-      <span className="truncate">{session.winners.join(", ")}</span>
-      {session.winners.length > 1 && <span className="sr-only"> (tie)</span>}
+    <span className={cn(box, "text-faint")} data-cell-state="untouched">
+      {sr}
+      <span aria-hidden>—</span>
     </span>
-  );
-}
-
-function YouCell({ session }: { session: HistorySessionItem }) {
-  if (session.status === "cancelled") return <span className="text-muted-foreground">—</span>;
-  if (!session.viewer) return <span className="text-muted-foreground">Didn&apos;t join</span>;
-  return (
-    <span className="tabular-nums">
-      {session.viewer.solved}/{session.problemCount}
-      {session.viewer.rank !== null && <span className="text-muted-foreground">, rank {session.viewer.rank}</span>}
-    </span>
-  );
-}
-
-function HistoryTable({ roomId, sessions }: { roomId: string; sessions: HistorySessionItem[] }) {
-  return (
-    <Table containerClassName="hidden md:block" data-testid="history-table">
-      <caption className="sr-only">Past sessions, newest first</caption>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Date</TableHead>
-          <TableHead>Problems</TableHead>
-          <TableHead numeric>Duration</TableHead>
-          <TableHead numeric>People</TableHead>
-          <TableHead>Winner</TableHead>
-          <TableHead numeric>You</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {sessions.map((s) => {
-          const cancelled = s.status === "cancelled";
-          return (
-            <TableRow key={s.id} data-status={s.status} className={cn(cancelled && "text-muted-foreground")}>
-              <TableCell className="py-2.5 whitespace-nowrap">
-                <span className="flex flex-col items-start gap-1">
-                  <DateCell roomId={roomId} session={s} />
-                  {cancelled && <SessionStatusBadge status="cancelled" />}
-                </span>
-              </TableCell>
-              <TableCell className="max-w-[26rem] py-2.5">
-                {cancelled ? <span className="text-sm">Cancelled before it started</span> : <ProblemTitles session={s} />}
-              </TableCell>
-              <TableCell numeric className="whitespace-nowrap">
-                {durationText(s)}
-              </TableCell>
-              <TableCell numeric>{cancelled ? "—" : s.participants}</TableCell>
-              <TableCell className="max-w-40">
-                <Winners session={s} />
-              </TableCell>
-              <TableCell numeric className="whitespace-nowrap">
-                <YouCell session={s} />
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
-  );
-}
-
-/** Below md: one card per session (DESIGN.md §6.4 table ↔ card list). */
-function HistoryCards({ roomId, sessions }: { roomId: string; sessions: HistorySessionItem[] }) {
-  return (
-    <ul aria-label="Past sessions, newest first" className="flex flex-col gap-3 md:hidden" data-testid="history-cards">
-      {sessions.map((s) => {
-        const cancelled = s.status === "cancelled";
-        return (
-          <li
-            key={s.id}
-            data-status={s.status}
-            className={cn("flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-sm", cancelled && "text-muted-foreground")}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="font-semibold">
-                <DateCell roomId={roomId} session={s} />
-              </span>
-              {cancelled && <SessionStatusBadge status="cancelled" />}
-            </div>
-            {cancelled ? (
-              <p className="text-sm">Cancelled before it started</p>
-            ) : (
-              <>
-                <ProblemTitles session={s} />
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                  <dt className="text-muted-foreground">Winner</dt>
-                  <dd className="min-w-0 text-right">
-                    <Winners session={s} />
-                  </dd>
-                  <dt className="text-muted-foreground">You</dt>
-                  <dd className="text-right">
-                    <YouCell session={s} />
-                  </dd>
-                  <dt className="text-muted-foreground">People · duration</dt>
-                  <dd className="text-right tabular-nums">
-                    {s.participants} · {durationText(s)}
-                  </dd>
-                </dl>
-              </>
-            )}
-          </li>
-        );
-      })}
-    </ul>
   );
 }

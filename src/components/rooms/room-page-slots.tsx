@@ -1,26 +1,33 @@
 // Slot contract of the room page (/rooms/[roomId]) for R3–R5:
 // - <RoomOpenSessionRegion>{…}</RoomOpenSessionRegion>: the "open session"
 //   card above the tabs (R3/R4 pass their OpenSessionCard as children).
-// - <RoomTabs sessions={…} leaderboard={…} members={…} />: R5 passes the
-//   history list and leaderboard; R2 owns `members`.
+// - <RoomTabs sessions={…} members={…} settings={…} />: Sessions (mini-matrix
+//   history), Members (attendance, solved, first solves, wins) and Settings
+//   (rooms-v2 §2.4). The v1 `?tab=leaderboard` redirects to `?tab=members`.
 // Without children the session region renders a clearly marked placeholder.
 import { CalendarClockIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-export const ROOM_TABS = ["sessions", "leaderboard", "members"] as const;
+export const ROOM_TABS = ["sessions", "members", "settings"] as const;
 export type RoomTab = (typeof ROOM_TABS)[number];
 export const DEFAULT_ROOM_TAB: RoomTab = "sessions";
 
 export const ROOM_TAB_LABELS: Record<RoomTab, string> = {
   sessions: "Sessions",
-  leaderboard: "Leaderboard",
   members: "Members",
+  settings: "Settings",
 };
 
 /** `?tab=` value → a known tab (anything else → the default). */
 export function parseRoomTab(value: unknown): RoomTab {
   const v = Array.isArray(value) ? value[0] : value;
   return ROOM_TABS.includes(v as RoomTab) ? (v as RoomTab) : DEFAULT_ROOM_TAB;
+}
+
+/** v1 tab names that moved: `leaderboard` → `members` (rooms-v2 AC-V2-MX-5). */
+export function legacyRoomTabRedirect(value: unknown): RoomTab | null {
+  const v = Array.isArray(value) ? value[0] : value;
+  return v === "leaderboard" ? "members" : null;
 }
 
 /** Region above the tabs for the room's lobby/live session (R3/R4). */

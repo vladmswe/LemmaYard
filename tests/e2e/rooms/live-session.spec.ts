@@ -78,7 +78,7 @@ test("two friends: lobby → live → solve → toast and scoreboard → finishe
   await po.getByRole("button", { name: "New room" }).first().click();
   await po.getByLabel("Room name").fill("E2E Live Club");
   await po.getByRole("button", { name: "Create room" }).click();
-  await expect(po).toHaveURL(/\/rooms\/[0-9a-f-]{36}\?tab=members$/);
+  await expect(po).toHaveURL(/\/rooms\/[0-9a-f-]{36}\?tab=settings$/);
   const roomPath = new URL(po.url()).pathname;
   await po.getByRole("button", { name: "Create link" }).click();
   const link = await po.getByLabel("Link", { exact: true }).inputValue();
@@ -117,8 +117,9 @@ test("two friends: lobby → live → solve → toast and scoreboard → finishe
   // Owner starts; both switch to live within one poll.
   await po.getByTestId("start-session").click();
   await po.getByTestId("confirm-start").click();
-  await expect(po.getByTestId("problem-list")).toBeVisible({ timeout: 10_000 });
-  await expect(pf.getByTestId("problem-list")).toBeVisible({ timeout: 10_000 });
+  // v2: the matrix (column headers carry the problems and their Open links from lg).
+  await expect(po.getByTestId("scoreboard")).toBeVisible({ timeout: 10_000 });
+  await expect(pf.getByTestId("scoreboard")).toBeVisible({ timeout: 10_000 });
   await expect(pf.getByText("The session has started")).toBeVisible();
 
   // The timer runs on both screens and is under 30:00.
@@ -135,12 +136,12 @@ test("two friends: lobby → live → solve → toast and scoreboard → finishe
   await po.emulateMedia({ colorScheme: "light" });
 
   // Owner watches problem 2's page (toasts live there); friend opens problem 1 from its card.
-  const p2Href = await po.getByTestId("problem-card-2").getByRole("link").getAttribute("href");
+  const p2Href = await po.getByRole("link", { name: "Open Problem 2" }).getAttribute("href");
   await po.goto(p2Href!);
   await expect(po.getByTestId("session-banner")).toContainText("Problem 2 of 2");
   await expect(po.getByTestId("banner-progress")).toBeVisible({ timeout: 8000 });
 
-  await pf.getByTestId("problem-card-1").getByRole("link").click();
+  await pf.getByRole("link", { name: "Open Problem 1" }).click();
   await expect(pf).toHaveURL(/\?session=/);
   await expect(pf.getByTestId("session-banner")).toContainText("Problem 1 of 2");
   await expectNoSeriousAxe(pf);
@@ -166,13 +167,28 @@ test("two friends: lobby → live → solve → toast and scoreboard → finishe
   await expect(po.getByTestId(`score-row-${friendName}`).locator('[data-cell-state="solved"]')).toBeVisible();
   await expect(po.getByTestId(`score-row-${friendName}`)).toContainText("First");
   await expect(po.getByTestId("activity-feed")).toContainText(`${friendName} solved Problem 1`);
+  await expect(pf.getByTestId("banner-progress")).toContainText("1✓");
+
+  // AC-V2-LIVE-4: a wrong answer on Problem 2 shows up in the owner's matrix as a tried cell
+  // (passing through "Judging…" while the worker runs it) and as an Activity line.
+  await pf.goto(p2Href!);
+  const p2Slug = new URL(p2Href!, "http://x").pathname.split("/").pop()!;
+  await selectLanguage(pf, "python");
+  await pasteCode(pf, referenceSolution(p2Slug, "python").replace(/return [^\n]+/g, "return None"));
+  await pf.getByTestId("submit-button").click();
+  const p2Cell = po.getByTestId(`score-row-${friendName}`).locator('[data-position="2"]');
+  await expect(p2Cell).toHaveAttribute("data-cell-state", /judging|attempted/, { timeout: 8000 });
+  await expect(p2Cell).toHaveAttribute("data-cell-state", "attempted", { timeout: 60_000 });
+  await expect(p2Cell).toContainText("1 try");
+  await expect(po.getByTestId("activity-feed")).toContainText(`${friendName}'s attempt on Problem 2 was not accepted`);
 
   // Notification prefs persist; no permission prompt without a click.
   await pf.getByTestId("notification-settings").click();
   await pf.getByTestId("pref-sound").click();
   await pf.keyboard.press("Escape");
-  const stored = await pf.evaluate(() => localStorage.getItem("lemmayard:room-notifications:v1"));
-  expect(JSON.parse(stored!)).toMatchObject({ sound: true, browser: false });
+  const stored = await pf.evaluate(() => localStorage.getItem("lemmayard:room-notifications:v2"));
+  // v2 prefs: failed attempts are on by default.
+  expect(JSON.parse(stored!)).toMatchObject({ sound: true, browser: false, showAttempts: true });
   expect(await pf.evaluate(() => (window as unknown as { __permissionRequests: number }).__permissionRequests)).toBe(0);
 
   // Mobile width: no horizontal scroll on the live screen.
@@ -195,7 +211,7 @@ test("two friends: lobby → live → solve → toast and scoreboard → finishe
   await expect(pf.getByRole("heading", { name: "Final standings" })).toBeVisible();
 
   // Clean up.
-  await po.goto(`${roomPath}?tab=members`);
+  await po.goto(`${roomPath}?tab=settings`);
   await po.getByRole("button", { name: "Delete room" }).click();
   await po.getByLabel(/to confirm/).fill("E2E Live Club");
   await po.getByRole("button", { name: "Delete room" }).last().click();

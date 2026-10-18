@@ -1,15 +1,16 @@
-// Live problem list (docs/specs/rooms.md §7.4 ProblemList): one card per
-// problem with its number, difficulty, title link to the problem page
-// carrying the session (`?session=`), and the viewer's own status as icon +
-// word ("Solved 23:41" / "Attempted" / "Not started"). Only the viewer's own
-// state is shown here; other people's progress is on the scoreboard.
+// Live problem legend (docs/specs/rooms-v2.md §2.1 mobile; rooms.md §7.4):
+// the Problems tab below lg. One row per problem: P1, difficulty, title,
+// the viewer's own status (icon + word) and Open → the problem page with the
+// session (`?session=`). On lg+ the matrix column headers carry the same.
 import { CircleCheckIcon, CircleIcon, CircleXIcon } from "lucide-react";
 import Link from "next/link";
 import { cn } from "cn";
 
 import { DifficultyBadge } from "@/components/problems/difficulty-badge";
-import type { SessionSnapshot } from "@/lib/rooms/events";
+import type { PendingCell, SessionSnapshot } from "@/lib/rooms/events";
 import { myProblemStatus, problemLabel, sessionProblemHref } from "@/lib/rooms/live-view";
+
+import { JudgingSpinner } from "../matrix/score-matrix";
 
 const STATUS = {
   solved: { icon: CircleCheckIcon, className: "text-success" },
@@ -22,54 +23,49 @@ export function ProblemList({
   sessionId,
   viewerId,
   isParticipant,
+  pending = [],
   className,
 }: {
   snapshot: SessionSnapshot;
   sessionId: string;
   viewerId: string;
   isParticipant: boolean;
+  pending?: readonly PendingCell[];
   className?: string;
 }) {
   return (
-    <ol
-      aria-label="Problems"
-      data-testid="problem-list"
-      className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]", className)}
-    >
+    <ol aria-label="Problems" data-testid="problem-list" className={cn("flex flex-col divide-y rounded-xl border bg-card shadow-sm", className)}>
       {snapshot.problems.map((p) => {
-        const mine = myProblemStatus(snapshot, viewerId, p.position);
-        const s = STATUS[mine.state];
-        const Icon = s.icon;
+        const mine = myProblemStatus(snapshot, viewerId, p.position, pending);
         const href = p.slug ? sessionProblemHref(p.slug, sessionId) : null;
+        const s = mine.state === "judging" ? null : STATUS[mine.state];
+        const Icon = s?.icon;
         return (
-          <li
-            key={p.position}
-            data-testid={`problem-card-${p.position}`}
-            className={cn(
-              "relative flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-sm transition-[transform,box-shadow,border-color] duration-(--d-2) ease-out",
-              href && "hover:-translate-y-[3px] hover:shadow-md",
-              mine.state === "solved" && "border-success shadow-[0_0_0_3px_var(--success-bg)]",
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <span aria-hidden className="grid size-8 place-items-center rounded-md border border-border-strong bg-surface-sunken font-mono text-sm font-medium tabular-nums">
-                {p.position}
+          <li key={p.position} data-testid={`problem-card-${p.position}`} className="flex flex-col gap-1.5 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="font-mono text-xs text-muted-foreground" aria-hidden>
+                P{p.position}
               </span>
               <DifficultyBadge difficulty={p.difficulty} />
-            </div>
-            <h3 className="text-[1.0625rem]/6 font-semibold text-balance">
-              {href ? (
-                <Link href={href} className="rounded-sm text-foreground after:absolute after:inset-0 hover:text-link">
-                  <span className="sr-only">{problemLabel(p.position)}: </span>
-                  {p.title}
+              <span className="relative min-w-0 flex-1 truncate font-semibold" title={p.title}>
+                {href ? (
+                  <Link href={href} className="text-foreground hover:text-link">
+                    <span className="sr-only">{problemLabel(p.position)}: </span>
+                    {p.title}
+                  </Link>
+                ) : (
+                  problemLabel(p.position)
+                )}
+              </span>
+              {href && (
+                <Link href={href} aria-hidden tabIndex={-1} className="shrink-0 px-1 py-2 text-sm font-semibold text-link hover:underline">
+                  Open
                 </Link>
-              ) : (
-                <span>{problemLabel(p.position)}</span>
               )}
-            </h3>
+            </div>
             {isParticipant && (
-              <p className={cn("mt-auto flex items-center gap-1.5 text-sm", mine.state === "untouched" ? "text-muted-foreground" : "text-foreground-secondary")}>
-                <Icon aria-hidden className={cn("size-4", s.className)} />
+              <p className={cn("flex items-center gap-1.5 text-sm", mine.state === "untouched" ? "text-muted-foreground" : "text-foreground-secondary")}>
+                {Icon ? <Icon aria-hidden className={cn("size-4", s!.className)} /> : <JudgingSpinner />}
                 <span className="tabular-nums">{mine.text}</span>
               </p>
             )}

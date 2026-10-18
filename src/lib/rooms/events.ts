@@ -199,6 +199,13 @@ export type SessionSnapshot = {
 
 export type RoomEventBatch = { cursor: string; events: RoomEvent[]; snapshot?: SessionSnapshot };
 
+/**
+ * Rooms v2 §9.2: a participant has a session submit for this problem that is
+ * queued or running right now. Only that something is being judged (and how
+ * many submits): never a verdict, code, test data or timing.
+ */
+export type PendingCell = { userId: string; position: number; count: number };
+
 export type StateResponse = {
   serverNow: string;
   status: (typeof ROOM_SESSION_STATUSES)[number];
@@ -208,6 +215,11 @@ export type StateResponse = {
   hasMore: boolean;
   snapshot?: SessionSnapshot;
   pendingJudging: number;
+  /**
+   * v2 (additive): (participant, problem) pairs with a submit being judged now.
+   * Empty in the lobby. Optional on the type so v1-shaped responses still parse.
+   */
+  pending?: PendingCell[];
 };
 
 /** Advisory-lock key text for a session: `pg_advisory_xact_lock(hashtext('rs:' || id))`. */

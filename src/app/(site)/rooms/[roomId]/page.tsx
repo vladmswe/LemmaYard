@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { NOT_FOUND_TITLE } from "@/components/not-found-content";
 import { PageHead } from "@/components/page-head";
 import { memberCountLabel } from "@/components/rooms/room-card";
 import { OpenSessionCard } from "@/components/rooms/live/open-session-card";
-import { RoomMembersTab } from "@/components/rooms/room-members-tab";
 import { RoomHistoryPanel } from "@/components/rooms/room-history";
-import { RoomLeaderboardPanel } from "@/components/rooms/room-leaderboard";
-import { parseRoomTab, RoomOpenSessionRegion } from "@/components/rooms/room-page-slots";
+import { RoomMembersPanel } from "@/components/rooms/room-members-panel";
+import { legacyRoomTabRedirect, parseRoomTab, RoomOpenSessionRegion } from "@/components/rooms/room-page-slots";
+import { RoomSettingsTab } from "@/components/rooms/room-settings-tab";
 import { RoomTabs } from "@/components/rooms/room-tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { parseLeaderboardRange, parsePageParam, type LeaderboardRange } from "@/lib/rooms/history";
+import { membersHref, parseLeaderboardRange, parsePageParam, type LeaderboardRange } from "@/lib/rooms/history";
 import { getCurrentUser, requireUser } from "@/server/auth/session";
 import { getDb } from "@/server/db";
 import { requireRoomMember } from "@/server/rooms/access";
-import { getRoomHistory, getRoomLeaderboard } from "@/server/rooms/history";
+import { getRoomHistory, getRoomMemberStats } from "@/server/rooms/history";
 import { getRoomDetail } from "@/server/rooms/queries";
 import { getOpenSessionSummary } from "@/server/rooms/session-page";
 
@@ -31,9 +31,10 @@ export async function generateMetadata({ params }: PageProps<"/rooms/[roomId]">)
 }
 
 /**
- * Room home (spec §7.4). Members only; anyone else gets the global 404.
- * R3/R4 plug in through RoomOpenSessionRegion; R5 fills the
- * `sessions` / `leaderboard` panels of RoomTabs (see room-page-slots.tsx).
+ * Room home (spec §7.4, rooms-v2 §2.4). Members only; anyone else gets the
+ * global 404. Tabs: Sessions (mini-matrix history), Members (attendance,
+ * solved, first solves, wins), Settings. `?tab=leaderboard` (v1) redirects
+ * to the Members tab, keeping `?range=`.
  */
 export default async function RoomPage({ params, searchParams }: PageProps<"/rooms/[roomId]">) {
   const { roomId } = await params;
@@ -42,7 +43,8 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
   if (!detail) notFound();
   const { tab, page, range } = await searchParams;
   const historyPage = parsePageParam(page);
-  const leaderboardRange = parseLeaderboardRange(range);
+  const membersRange = parseLeaderboardRange(range);
+  if (legacyRoomTabRedirect(tab)) redirect(membersHref(roomId, membersRange));
   const openSession = await getOpenSessionSummary(getDb(), roomId, user.id);
   const isOwner = detail.viewer.role === "owner";
 
@@ -67,30 +69,30 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
               <SessionsTab roomId={roomId} userId={user.id} page={historyPage} />
             </Suspense>
           }
-          leaderboard={
-            <Suspense key={leaderboardRange} fallback={<PanelSkeleton />}>
-              <LeaderboardTab roomId={roomId} userId={user.id} range={leaderboardRange} />
+          members={
+            <Suspense key={membersRange} fallback={<PanelSkeleton />}>
+              <MembersTab roomId={roomId} userId={user.id} range={membersRange} />
             </Suspense>
           }
-          members={<RoomMembersTab detail={detail} />}
+          settings={<RoomSettingsTab detail={detail} />}
         />
       </div>
     </>
   );
 }
 
-/** Sessions tab (R5): history list with `?page=`. */
+/** Sessions tab: one card per past session with its mini-matrix, `?page=`. */
 async function SessionsTab({ roomId, userId, page }: { roomId: string; userId: string; page: number }) {
   const history = await getRoomHistory(getDb(), roomId, userId, { page });
   if (!history) notFound();
-  return <RoomHistoryPanel roomId={roomId} history={history} />;
+  return <RoomHistoryPanel roomId={roomId} history={history} viewerId={userId} />;
 }
 
-/** Leaderboard tab (R5): standings over `?range=`. */
-async function LeaderboardTab({ roomId, userId, range }: { roomId: string; userId: string; range: LeaderboardRange }) {
-  const leaderboard = await getRoomLeaderboard(getDb(), roomId, userId, range);
-  if (!leaderboard) notFound();
-  return <RoomLeaderboardPanel roomId={roomId} viewerId={userId} leaderboard={leaderboard} />;
+/** Members tab: per-member stats over `?range=`, attendance over the last 8 sessions. */
+async function MembersTab({ roomId, userId, range }: { roomId: string; userId: string; range: LeaderboardRange }) {
+  const stats = await getRoomMemberStats(getDb(), roomId, userId, range);
+  if (!stats) notFound();
+  return <RoomMembersPanel roomId={roomId} viewerId={userId} stats={stats} />;
 }
 
 function PanelSkeleton() {
