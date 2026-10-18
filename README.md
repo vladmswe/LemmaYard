@@ -22,8 +22,9 @@ in a locked-down Docker container.
 - **Track progress:** submission history with the code of every submit, and a
   public profile (`/u/<username>`) with solved problems by difficulty.
 - **Practise with friends** in private rooms: invite links, timed sessions with
-  a drawn set of problems, a live scoreboard and activity feed, results,
-  shared solutions and a leaderboard.
+  a drawn set of problems, a live person × problem scoreboard (solve times,
+  splits, "Judging…" while a submit runs), an activity feed, results with a
+  timeline, shared solutions and per-member stats.
 - **Learn data structures** in the guide (`/learn`): 5 published lessons
   (complexity basics, arrays, dynamic arrays, stacks, queues and deques) with
   a trace player that steps through each operation next to the Python and
@@ -150,7 +151,10 @@ own namespace, so several checkouts can run side by side.
 scoring, invites, session state machine, events) is pure TypeScript with
 injected randomness. A session goes lobby → live → finished (or cancelled).
 Events are appended to `room_events` under a per-session advisory lock; the
-live screen polls `GET /api/rooms/:roomId/sessions/:sessionId/state?after=<cursor>`.
+live screen polls `GET /api/rooms/:roomId/sessions/:sessionId/state?after=<cursor>`
+(every 3 s; every 1.5 s while the response's `pending` list says a session
+submit is queued or running, which the scoreboard shows as "Judging…";
+v2 spec [`docs/specs/rooms-v2.md`](docs/specs/rooms-v2.md)).
 A Submit counts for a session only with an explicit `roomSessionId`, and it is
 scored inside the worker's `finalize()` transaction
 (`src/server/rooms/outcome.ts`), so every executor must finalize through it.
