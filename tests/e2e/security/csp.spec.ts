@@ -70,6 +70,7 @@ test("main pages raise no CSP violation", async ({ browser, baseURL }) => {
   await visit(page, collected, "/login");
   await visit(page, collected, "/register");
   await visit(page, collected, "/does-not-exist");
+  await visit(page, collected, "/notices");
 
   const reg = await api.post("/api/auth/register", {
     data: { email: `${username}@example.test`, username, password: PASSWORD },
@@ -116,7 +117,11 @@ test("main pages raise no CSP violation", async ({ browser, baseURL }) => {
   const { entry } = (await bank.json()) as { entry: { id: string } };
   await visit(page, collected, `/rooms/${roomId}`);
   await visit(page, collected, `/rooms/${roomId}?tab=settings`);
-  const session = await api.post(`/api/rooms/${roomId}/sessions`, { data: { problemCount: 2, durationMin: 30 }, headers });
+  // An auto-picked LeetCode slot from the catalog (leetcode-integration) next to the list entry.
+  const session = await api.post(`/api/rooms/${roomId}/sessions`, {
+    data: { problemCount: 3, durationMin: 30, external: 1, leetcodeAuto: true },
+    headers,
+  });
   expect(session.status()).toBe(201);
   const { id: sessionId } = (await session.json()) as { id: string };
   const sessionPath = `/rooms/${roomId}/sessions/${sessionId}`;

@@ -30,7 +30,7 @@ export default function NoticesPage() {
           <p>
             Rooms can pick LeetCode contest problems automatically. The list of problems (number, title, link name,
             contest) and their community contest ratings come from the dataset{" "}
-            <a href={DATASET_URL} className="text-link hover:underline" rel="noopener noreferrer" referrerPolicy="no-referrer">
+            <a href={DATASET_URL} className="text-link underline underline-offset-2" rel="noopener noreferrer" referrerPolicy="no-referrer">
               zerotrac/leetcode_problem_rating
             </a>{" "}
             (MIT licence).

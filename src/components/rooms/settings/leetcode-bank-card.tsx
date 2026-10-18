@@ -78,7 +78,7 @@ export function LeetCodeBankCard({
         </CardDescription>
         <p className="text-xs text-muted-foreground" data-testid="leetcode-disclaimer">
           {LEETCODE_NOT_AFFILIATED} {LEETCODE_ATTRIBUTION}:{" "}
-          <Link href="/notices" className="text-link hover:underline">
+          <Link href="/notices" className="text-link underline underline-offset-2">
             third-party notices
           </Link>
           .

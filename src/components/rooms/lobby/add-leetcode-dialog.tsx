@@ -5,7 +5,7 @@
 // optionally saved to the list). The server fills the first empty LeetCode
 // slot or appends one; nothing is fetched from leetcode.com.
 import { PlusIcon, SearchIcon } from "lucide-react";
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { DifficultyBadge } from "@/components/problems/difficulty-badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,8 @@ export function AddLeetCodeDialog({
   const [bank, setBank] = useState<BankEntry[] | null>(null);
   const [bankError, setBankError] = useState<string | null>(null);
   const [tab, setTab] = useState<"catalog" | "list" | "link">(catalogSize !== null ? "catalog" : "list");
+  const switched = useRef(false);
+  const inSessionRef = useRef(inSession);
   const [form, setForm] = useState<ExternalForm>(emptyExternalForm());
   const [save, setSave] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -70,7 +72,10 @@ export function AddLeetCodeDialog({
       if (cancelled) return;
       if (res.ok) {
         setBank(res.data.problems);
-        if (res.data.problems.length === 0) setTab((t) => (t === "list" ? "link" : t));
+        // The room's own list first when it has problems not yet in the session (unless the host already switched).
+        const unused = res.data.problems.some((b) => !inSessionRef.current.has(b.slug));
+        if (unused && !switched.current) setTab("list");
+        else if (res.data.problems.length === 0) setTab((t) => (t === "list" ? "link" : t));
       } else {
         setBankError(res.error);
         setTab((t) => (t === "list" ? "link" : t));
@@ -110,17 +115,24 @@ export function AddLeetCodeDialog({
             ratings. Others see its title when the session starts.
           </DialogDescription>
         </DialogHeader>
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "catalog" | "list" | "link")} className="gap-4">
-          <TabsList aria-label="Where from" className="h-auto w-full flex-wrap">
+        <Tabs
+          value={tab}
+          onValueChange={(v) => {
+            switched.current = true;
+            setTab(v as "catalog" | "list" | "link");
+          }}
+          className="gap-4"
+        >
+          <TabsList aria-label="Where from" className="w-full">
             {catalogSize !== null && (
-              <TabsTrigger value="catalog" className="h-10 flex-1" data-testid="tab-leetcode-catalog">
-                From the LeetCode list
+              <TabsTrigger value="catalog" className="h-10 flex-1 px-2 max-sm:text-[0.8125rem]" data-testid="tab-leetcode-catalog">
+                LeetCode list
               </TabsTrigger>
             )}
-            <TabsTrigger value="list" className="h-10 flex-1">
-              From the room list
+            <TabsTrigger value="list" className="h-10 flex-1 px-2 max-sm:text-[0.8125rem]">
+              {catalogSize !== null ? "Room list" : "From the room list"}
             </TabsTrigger>
-            <TabsTrigger value="link" className="h-10 flex-1">
+            <TabsTrigger value="link" className="h-10 flex-1 px-2 max-sm:text-[0.8125rem]">
               Paste a link
             </TabsTrigger>
           </TabsList>
@@ -211,7 +223,7 @@ export function AddLeetCodeDialog({
   );
 }
 
-/** "From the LeetCode list": search the committed catalog (number or title, difficulty, rating range). */
+/** "LeetCode list": search the committed catalog (number or title, difficulty, rating range). */
 function CatalogSearch({
   roomId,
   sessionId,
@@ -279,8 +291,8 @@ function CatalogSearch({
   return (
     <div className="flex flex-col gap-3" data-testid="leetcode-catalog-search">
       <p className="text-sm text-muted-foreground">
-        {size.toLocaleString("en-US")} LeetCode contest problems. Ratings: {LEETCODE_ATTRIBUTION}; difficulty is estimated from
-        the rating.
+        {size.toLocaleString("en-US")} LeetCode problems. {LEETCODE_ATTRIBUTION}; difficulty is estimated from the rating unless
+        marked otherwise.
       </p>
       <form onSubmit={submit} className="grid grid-cols-2 gap-3 sm:grid-cols-[1fr_auto]" role="search" aria-label="LeetCode problems">
         <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">

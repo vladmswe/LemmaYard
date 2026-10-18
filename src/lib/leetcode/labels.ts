@@ -48,7 +48,7 @@ export const LEETCODE_NOT_AFFILIATED =
 
 /** Help of the lobby / preset switch. */
 export function autoPickHelp(size: number): string {
-  return `From a list of ${size.toLocaleString("en-US")} LeetCode contest problems with community ratings (zerotrac). Links only; results are self-reported and never change ratings.`;
+  return `From a list of ${size.toLocaleString("en-US")} LeetCode problems, most with community contest ratings (zerotrac). Links only; results are self-reported and never change ratings.`;
 }
 
 export const AUTO_PICK_LABEL = "Pick LeetCode problems automatically";

@@ -322,8 +322,14 @@ function ExternalSlotItem({
             </span>
           )}
           <LeetCodeTag />
-          {slot?.difficulty && <DifficultyBadge difficulty={slot.difficulty} />}
-          {canManage && prov?.difficultyEstimated && <EstimatedTag help={DIFFICULTY_ESTIMATED_HELP} testId={`slot-difficulty-estimated-${pos}`} />}
+          {slot?.difficulty && (
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <DifficultyBadge difficulty={slot.difficulty} />
+              {canManage && prov?.difficultyEstimated && (
+                <EstimatedTag help={DIFFICULTY_ESTIMATED_HELP} testId={`slot-difficulty-estimated-${pos}`} />
+              )}
+            </span>
+          )}
           {canManage && ext?.rating != null && (
             <span
               className="inline-flex h-6 items-center rounded-sm border border-border-strong px-1.5 font-mono text-xs tabular-nums text-foreground-secondary"
@@ -331,7 +337,7 @@ function ExternalSlotItem({
               data-testid={`slot-rating-${pos}`}
             >
               <span className="sr-only">rating </span>
-              {ext.rating}
+              rating {ext.rating}
               <span className="sr-only"> ({ratingHelp})</span>
             </span>
           )}
@@ -352,8 +358,19 @@ function ExternalSlotItem({
         </div>
         {canManage && slot && ((ext?.tags?.length ?? 0) > 0 || r?.target) && (
           <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-            {[ext?.tags?.map(tagName).join(", "), r?.target].filter(Boolean).join(" · ")}
-            {prov?.tagsEstimated && (ext?.tags?.length ?? 0) > 0 && <EstimatedTag help={TAGS_ESTIMATED_HELP} />}
+            {(ext?.tags?.length ?? 0) > 0 && (
+              <span>
+                {ext!.tags!.map(tagName).join(", ")}
+                {prov?.tagsEstimated && (
+                  <>
+                    {" "}
+                    (<EstimatedTag help={TAGS_ESTIMATED_HELP} />)
+                  </>
+                )}
+              </span>
+            )}
+            {(ext?.tags?.length ?? 0) > 0 && r?.target && <span aria-hidden>·</span>}
+            {r?.target && <span>{r.target}</span>}
           </p>
         )}
         {canManage && r && (

@@ -89,7 +89,7 @@ export async function SiteFooter() {
         <div className="flex flex-wrap justify-between gap-4 border-t border-night-line pt-5 text-sm text-on-night-2">
           <span>
             © 2026 LemmaYard. Problem statements are original.{" "}
-            <Link href="/notices" className="text-on-night underline-offset-4 hover:underline" data-testid="footer-notices">
+            <Link href="/notices" className="text-on-night underline underline-offset-4" data-testid="footer-notices">
               {LEETCODE_ATTRIBUTION}
             </Link>
           </span>
