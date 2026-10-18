@@ -116,7 +116,8 @@ describe("migration 0004_rooms_v2", () => {
       expect(await columns(db, "room_session_participants")).toEqual(expect.arrayContaining(["rating_at_start", "rating_delta"]));
       expect(await columns(db, "room_session_problems")).toEqual(expect.arrayContaining(["rating_at_start", "rating_delta"]));
       const all = await tables(db);
-      expect(all).toHaveLength(13);
+      // 13 after 0004; later feature migrations (community, …) add more.
+      expect(all.length).toBeGreaterThanOrEqual(13);
       expect(all.every((t) => t.rls)).toBe(true);
     });
   });

@@ -36,6 +36,13 @@
       "when": 1792324757996,
       "tag": "0004_rooms_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792342792083,
+      "tag": "0005_community_c1",
+      "breakpoints": true
     }
   ]
 }

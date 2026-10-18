@@ -6,8 +6,16 @@ import { users } from "@/server/db/schema";
 import { closeTestDb, createUser, getTestDb, resetTestDb } from "../helpers/db";
 
 const APP_TABLES = [
+  "comment_votes",
+  "comments",
+  "content_revisions",
+  "discussion_threads",
+  "moderation_actions",
+  "problem_difficulty_feedback",
   "problem_tags",
+  "problem_votes",
   "problems",
+  "reports",
   "room_events",
   "room_members",
   "room_session_participants",

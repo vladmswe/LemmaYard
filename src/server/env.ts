@@ -66,9 +66,26 @@ export const envSchema = z.object({
   // local Playwright runs, which register many users from one address;
   // rejected on Vercel.
   AUTH_RATE_LIMITS: z.enum(["0", "1"]).default("1"),
+  // Community layer (docs/specs/community.md): "1" shows discussions, votes,
+  // reports, moderation and the legal pages; "0" (default) hides all of it and
+  // its routes answer 404. See src/server/community/flags.ts.
+  COMMUNITY_ENABLED: z.enum(["0", "1"]).default("0"),
+  // Incident switch: "1" keeps community pages readable but every community
+  // write answers 503 {"code":"community_read_only"}.
+  COMMUNITY_READ_ONLY: z.enum(["0", "1"]).default("0"),
+  // Shown on the legal and report pages. Required in production when
+  // COMMUNITY_ENABLED=1.
+  CONTACT_EMAIL: z.email().optional(),
 }).superRefine((env, ctx) => {
   if (env.VERCEL && env.AUTH_RATE_LIMITS === "0") {
     ctx.addIssue({ code: "custom", path: ["AUTH_RATE_LIMITS"], message: "must not be 0 on Vercel" });
+  }
+  if (env.COMMUNITY_ENABLED === "1" && !env.CONTACT_EMAIL && deployedProduction(env)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["CONTACT_EMAIL"],
+      message: "is required in production when COMMUNITY_ENABLED=1 (legal and report pages)",
+    });
   }
   if (deployedProduction(env)) {
     const problem = weakSecretReason(env.AUTH_SECRET);

@@ -11,6 +11,7 @@ import {
   bigint,
   boolean,
   check,
+  doublePrecision,
   foreignKey,
   index,
   integer,
@@ -30,6 +31,16 @@ import type { CompareSpec, Signature } from "@/lib/problems/schema";
 
 // Relative (not `@/`) imports for runtime values: drizzle-kit loads this file
 // without the tsconfig path alias.
+import { wilsonSql } from "../../lib/community/ranking";
+import {
+  CONTENT_STATUSES,
+  MOD_ACTIONS,
+  REPORT_REASONS,
+  REPORT_STATUSES,
+  REPORT_TARGETS,
+  THREAD_KINDS,
+  USER_ROLES,
+} from "../../lib/community/types";
 import { ROOM_EVENT_TYPES } from "../../lib/rooms/events";
 import type { RoomSchedule, SessionTemplate } from "../../lib/rooms/room-defaults";
 import {
@@ -57,6 +68,9 @@ export const submissionStatusEnum = pgEnum("submission_status", [
 const createdAt = () =>
   timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
+/** Community C1 (docs/specs/community.md §B.10): set only by `pnpm user:role`. */
+export const userRoleEnum = pgEnum("user_role", USER_ROLES);
+
 export const users = pgTable(
   "users",
   {
@@ -70,6 +84,10 @@ export const users = pgTable(
      */
     leetcodeRating: smallint("leetcode_rating"),
     createdAt: createdAt(),
+    /** Community C1: user | moderator | admin (CLI only, no UI). */
+    role: userRoleEnum("role").notNull().default("user"),
+    /** Community C1: no community writes until this time (reads, practice, rooms still work). */
+    communitySuspendedUntil: timestamp("community_suspended_until", { withTimezone: true }),
   },
   (t) => [
     check("users_email_lowercase", sql`${t.email} = lower(${t.email})`),
@@ -99,6 +117,9 @@ export const problems = pgTable(
     authorRating: smallint("author_rating"),
     /** Rooms v2: observed drift from rated sessions (global per problem); never written by the importer. */
     ratingAdjust: smallint("rating_adjust").notNull().default(0),
+    /** Community C1: ▲/▼ counters, kept in the vote's transaction (`pnpm community:recount` rebuilds them). */
+    likeCount: integer("like_count").notNull().default(0),
+    dislikeCount: integer("dislike_count").notNull().default(0),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -116,6 +137,7 @@ export const problems = pgTable(
       sql`${t.authorRating} IS NULL OR ${t.authorRating} BETWEEN 800 AND 3000`,
     ),
     check("problems_rating_adjust", sql`${t.ratingAdjust} BETWEEN -200 AND 200`),
+    check("problems_vote_counts", sql`${t.likeCount} >= 0 AND ${t.dislikeCount} >= 0`),
   ],
 ).enableRLS();
 
@@ -581,5 +603,268 @@ export const roomEvents = pgTable(
       "room_events_solve_position",
       sql`${t.type} <> 'problem_solved' OR coalesce(jsonb_typeof(${t.payload} -> 'position'), '') = 'number'`,
     ),
+  ],
+).enableRLS();
+
+// ---------------------------------------------------------------------------
+// Community C1 (docs/specs/community.md §C.1): discussion threads, comments,
+// votes on comments and problems, difficulty feedback, reports, moderation
+// log and revisions. Migration `community_c1`. Every table has RLS enabled
+// and no policies; text columns carry length and control-character CHECKs.
+// Counters are kept in the write's transaction (`pnpm community:recount`
+// rebuilds them). Pure rules live in src/lib/community/.
+// ---------------------------------------------------------------------------
+
+export const threadKindEnum = pgEnum("thread_kind", THREAD_KINDS);
+export const contentStatusEnum = pgEnum("content_status", CONTENT_STATUSES);
+export const reportTargetEnum = pgEnum("report_target", REPORT_TARGETS);
+export const reportReasonEnum = pgEnum("report_reason", REPORT_REASONS);
+export const reportStatusEnum = pgEnum("report_status", REPORT_STATUSES);
+export const modActionEnum = pgEnum("mod_action", MOD_ACTIONS);
+
+/** No C0 control characters except tab / LF / CR (and no DEL). */
+const noControl = (column: AnyPgColumn) =>
+  sql`${column} !~ '[\\x01-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]'`;
+
+export const discussionThreads = pgTable(
+  "discussion_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: threadKindEnum("kind").notNull(),
+    problemId: uuid("problem_id").references(() => problems.id, { onDelete: "cascade" }),
+    /** C5: lesson threads (validated in code against published lessons). */
+    lessonSlug: text("lesson_slug"),
+    /** C3 adds the FK to posts. */
+    postId: uuid("post_id"),
+    /** C5 adds the FK to room_sessions. */
+    roomSessionId: uuid("room_session_id"),
+    /** Visible comments (top level + replies). */
+    commentCount: integer("comment_count").notNull().default(0),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check(
+      "discussion_threads_one_target",
+      sql`num_nonnulls(${t.problemId}, ${t.lessonSlug}, ${t.postId}, ${t.roomSessionId}) = 1`,
+    ),
+    check(
+      "discussion_threads_kind_target",
+      sql`(${t.kind} = 'problem' AND ${t.problemId} IS NOT NULL)
+        OR (${t.kind} = 'lesson' AND ${t.lessonSlug} IS NOT NULL)
+        OR (${t.kind} = 'post' AND ${t.postId} IS NOT NULL)
+        OR (${t.kind} = 'room_session' AND ${t.roomSessionId} IS NOT NULL)`,
+    ),
+    check("discussion_threads_lesson_slug", sql`${t.lessonSlug} IS NULL OR ${t.lessonSlug} ~ '^[a-z0-9-]{1,100}$'`),
+    check("discussion_threads_comment_count", sql`${t.commentCount} >= 0`),
+    // NULLs are distinct: one thread per target.
+    uniqueIndex("discussion_threads_problem_unique").on(t.problemId),
+    uniqueIndex("discussion_threads_lesson_unique").on(t.lessonSlug),
+    uniqueIndex("discussion_threads_post_unique").on(t.postId),
+    uniqueIndex("discussion_threads_room_session_unique").on(t.roomSessionId),
+  ],
+).enableRLS();
+
+export const comments = pgTable(
+  "comments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => discussionThreads.id, { onDelete: "cascade" }),
+    parentId: uuid("parent_id").references((): AnyPgColumn => comments.id, { onDelete: "cascade" }),
+    /** 0 = top level, 1 = reply (two levels only, §B.5). */
+    depth: smallint("depth").notNull(),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    bodyMd: text("body_md").notNull(),
+    /** sha256 hex of normalizeForHash(body): duplicate and spam-wave detection. */
+    bodyHash: text("body_hash").notNull(),
+    hasSpoiler: boolean("has_spoiler").notNull().default(false),
+    upCount: integer("up_count").notNull().default(0),
+    downCount: integer("down_count").notNull().default(0),
+    /** Visible replies (top-level comments only). */
+    replyCount: integer("reply_count").notNull().default(0),
+    score: integer("score").generatedAlwaysAs(sql`up_count - down_count`),
+    /** Wilson lower bound at 95 % (src/lib/community/ranking.ts, parity-tested). */
+    rankBest: doublePrecision("rank_best").generatedAlwaysAs(sql.raw(wilsonSql("up_count", "down_count"))),
+    status: contentStatusEnum("status").notNull().default("visible"),
+    editedAt: timestamp("edited_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    removedAt: timestamp("removed_at", { withTimezone: true }),
+    removedReason: text("removed_reason"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("comments_depth", sql`${t.depth} IN (0, 1)`),
+    check("comments_parent_depth", sql`(${t.parentId} IS NULL) = (${t.depth} = 0)`),
+    check("comments_body", sql`char_length(${t.bodyMd}) <= 10000 AND ${noControl(t.bodyMd)}`),
+    check("comments_body_hash", sql`${t.bodyHash} ~ '^[0-9a-f]{64}$'`),
+    check(
+      "comments_counts",
+      sql`${t.upCount} >= 0 AND ${t.downCount} >= 0 AND ${t.replyCount} >= 0`,
+    ),
+    check(
+      "comments_removed_reason",
+      sql`${t.removedReason} IS NULL OR (char_length(${t.removedReason}) BETWEEN 1 AND 200 AND ${noControl(t.removedReason)})`,
+    ),
+    // A visible body is never empty; deleted ones are cleared.
+    check("comments_body_present", sql`${t.status} = 'deleted' OR char_length(${t.bodyMd}) >= 1`),
+    check("comments_deleted_at", sql`(${t.status} = 'deleted') = (${t.deletedAt} IS NOT NULL)`),
+    index("comments_thread_best_idx")
+      .on(t.threadId, t.depth, t.rankBest.desc(), t.createdAt.desc(), t.id)
+      .where(sql`${t.status} = 'visible'`),
+    index("comments_thread_new_idx")
+      .on(t.threadId, t.depth, t.createdAt.desc(), t.id)
+      .where(sql`${t.status} = 'visible'`),
+    index("comments_parent_idx").on(t.parentId, t.createdAt, t.id),
+    // Rate limits, export, profile.
+    index("comments_author_idx").on(t.authorId, t.createdAt.desc()),
+    // Duplicate detection.
+    index("comments_body_hash_idx").on(t.bodyHash, t.createdAt.desc()),
+    index("comments_status_idx").on(t.status, t.createdAt).where(sql`${t.status} = 'hidden_pending'`),
+  ],
+).enableRLS();
+
+export const commentVotes = pgTable(
+  "comment_votes",
+  {
+    commentId: uuid("comment_id")
+      .notNull()
+      .references(() => comments.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    value: smallint("value").notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.commentId, t.userId] }),
+    check("comment_votes_value", sql`${t.value} IN (-1, 1)`),
+    index("comment_votes_user_idx").on(t.userId, t.updatedAt.desc()),
+  ],
+).enableRLS();
+
+export const problemVotes = pgTable(
+  "problem_votes",
+  {
+    problemId: uuid("problem_id")
+      .notNull()
+      .references(() => problems.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    value: smallint("value").notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.problemId, t.userId] }),
+    check("problem_votes_value", sql`${t.value} IN (-1, 1)`),
+    index("problem_votes_user_idx").on(t.userId, t.updatedAt.desc()),
+  ],
+).enableRLS();
+
+/** Easier (−1) / about right (0) / harder (+1). Never feeds ratings (AC-C-VT-5). */
+export const problemDifficultyFeedback = pgTable(
+  "problem_difficulty_feedback",
+  {
+    problemId: uuid("problem_id")
+      .notNull()
+      .references(() => problems.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    value: smallint("value").notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.problemId, t.userId] }),
+    check("problem_difficulty_feedback_value", sql`${t.value} IN (-1, 0, 1)`),
+    index("problem_difficulty_feedback_user_idx").on(t.userId, t.updatedAt.desc()),
+  ],
+).enableRLS();
+
+/** Polymorphic on purpose: no FK on target_id (audit records outlive targets; validated on insert). */
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reporterId: uuid("reporter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    targetType: reportTargetEnum("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    reason: reportReasonEnum("reason").notNull(),
+    details: text("details"),
+    status: reportStatusEnum("status").notNull().default("open"),
+    resolvedBy: uuid("resolved_by").references(() => users.id, { onDelete: "set null" }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolutionNote: text("resolution_note"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique("reports_one_per_reporter").on(t.reporterId, t.targetType, t.targetId),
+    check(
+      "reports_details",
+      sql`${t.details} IS NULL OR (char_length(${t.details}) <= 1000 AND ${noControl(t.details)})`,
+    ),
+    check(
+      "reports_resolution_note",
+      sql`${t.resolutionNote} IS NULL OR (char_length(${t.resolutionNote}) <= 500 AND ${noControl(t.resolutionNote)})`,
+    ),
+    check("reports_resolved", sql`(${t.status} = 'open') = (${t.resolvedAt} IS NULL)`),
+    index("reports_status_created_idx").on(t.status, t.createdAt),
+    index("reports_target_idx").on(t.targetType, t.targetId),
+    // Rate limit (reports per day).
+    index("reports_reporter_created_idx").on(t.reporterId, t.createdAt.desc()),
+  ],
+).enableRLS();
+
+export const moderationActions = pgTable(
+  "moderation_actions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    action: modActionEnum("action").notNull(),
+    targetType: reportTargetEnum("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    reason: text("reason").notNull(),
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check(
+      "moderation_actions_reason",
+      sql`char_length(${t.reason}) BETWEEN 1 AND 500 AND ${noControl(t.reason)}`,
+    ),
+    check(
+      "moderation_actions_meta",
+      sql`${t.meta} IS NULL OR (jsonb_typeof(${t.meta}) = 'object' AND octet_length(${t.meta}::text) <= 2048)`,
+    ),
+    index("moderation_actions_target_idx").on(t.targetType, t.targetId, t.createdAt.desc()),
+    index("moderation_actions_created_idx").on(t.createdAt.desc()),
+  ],
+).enableRLS();
+
+/** Append-only previous bodies (moderators only; purged after 90 days in C4). */
+export const contentRevisions = pgTable(
+  "content_revisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    targetType: reportTargetEnum("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    title: text("title"),
+    bodyMd: text("body_md").notNull(),
+    editedBy: uuid("edited_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("content_revisions_title", sql`${t.title} IS NULL OR char_length(${t.title}) <= 150`),
+    check("content_revisions_body", sql`char_length(${t.bodyMd}) <= 20000`),
+    index("content_revisions_target_idx").on(t.targetType, t.targetId, t.createdAt.desc()),
+    // Rate limit (edits per hour).
+    index("content_revisions_editor_idx").on(t.editedBy, t.createdAt.desc()),
   ],
 ).enableRLS();

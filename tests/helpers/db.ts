@@ -13,6 +13,14 @@ import { sql } from "drizzle-orm";
 import { createDb, type Db } from "@/server/db";
 import { runMigrations } from "@/server/db/migrate";
 import {
+  commentVotes,
+  comments,
+  contentRevisions,
+  discussionThreads,
+  moderationActions,
+  problemDifficultyFeedback,
+  problemVotes,
+  reports,
   problems,
   problemTags,
   roomEvents,
@@ -104,6 +112,10 @@ export async function resetTestDb(): Promise<void> {
   if (!rows[0].current.startsWith(TEST_DB_PREFIX)) {
     throw new Error(`refusing to truncate non-test database "${rows[0].current}"`);
   }
+  // Community C1 tables first (they reference users, problems and each other).
+  await db.execute(
+    sql`TRUNCATE ${commentVotes}, ${problemVotes}, ${problemDifficultyFeedback}, ${reports}, ${moderationActions}, ${contentRevisions}, ${comments}, ${discussionThreads} RESTART IDENTITY CASCADE`,
+  );
   await db.execute(
     sql`TRUNCATE ${roomEvents}, ${roomSessionResults}, ${roomSessionParticipants}, ${roomSessionProblems}, ${roomSessions}, ${roomMembers}, ${rooms}, ${submissions}, ${testCases}, ${problemTags}, ${tags}, ${problems}, ${users} RESTART IDENTITY CASCADE`,
   );
