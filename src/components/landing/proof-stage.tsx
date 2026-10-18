@@ -16,7 +16,9 @@ const CODE: Tok[][] = [
   [["tok-c", "# one pass, O(n) time"]],
 ];
 
-const TESTS = 12;
+// The real Two Sum test count (problems/two-sum/tests.json), so the example
+// verdict matches what a submit shows.
+const TESTS = 13;
 
 /**
  * Hero "proof sheet" of the landing page (DESIGN.md §11.2, §13.1): problem
