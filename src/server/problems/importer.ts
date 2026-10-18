@@ -195,7 +195,43 @@ export function tagNameFromSlug(slug: string): string {
 }
 
 /** Added to existing numbers while importing; above any valid problem number. */
-const NUMBER_PARK_OFFSET = MAX_PROBLEM_NUMBER + 1;
+export const NUMBER_PARK_OFFSET = MAX_PROBLEM_NUMBER + 1;
+
+/** Distinct tag slugs of `loaded`, in first-seen order. */
+export function collectTagSlugs(loaded: LoadedProblem[]): string[] {
+  return [...new Set(loaded.flatMap((p) => p.meta.tags))];
+}
+
+/**
+ * The `problems` row an import writes for one problem (shared with
+ * `pnpm problems:export-sql`, so both write the same values).
+ */
+export function problemRow({ meta, descriptionMd }: LoadedProblem) {
+  return {
+    number: meta.number,
+    slug: meta.slug,
+    title: meta.title,
+    difficulty: meta.difficulty,
+    descriptionMd,
+    signature: meta.signature,
+    compare: meta.compare,
+    timeLimitMs: meta.limits.timeMs,
+    memoryLimitMb: meta.limits.memoryMb,
+    published: true,
+    // Rooms v2: the author rating only; `rating_adjust` (observed drift) is never written here.
+    authorRating: meta.rating ?? null,
+  };
+}
+
+/** The `test_cases` rows (without `problemId`) an import writes for one problem. */
+export function testCaseRows(tests: ProblemTest[]) {
+  return tests.map((test, position) => ({
+    position,
+    input: test.input,
+    expected: test.expected,
+    isSample: test.sample,
+  }));
+}
 
 /**
  * Upserts problems by slug in one transaction: problem row (published=true),
@@ -242,7 +278,7 @@ export async function importProblems(
         .where(inArray(problems.slug, slugs));
     }
 
-    const tagSlugs = [...new Set(loaded.flatMap((p) => p.meta.tags))];
+    const tagSlugs = collectTagSlugs(loaded);
     const tagIds = new Map<string, number>();
     if (tagSlugs.length > 0) {
       await tx
@@ -257,21 +293,9 @@ export async function importProblems(
     }
 
     let testCount = 0;
-    for (const { meta, descriptionMd, tests } of loaded) {
-      const values = {
-        number: meta.number,
-        slug: meta.slug,
-        title: meta.title,
-        difficulty: meta.difficulty,
-        descriptionMd,
-        signature: meta.signature,
-        compare: meta.compare,
-        timeLimitMs: meta.limits.timeMs,
-        memoryLimitMb: meta.limits.memoryMb,
-        published: true,
-        // Rooms v2: the author rating only; `rating_adjust` (observed drift) is never written here.
-        authorRating: meta.rating ?? null,
-      };
+    for (const problem of loaded) {
+      const { meta, tests } = problem;
+      const values = problemRow(problem);
       const [{ id }] = await tx
         .insert(problems)
         .values(values)
@@ -289,15 +313,7 @@ export async function importProblems(
       }
 
       await tx.delete(testCases).where(eq(testCases.problemId, id));
-      await tx.insert(testCases).values(
-        tests.map((test, position) => ({
-          problemId: id,
-          position,
-          input: test.input,
-          expected: test.expected,
-          isSample: test.sample,
-        })),
-      );
+      await tx.insert(testCases).values(testCaseRows(tests).map((row) => ({ problemId: id, ...row })));
       testCount += tests.length;
     }
 
