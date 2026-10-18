@@ -1,12 +1,13 @@
 // Problem workspace (M5): Monaco bundled locally, language buffers, guest
 // redirect, and Run / Submit against the real judge.
 //
-// The judge tests need `pnpm worker` running against the same database as the
-// web server (Playwright's webServer starts only the web app); they are
-// skipped unless E2E_JUDGE=1. M7 (AC-M7-1) makes Playwright start the worker.
+// The judge tests (tag @judge) run against the real worker that the e2e
+// harness starts (tests/e2e-support/harness.ts); E2E_JUDGE=0 skips them.
 import { randomUUID } from "node:crypto";
 
 import { expect, test, type Page } from "@playwright/test";
+
+import { JUDGE_TAG, requireJudge } from "../../e2e-support/judge";
 
 const TWO_SUM_PY = [
   "class Solution:",
@@ -145,8 +146,8 @@ test.describe("workspace without the judge", () => {
   });
 });
 
-test.describe("workspace with the judge", () => {
-  test.skip(!process.env.E2E_JUDGE, "needs `pnpm worker` running (set E2E_JUDGE=1)");
+test.describe("workspace with the judge", { tag: JUDGE_TAG }, () => {
+  requireJudge();
   test.describe.configure({ mode: "serial", timeout: 120_000 });
 
   test("Python: Run passes the samples, Submit is accepted", async ({ page }) => {

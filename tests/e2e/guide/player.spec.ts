@@ -756,7 +756,8 @@ test.describe("AC-G-0-15 axe", () => {
 
 test.describe("AC-G-0-18 fixtures need the flag", () => {
   let server: ChildProcess | null = null;
-  const port = Number(process.env.PORT ?? 3000) + 50;
+  // The harness server is on E2E_PORT; this second server sits 50 above it.
+  const port = Number(process.env.E2E_PORT) + 50;
 
   test.afterAll(() => {
     server?.kill("SIGTERM");

@@ -1,6 +1,6 @@
 // Rooms R5 e2e (docs/specs/rooms.md §4.5, §5.2; AC-S-HIS-1, AC-S-A11Y-1 for
 // the history pages): finished sessions are inserted straight into the web
-// server's database (DATABASE_URL from .env), so no judge is needed. Members
+// server's database (the e2e harness database), so no judge is needed. Members
 // see history, results, leaderboard and a timeline, open a shared solution,
 // and an opted-out member's solution is not available; axe on whole pages in
 // both themes. Users are *@example.test and deleted afterwards (cascade).
@@ -8,7 +8,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { Pool } from "pg";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+import { e2eDatabaseUrl } from "../../e2e-support/db";
+
+const pool = new Pool({ connectionString: e2eDatabaseUrl() });
 const PASSWORD = "correct-horse-battery";
 const created: string[] = [];
 const q = async <T = Record<string, unknown>>(text: string, params: unknown[] = []) =>

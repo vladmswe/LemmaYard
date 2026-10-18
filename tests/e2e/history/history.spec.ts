@@ -1,13 +1,15 @@
 // Submission history and profile (M6) against the running app. Finished
 // submissions are inserted straight into the web server's database
-// (DATABASE_URL from .env), so no judge is needed. The test users are
+// (the e2e harness database), so no judge is needed. The test users are
 // deleted afterwards (their submissions cascade).
 import { randomUUID } from "node:crypto";
 
 import { expect, test, type Page } from "@playwright/test";
 import { Pool } from "pg";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+import { e2eDatabaseUrl } from "../../e2e-support/db";
+
+const pool = new Pool({ connectionString: e2eDatabaseUrl() });
 const created: string[] = [];
 
 async function register(page: Page, prefix: string) {
@@ -116,9 +118,9 @@ test("history, submission page, problem tab and profile", async ({ page }) => {
 
   // Profile: solved once despite two accepted submits; no code.
   await page.goto(`/u/${me.username}`);
-  await expect(page.getByTestId("profile-stats")).toContainText("Solved1/");
-  await expect(page.getByTestId("profile-stats")).toContainText("Submissions4");
-  await expect(page.getByTestId("profile-stats")).toContainText("50.0%");
-  await expect(page.getByTestId("recent-solved").locator("li")).toHaveCount(1);
+  await expect(page.getByRole("main").getByTestId("profile-stats")).toContainText("Solved1/");
+  await expect(page.getByRole("main").getByTestId("profile-stats")).toContainText("Submissions4");
+  await expect(page.getByRole("main").getByTestId("profile-stats")).toContainText("50.0%");
+  await expect(page.getByRole("main").getByTestId("recent-solved").locator("li")).toHaveCount(1);
   await expect(page.locator("body")).not.toContainText("class Solution");
 });
