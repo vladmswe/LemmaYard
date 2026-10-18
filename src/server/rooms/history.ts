@@ -1,22 +1,25 @@
-// Room history, leaderboard and member timeline (docs/specs/rooms.md §5, §6.5
-// Q0, Q2, Q3, Q4, Q5). Every function starts with the membership gate and
-// returns null for non-members and unknown ids (the caller answers 404).
-// Query budgets (asserted in tests/integration/rooms-history.test.ts):
-// history ≤ 5 (Q0, open session, page, participants, problems), leaderboard
-// 4 (Q0, Q5, members, Q4), timeline 3 (Q0, target, Q3); a due lazy close of
-// the open session adds its own transaction.
+// Room history, member stats and member timeline (docs/specs/rooms.md §5,
+// §6.5 Q0, Q2, Q3, Q5; rooms-v2.md §2.4). Every function starts with the
+// membership gate and returns null for non-members and unknown ids (the
+// caller answers 404). Query budgets (asserted in
+// tests/integration/rooms-history.test.ts): history ≤ 5 (Q0, open session,
+// page, participants with their result cells, problems), members 4 (Q0,
+// stats, members, attendance), timeline 3 (Q0, target, Q3); a due lazy close
+// of the open session adds its own transaction.
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import {
+  attendance,
   HISTORY_PAGE_SIZE,
-  rankLeaderboard,
   sessionRunMinutes,
+  sortMemberStats,
   TIMELINE_SESSION_LIMIT,
+  ATTENDANCE_WINDOW,
+  type Attendance,
   type LeaderboardRange,
-  type LeaderboardRow,
   type TimelineSession,
 } from "@/lib/rooms/history";
-import type { Calibration } from "@/lib/rooms/selection";
+import { firstSolvers } from "@/lib/rooms/scoring";
 import { dueAction } from "@/lib/rooms/session-state";
 import type { Difficulty, RoomSessionEndReason } from "@/lib/rooms/types";
 import type { Db } from "@/server/db";
@@ -30,7 +33,6 @@ import {
 } from "@/server/db/schema";
 
 import { requireRoomMember, type RoomAccess } from "./access";
-import { loadCalibration } from "./draw";
 import { closeIfDueNow } from "./lifecycle";
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
@@ -71,7 +73,32 @@ export type HistorySessionItem = {
   winners: string[];
   /** The viewer's result, null when they did not take part. */
   viewer: { solved: number; rank: number | null } | null;
+  /**
+   * v2 mini-matrix (§2.4): participants by rank, then username, with one
+   * result cell per problem they touched (finished sessions; [] otherwise).
+   */
+  standings: HistoryStanding[];
 };
+
+export type HistoryCell = {
+  position: number;
+  attempts: number;
+  wrongBefore: number;
+  solveSeconds: number | null;
+  firstSolver: boolean;
+  solvedBefore: boolean;
+};
+
+export type HistoryStanding = {
+  userId: string;
+  username: string;
+  rank: number | null;
+  solvedCount: number;
+  penaltySec: number;
+  cells: HistoryCell[];
+};
+
+type HistoryCellJson = Omit<HistoryCell, "firstSolver"> & { firstAcceptedAt: string | null };
 
 export type RoomHistory = {
   open: OpenSessionItem[];
@@ -161,7 +188,16 @@ export async function getRoomHistory(
               userId: roomSessionParticipants.userId,
               username: users.username,
               solvedCount: roomSessionParticipants.solvedCount,
+              penaltySec: roomSessionParticipants.penaltySec,
               rank: roomSessionParticipants.rank,
+              cells: sql<HistoryCellJson[]>`coalesce((
+                SELECT json_agg(json_build_object(
+                  'position', r.position, 'attempts', r.attempts, 'wrongBefore', r.wrong_before_accept,
+                  'solveSeconds', r.solve_seconds, 'firstAcceptedAt', r.first_accepted_at,
+                  'solvedBefore', r.solved_before) ORDER BY r.position)
+                FROM room_session_results r
+                WHERE r.session_id = ${roomSessionParticipants.sessionId} AND r.user_id = ${roomSessionParticipants.userId}
+              ), '[]'::json)`,
             })
             .from(roomSessionParticipants)
             .innerJoin(users, eq(users.id, roomSessionParticipants.userId))
@@ -206,6 +242,7 @@ export async function getRoomHistory(
       participants: people.length,
       winners: finished ? people.filter((p) => p.rank === 1).map((p) => p.username) : [],
       viewer: mine && finished ? { solved: mine.solvedCount, rank: mine.rank } : null,
+      standings: finished ? historyStandings(people) : [],
     };
   });
 
@@ -228,15 +265,72 @@ export async function getRoomHistory(
   };
 }
 
-// --- Leaderboard (§5.2, Q5) ---
+/** Mini-matrix rows of one finished session: by rank, then username; first solvers marked. */
+function historyStandings(
+  people: readonly {
+    userId: string;
+    username: string;
+    rank: number | null;
+    solvedCount: number;
+    penaltySec: number;
+    cells: HistoryCellJson[];
+  }[],
+): HistoryStanding[] {
+  const parsed = people.map((p) => ({
+    ...p,
+    cells: p.cells.map((c) => ({ ...c, firstAcceptedAt: c.firstAcceptedAt ? new Date(c.firstAcceptedAt) : null })),
+  }));
+  const first = firstSolvers(parsed);
+  return parsed
+    .map((p) => ({
+      userId: p.userId,
+      username: p.username,
+      rank: p.rank,
+      solvedCount: p.solvedCount,
+      penaltySec: p.penaltySec,
+      cells: p.cells.map((c) => ({
+        position: c.position,
+        attempts: c.attempts,
+        wrongBefore: c.wrongBefore,
+        solveSeconds: c.solveSeconds,
+        firstSolver: c.solveSeconds !== null && (first.get(c.position) ?? []).includes(p.userId),
+        solvedBefore: c.solvedBefore,
+      })),
+    }))
+    .sort(
+      (a, b) =>
+        (a.rank ?? Number.MAX_SAFE_INTEGER) - (b.rank ?? Number.MAX_SAFE_INTEGER) ||
+        (a.username < b.username ? -1 : a.username > b.username ? 1 : 0),
+    );
+}
 
-export type RoomLeaderboard = {
-  range: LeaderboardRange;
-  rows: LeaderboardRow[];
-  /** Finished sessions in the window. */
+// --- Members tab (rooms-v2 §2.4; replaces the v1 Leaderboard tab, Q5) ---
+
+export type MemberStatsRow = {
+  userId: string;
+  username: string;
+  /** Still a member ("(left)" otherwise: they still appear when they played in the period). */
+  isMember: boolean;
+  role: "owner" | "member" | null;
+  /** Finished sessions played in the period. */
   sessions: number;
-  /** Q4 read-out: the lobby's numbers (last 6 finished sessions). */
-  calibration: Calibration;
+  /** Problems solved in the period. */
+  solved: number;
+  /** Problems they were first to solve in the period (ties count for each). */
+  firstSolves: number;
+  /** Sessions finished in first place in the period (ties included). */
+  wins: number;
+  /** Over the room's last 8 finished sessions (independent of the period); null for people who left. */
+  attendance: Attendance | null;
+};
+
+export type RoomMemberStats = {
+  range: LeaderboardRange;
+  rows: MemberStatsRow[];
+  /** Finished sessions in the period. */
+  sessions: number;
+  /** Finished sessions in the attendance window (0..8). */
+  attendanceSessions: number;
 };
 
 function sinceClause(range: LeaderboardRange) {
@@ -250,87 +344,126 @@ function sinceClause(range: LeaderboardRange) {
   }
 }
 
-export async function getRoomLeaderboard(
+/**
+ * Members tab: per person solved, first solves and wins over `range`, plus
+ * attendance over the room's last 8 finished sessions. 4 queries (Q0 + 3 in
+ * parallel). The v1 "difficulty profile" (calibration) is no longer read here:
+ * it lives in the lobby only.
+ */
+export async function getRoomMemberStats(
   db: Db,
   roomId: string,
   userId: string,
   range: LeaderboardRange,
-): Promise<RoomLeaderboard | null> {
+): Promise<RoomMemberStats | null> {
   const access = await requireRoomMember(db, roomId, userId);
   if (!access) return null;
+  const since = sinceClause(range);
 
-  const [stats, members, calibration] = await Promise.all([
+  const [stats, members, recent] = await Promise.all([
     db.execute<{
       user_id: string;
       username: string;
       is_member: boolean;
       sessions: number;
       solved: number;
-      offered: number;
       wins: number;
-      rank_sum: number;
-      ranked: number;
+      first_solves: number;
       window_sessions: number;
     }>(sql`
       WITH played AS (
-        SELECT p.user_id, p.solved_count, p.rank, s.problem_count, s.id AS session_id
+        SELECT p.user_id, p.solved_count, p.rank, s.id AS session_id
         FROM room_sessions s
         JOIN room_session_participants p ON p.session_id = s.id
-        WHERE s.room_id = ${roomId} AND s.status = 'finished' ${sinceClause(range)}
+        WHERE s.room_id = ${roomId} AND s.status = 'finished' ${since}
+      ),
+      firsts AS (
+        SELECT x.user_id, count(*)::int AS n
+        FROM (
+          SELECT r.user_id, r.first_accepted_at,
+                 min(r.first_accepted_at) OVER (PARTITION BY r.session_id, r.position) AS best
+          FROM room_session_results r
+          JOIN room_sessions s ON s.id = r.session_id
+          WHERE s.room_id = ${roomId} AND s.status = 'finished' ${since}
+            AND r.solve_seconds IS NOT NULL AND r.first_accepted_at IS NOT NULL
+        ) x
+        WHERE x.first_accepted_at = x.best
+        GROUP BY x.user_id
       )
       SELECT pl.user_id, u.username, (m.user_id IS NOT NULL) AS is_member,
              count(*)::int AS sessions,
              sum(pl.solved_count)::int AS solved,
-             sum(pl.problem_count)::int AS offered,
              (count(*) FILTER (WHERE pl.rank = 1))::int AS wins,
-             coalesce(sum(pl.rank), 0)::int AS rank_sum,
-             count(pl.rank)::int AS ranked,
+             coalesce(max(f.n), 0)::int AS first_solves,
              (SELECT count(DISTINCT session_id)::int FROM played) AS window_sessions
       FROM played pl
       JOIN users u ON u.id = pl.user_id
       LEFT JOIN room_members m ON m.room_id = ${roomId} AND m.user_id = pl.user_id
+      LEFT JOIN firsts f ON f.user_id = pl.user_id
       GROUP BY pl.user_id, u.username, m.user_id
     `),
     db
-      .select({ userId: roomMembers.userId, username: users.username })
+      .select({
+        userId: roomMembers.userId,
+        username: users.username,
+        role: roomMembers.role,
+        joinedAt: roomMembers.joinedAt,
+      })
       .from(roomMembers)
       .innerJoin(users, eq(users.id, roomMembers.userId))
       .where(eq(roomMembers.roomId, roomId)),
-    loadCalibration(db, roomId),
+    db.execute<{ id: string; started_at: Date | string; users: string[] }>(sql`
+      SELECT s.id, s.started_at,
+             coalesce(array_agg(p.user_id) FILTER (WHERE p.user_id IS NOT NULL), '{}') AS users
+      FROM (
+        SELECT id, started_at FROM room_sessions
+        WHERE room_id = ${roomId} AND status = 'finished'
+        ORDER BY started_at DESC, id DESC
+        LIMIT ${ATTENDANCE_WINDOW}
+      ) s
+      LEFT JOIN room_session_participants p ON p.session_id = s.id
+      GROUP BY s.id, s.started_at
+      ORDER BY s.started_at DESC, s.id DESC
+    `),
   ]);
 
-  const seen = new Set(stats.rows.map((r) => r.user_id));
-  const rows = rankLeaderboard([
-    ...stats.rows.map((r) => ({
-      userId: r.user_id,
-      username: r.username,
-      isMember: r.is_member,
-      sessions: Number(r.sessions),
-      solved: Number(r.solved),
-      offered: Number(r.offered),
-      wins: Number(r.wins),
-      rankSum: Number(r.rank_sum),
-      rankedSessions: Number(r.ranked),
-    })),
-    ...members
-      .filter((m) => !seen.has(m.userId))
-      .map((m) => ({
+  const window = recent.rows.map((r) => ({ startedAt: new Date(r.started_at), participants: new Set(r.users) }));
+  const byUser = new Map(stats.rows.map((r) => [r.user_id, r]));
+  const memberIds = new Set(members.map((m) => m.userId));
+  const rows: MemberStatsRow[] = [
+    ...members.map((m) => {
+      const s = byUser.get(m.userId);
+      return {
         userId: m.userId,
         username: m.username,
         isMember: true,
-        sessions: 0,
-        solved: 0,
-        offered: 0,
-        wins: 0,
-        rankSum: 0,
-        rankedSessions: 0,
+        role: m.role as "owner" | "member",
+        sessions: Number(s?.sessions ?? 0),
+        solved: Number(s?.solved ?? 0),
+        firstSolves: Number(s?.first_solves ?? 0),
+        wins: Number(s?.wins ?? 0),
+        attendance: attendance(window, { userId: m.userId, joinedAt: m.joinedAt }),
+      };
+    }),
+    ...stats.rows
+      .filter((r) => !memberIds.has(r.user_id))
+      .map((r) => ({
+        userId: r.user_id,
+        username: r.username,
+        isMember: false,
+        role: null,
+        sessions: Number(r.sessions),
+        solved: Number(r.solved),
+        firstSolves: Number(r.first_solves),
+        wins: Number(r.wins),
+        attendance: null,
       })),
-  ]);
+  ];
   return {
     range,
-    rows,
+    rows: sortMemberStats(rows),
     sessions: Number(stats.rows[0]?.window_sessions ?? 0),
-    calibration,
+    attendanceSessions: window.length,
   };
 }
 
@@ -379,6 +512,7 @@ export async function getMemberTimeline(
     solve_seconds: number | null;
     wrong_before_accept: number | null;
     attempts: number | null;
+    first_solver: boolean | null;
   }>(sql`
     WITH mine AS (
       SELECT p.session_id, p.rank, p.solved_count, s.started_at,
@@ -391,7 +525,11 @@ export async function getMemberTimeline(
     )
     SELECT m.session_id, m.started_at, m.rank, m.solved_count, m.participants,
            sp.position, pr.slug, pr.title, sp.difficulty,
-           res.solve_seconds, res.wrong_before_accept, res.attempts
+           res.solve_seconds, res.wrong_before_accept, res.attempts,
+           (res.solve_seconds IS NOT NULL AND res.first_accepted_at = (
+              SELECT min(r2.first_accepted_at) FROM room_session_results r2
+              WHERE r2.session_id = m.session_id AND r2.position = sp.position AND r2.solve_seconds IS NOT NULL
+           )) AS first_solver
     FROM mine m
     JOIN room_session_problems sp ON sp.session_id = m.session_id
     JOIN problems pr ON pr.id = sp.problem_id
@@ -427,6 +565,7 @@ export async function getMemberTimeline(
       solveSeconds: r.solve_seconds === null ? null : Number(r.solve_seconds),
       wrongBefore: Number(r.wrong_before_accept ?? 0),
       attempts: Number(r.attempts ?? 0),
+      firstSolver: r.first_solver === true,
     });
   }
   const truncated = sessions.length > TIMELINE_SESSION_LIMIT;

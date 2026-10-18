@@ -1,4 +1,9 @@
-import { CircleCheckIcon, CircleDashedIcon, EyeOffIcon, MedalIcon, RotateCcwIcon } from "lucide-react";
+// Results of a finished session (docs/specs/rooms-v2.md §2.2; rooms.md §4,
+// §4.5): fact tiles, the final matrix (same cells as live, plus "seen",
+// medians and a code link per solved cell when sharing allows), the
+// Timeline lanes, per-problem summaries and the rating-change slot (renders
+// nothing until the rating module provides data), then session details.
+import { EyeOffIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "cn";
@@ -7,20 +12,23 @@ import { DifficultyBadge } from "@/components/problems/difficulty-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, tableLinkClasses } from "@/components/ui/table";
+import { tableLinkClasses } from "@/components/ui/table";
 import {
-  cellSrText,
   formatMinutes,
   memberTimelineHref,
   plural,
+  resultFacts,
   solutionHref,
+  timelineMarks,
   type SolutionAccess,
 } from "@/lib/rooms/history";
-import { formatScoreTime, PENALTY_SEC_PER_WRONG } from "@/lib/rooms/scoring";
+import { axisTicks, columnStats, matrixRows, problemLabel, type CellView, type ScoreRow } from "@/lib/rooms/live-view";
+import { formatScoreTime } from "@/lib/rooms/scoring";
 import { mixLabel } from "@/lib/rooms/session-view";
-import type { FinishedResults, ResultCell, ResultParticipant, ResultProblem } from "@/server/rooms/results";
+import type { FinishedResults, ResultParticipant } from "@/server/rooms/results";
 
 import { LocalTime } from "./local-time";
+import { MatrixLegend, ScoreMatrix, type MatrixRating } from "./matrix/score-matrix";
 
 const CHALLENGE_LABELS = { relaxed: "Relaxed", balanced: "Balanced", tough: "Tough" } as const;
 
@@ -32,285 +40,374 @@ const HIDDEN_REASON: Record<Exclude<SolutionAccess, { visible: true }>["reason"]
   opted_out: "Hidden by its author",
 };
 
-type Ctx = { roomId: string; sessionId: string };
+/** Matrix rows of the results page (participants in rank order). */
+export function resultRows(results: FinishedResults): ScoreRow[] {
+  return matrixRows(
+    results.participants,
+    results.problems.map((p) => p.position),
+    { viewerId: results.viewer.userId, durationSec: results.session.durationMin * 60 },
+  );
+}
 
-/** Final scoreboard (spec §4.2 Finished): rank, participant, solved, time, one cell per problem. */
-export function FinalScoreboard({ results }: { results: FinishedResults }) {
-  const ctx = { roomId: results.room.id, sessionId: results.session.id };
+/** Rating slot: per-person rating before the session, only when the rating module filled it. */
+function ratingMap(results: FinishedResults): ReadonlyMap<string, MatrixRating> | undefined {
+  const entries = results.participants
+    .filter((p) => p.ratingChange)
+    .map((p) => [p.userId, { rating: p.ratingChange!.before, provisional: p.ratingChange!.provisional }] as const);
+  return entries.length > 0 ? new Map(entries) : undefined;
+}
+
+function problemRatingMap(results: FinishedResults): ReadonlyMap<number, number> | undefined {
+  const entries = results.problems.filter((p) => p.rating).map((p) => [p.position, p.rating!.before] as const);
+  return entries.length > 0 ? new Map(entries) : undefined;
+}
+
+// --- Fact tiles -------------------------------------------------------------------
+
+function Fact({ label, value, sub, testId }: { label: string; value: ReactNode; sub?: ReactNode; testId: string }) {
+  return (
+    <div className="flex min-w-0 flex-col rounded-xl border bg-card px-4 py-4 shadow-sm sm:px-5" data-testid={testId}>
+      <dt className="label-mono order-1 text-muted-foreground">{label}</dt>
+      <dd className="order-2 mt-2.5 min-w-0 truncate text-lg/6 font-semibold">{value}</dd>
+      {sub && <dd className="order-3 mt-1 text-[0.84375rem] text-muted-foreground">{sub}</dd>}
+    </div>
+  );
+}
+
+/** Winner · First solves · Fastest solve · Your session (§2.2). */
+export function ResultFacts({ results, rows }: { results: FinishedResults; rows: ScoreRow[] }) {
+  const facts = resultFacts(rows);
+  const me = rows.find((r) => r.isViewer);
+  const myRating = results.participants.find((p) => p.isViewer)?.ratingChange;
+  const top = facts.firstSolves[0];
+  return (
+    <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="result-facts">
+      <Fact
+        testId="fact-winner"
+        label="Winner"
+        value={facts.winners.length > 0 ? facts.winners.map((w) => w.username).join(", ") : "—"}
+        sub={
+          facts.winners.length > 0
+            ? `${facts.winners[0].solved} solved · ${formatScoreTime(facts.winners[0].penaltySec)}${facts.winners.length > 1 ? " (tie)" : ""}`
+            : "Nobody solved a problem"
+        }
+      />
+      <Fact
+        testId="fact-first"
+        label="First solves"
+        value={top ? `${top.username} · ${top.count}` : "—"}
+        sub={facts.firstSolves.length > 0 ? facts.firstSolves.map((f) => `${f.username} ${f.count}`).join(" · ") : undefined}
+      />
+      <Fact
+        testId="fact-fastest"
+        label="Fastest solve"
+        value={facts.fastest ? <span className="font-mono">{formatScoreTime(facts.fastest.seconds)}</span> : "—"}
+        sub={facts.fastest ? `${facts.fastest.username} on ${problemLabel(facts.fastest.position)}` : undefined}
+      />
+      <Fact
+        testId="fact-you"
+        label="Your session"
+        value={me ? `${me.solved} solved${me.rank !== null ? ` · rank ${me.rank}` : ""}` : "You didn't join"}
+        sub={
+          myRating ? (
+            <span>
+              rating {myRating.delta >= 0 ? "+" : "−"}
+              {Math.abs(myRating.delta)}
+            </span>
+          ) : me ? (
+            me.solved > 0 ? `${me.time} total time` : undefined
+          ) : undefined
+        }
+      />
+    </dl>
+  );
+}
+
+// --- Matrix -----------------------------------------------------------------------
+
+function SolutionLink({ results, participant: p, cell }: { results: FinishedResults; participant: ResultParticipant; cell: CellView }) {
+  const access = p.cells.find((c) => c.position === cell.position)?.solution;
+  if (!access) return null;
+  if (access.visible) {
+    return (
+      <Link
+        href={solutionHref(results.room.id, results.session.id, p.username, cell.position)}
+        className="relative font-sans text-xs font-semibold text-link after:absolute after:-inset-2.5 hover:underline"
+        data-testid="view-solution"
+      >
+        code
+        <span className="sr-only">
+          {" "}
+          of {p.isViewer ? "yours" : p.username} for {problemLabel(cell.position)}
+        </span>
+      </Link>
+    );
+  }
+  if (access.reason === "room_off") return null;
+  return (
+    <span className="inline-flex items-center gap-1 font-sans text-[0.6875rem] text-muted-foreground" data-testid="solution-hidden" title={HIDDEN_REASON[access.reason]}>
+      <EyeOffIcon aria-hidden className="size-3" />
+      <span className="sr-only">{HIDDEN_REASON[access.reason]}</span>
+    </span>
+  );
+}
+
+/** "Who solved what, and when" (§2.2): the final matrix. */
+export function FinalScoreboard({ results, rows }: { results: FinishedResults; rows: ScoreRow[] }) {
+  const byUser = new Map(results.participants.map((p) => [p.userId, p]));
   return (
     <section aria-labelledby="scoreboard-heading" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h2 id="scoreboard-heading" className="text-lg/7 font-semibold">
-          Final standings
+          Who solved what, and when
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Ranked by problems solved, then time. Time includes {formatScoreTime(PENALTY_SEC_PER_WRONG)} per wrong
-          attempt before a solve.
-        </p>
+        {results.room.shareSolutions && (
+          <p className="hidden text-sm text-muted-foreground md:block">&ldquo;code&rdquo; in a solved cell opens that person&apos;s solution</p>
+        )}
       </div>
-      <Table containerClassName="hidden md:block" data-testid="results-table">
-        <caption className="sr-only">Scoreboard</caption>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">#</TableHead>
-            <TableHead>Participant</TableHead>
-            <TableHead numeric>Solved</TableHead>
-            <TableHead numeric>Time</TableHead>
-            {results.problems.map((p) => (
-              <TableHead key={p.position} className="min-w-36">
-                <span className="block">Problem {p.position}</span>
-                <span className="block max-w-40 truncate text-xs font-medium tracking-normal normal-case" title={p.title}>
-                  {p.title}
-                </span>
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {results.participants.map((p) => (
-            <TableRow key={p.userId} data-user={p.username} className={cn(p.isViewer && "bg-secondary!")}>
-              <TableCell className="font-mono text-base text-muted-foreground tabular-nums">{p.rank ?? "—"}</TableCell>
-              <th scope="row" className="h-12 px-4 text-left align-middle font-normal">
-                <ParticipantName ctx={ctx} participant={p} />
-              </th>
-              <TableCell numeric className="font-semibold">
-                {p.solvedCount}
-                <span className="font-normal text-muted-foreground">/{results.problems.length}</span>
-              </TableCell>
-              <TableCell numeric className="whitespace-nowrap">
-                <TimeValue participant={p} />
-              </TableCell>
-              {p.cells.map((c) => (
-                <TableCell key={c.position} className="py-2.5 align-top" data-position={c.position}>
-                  <ResultCellView ctx={ctx} participant={p} cell={c} />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
-      {/* Below md: one card per participant. */}
-      <ol aria-label="Scoreboard" className="flex flex-col gap-3 md:hidden" data-testid="results-cards">
-        {results.participants.map((p) => (
-          <li
-            key={p.userId}
-            data-user={p.username}
-            className={cn("rounded-xl border bg-card p-4 shadow-sm", p.isViewer && "bg-secondary")}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="w-6 font-mono text-base text-muted-foreground tabular-nums">
-                  <span className="sr-only">Rank </span>
-                  {p.rank ?? "—"}
-                </span>
-                <ParticipantName ctx={ctx} participant={p} />
-              </div>
-              <div className="text-right text-sm tabular-nums">
-                <div className="font-semibold">
-                  {p.solvedCount}/{results.problems.length} solved
-                </div>
-                <TimeValue participant={p} />
-              </div>
-            </div>
-            <ul className="mt-3 flex flex-col divide-y border-t">
-              {p.cells.map((c) => (
-                <li key={c.position} className="flex items-start justify-between gap-3 py-2.5">
-                  <span className="text-sm text-muted-foreground" aria-hidden>
-                    Problem {c.position}
-                  </span>
-                  <ResultCellView ctx={ctx} participant={p} cell={c} align="end" />
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
-      </ol>
+      <div data-testid="results-table">
+        <ScoreMatrix
+          problems={results.problems}
+          rows={rows}
+          durationSec={results.session.durationMin * 60}
+          final
+          caption="Final scoreboard: who solved which problem and when"
+          nameHref={(r) => memberTimelineHref(results.room.id, r.username)}
+          nameExtra={(r) => (byUser.get(r.userId)?.isMember === false ? <span className="text-sm text-muted-foreground">(left)</span> : null)}
+          cellExtra={(r, cell) => {
+            const p = byUser.get(r.userId);
+            return p ? <SolutionLink results={results} participant={p} cell={cell} /> : null;
+          }}
+          ratings={ratingMap(results)}
+          problemRatings={problemRatingMap(results)}
+        />
+      </div>
+      <MatrixLegend className="mt-1" />
     </section>
   );
 }
 
-function ParticipantName({ ctx, participant: p }: { ctx: Ctx; participant: ResultParticipant }) {
-  return (
-    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-      <Avatar name={p.username} className={cn(!p.isMember && "opacity-60")} />
-      <Link
-        href={memberTimelineHref(ctx.roomId, p.username)}
-        className={cn(tableLinkClasses(), !p.isMember && "text-muted-foreground")}
-      >
-        {p.username}
-      </Link>
-      {p.isViewer && <span className="text-sm text-muted-foreground">(you)</span>}
-      {!p.isMember && <span className="text-sm text-muted-foreground">(left)</span>}
-      {p.isHost && <Badge variant="outline">Host</Badge>}
-    </span>
-  );
-}
+// --- Timeline lanes ------------------------------------------------------------------
 
-function TimeValue({ participant: p }: { participant: ResultParticipant }) {
-  const { solveSec, penaltySec, wrongCount, totalSec } = p.breakdown;
-  if (p.solvedCount === 0) return <span className="text-muted-foreground">—</span>;
+/** One lane per person, a numbered square at each solve (AC-V2-MX-6), with an sr-only table. */
+export function SessionTimeline({ results, rows }: { results: FinishedResults; rows: ScoreRow[] }) {
+  const durationSec = results.session.durationMin * 60;
+  const summary = rows
+    .map((r) => {
+      const marks = timelineMarks(r.cells, durationSec);
+      return marks.length === 0
+        ? `${r.username}: no solves`
+        : `${r.username}: ${marks.map((m) => `${m.position} at ${formatScoreTime(m.solveSeconds)}`).join(", ")}`;
+    })
+    .join("; ");
   return (
-    <span className="inline-flex flex-col items-end">
-      <span className="font-semibold">{formatScoreTime(totalSec)}</span>
-      {penaltySec > 0 && (
-        <span className="text-xs text-muted-foreground" data-testid="penalty-breakdown">
-          {formatScoreTime(solveSec)} + {formatScoreTime(penaltySec)} for {plural(wrongCount, "wrong attempt")}
+    <section aria-labelledby="timeline-heading" className="flex min-w-0 flex-col gap-2 rounded-xl border bg-card p-5 shadow-sm sm:p-6" data-testid="session-timeline">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="timeline-heading" className="text-lg/7 font-semibold">
+          Timeline
+        </h2>
+        <span aria-hidden className="label-mono text-muted-foreground">
+          0 → {formatScoreTime(durationSec)}
         </span>
-      )}
-    </span>
-  );
-}
-
-function ResultCellView({
-  ctx,
-  participant,
-  cell,
-  align = "start",
-}: {
-  ctx: Ctx;
-  participant: ResultParticipant;
-  cell: ResultCell;
-  align?: "start" | "end";
-}) {
-  const sr = cellSrText(cell.position, cell, cell.firstSolver);
-  const solved = cell.solveSeconds !== null;
-  const box = cn("flex flex-col gap-1", align === "end" ? "items-end text-right" : "items-start");
-  if (!solved && cell.attempts === 0) {
-    return (
-      <span className={box}>
-        <span aria-hidden className="text-muted-foreground">
-          —
-        </span>
-        <span className="sr-only">{sr}</span>
-      </span>
-    );
-  }
-  return (
-    <span className={box}>
-      <span className="sr-only">{sr}</span>
-      <span aria-hidden className="inline-flex items-center gap-1.5 text-[0.9375rem]">
-        {solved ? (
-          <>
-            <CircleCheckIcon className="size-4 shrink-0 text-success" />
-            <span className="font-semibold tabular-nums">{formatScoreTime(cell.solveSeconds!)}</span>
-            {cell.wrongBefore > 0 && <span className="text-sm text-warning tabular-nums">−{cell.wrongBefore}</span>}
-          </>
-        ) : (
-          <>
-            <CircleDashedIcon className="size-4 shrink-0 text-warning" />
-            <span className="text-sm text-foreground-secondary">Attempted</span>
-            <span className="text-sm text-warning tabular-nums">−{cell.attempts}</span>
-          </>
-        )}
-      </span>
-      {solved && cell.attempts > 1 && (
-        <span aria-hidden className="text-xs text-muted-foreground tabular-nums">
-          {plural(cell.attempts, "attempt")}
-        </span>
-      )}
-      {(cell.firstSolver || cell.solvedBefore) && (
-        <span aria-hidden className="flex flex-wrap gap-1">
-          {cell.firstSolver && (
-            <Badge variant="secondary" data-testid="first-solver">
-              <MedalIcon />
-              First
-            </Badge>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Each square is a solve at its time from the start; the number is the problem.
+      </p>
+      <div role="img" aria-label={`Timeline of solves. ${summary}.`} className="mt-2 grid grid-cols-[5.5rem_minmax(0,1fr)] sm:grid-cols-[7.5rem_minmax(0,1fr)]">
+        {rows.map((r) => (
+          <div key={r.userId} className="contents" data-user={r.username}>
+            <div aria-hidden className="flex h-11 min-w-0 items-center gap-2 text-sm font-semibold">
+              <Avatar name={r.username} className="hidden size-6 rounded-[7px] text-[10px] sm:inline-grid" />
+              <span className="truncate">{r.username}</span>
+            </div>
+            <div aria-hidden className="relative mx-3 h-11 border-b">
+              <span className="absolute inset-x-0 top-1/2 h-px bg-border-strong" />
+              {[25, 50, 75].map((x) => (
+                <span key={x} className="absolute inset-y-0 w-px bg-primary/10" style={{ left: `${x}%` }} />
+              ))}
+              {timelineMarks(r.cells, durationSec).map((m) => (
+                <span
+                  key={m.position}
+                  data-testid="timeline-mark"
+                  data-left={m.left.toFixed(4)}
+                  title={`${problemLabel(m.position)} at ${formatScoreTime(m.solveSeconds)}`}
+                  className="absolute top-1/2 grid size-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[7px] bg-success-bg font-mono text-[0.6875rem] font-bold text-success ring-[1.5px] ring-success ring-inset"
+                  style={{ left: `${(m.left * 100).toFixed(2)}%` }}
+                >
+                  {m.position}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div />
+        <div aria-hidden className="mx-3 mt-2 flex justify-between font-mono text-[0.6875rem] text-faint">
+          {axisTicks(durationSec).map((t, i) => (
+            <span key={i} className={cn(i % 2 === 1 && "hidden sm:inline")}>
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+      <table className="sr-only">
+        <caption>Solves by person and time</caption>
+        <thead>
+          <tr>
+            <th scope="col">Person</th>
+            <th scope="col">Problem</th>
+            <th scope="col">Time from the start</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.flatMap((r) =>
+            timelineMarks(r.cells, durationSec).map((m) => (
+              <tr key={`${r.userId}-${m.position}`}>
+                <td>{r.username}</td>
+                <td>{problemLabel(m.position)}</td>
+                <td>{formatScoreTime(m.solveSeconds)}</td>
+              </tr>
+            )),
           )}
-          {cell.solvedBefore && (
-            <Badge variant="outline">
-              <RotateCcwIcon />
-              Solved before
-            </Badge>
-          )}
-        </span>
-      )}
-      {solved && <SolutionLink ctx={ctx} participant={participant} cell={cell} />}
-    </span>
+        </tbody>
+      </table>
+    </section>
   );
 }
 
-function SolutionLink({ ctx, participant: p, cell }: { ctx: Ctx; participant: ResultParticipant; cell: ResultCell }) {
-  if (cell.solution.visible) {
-    return (
-      <Link
-        href={solutionHref(ctx.roomId, ctx.sessionId, p.username, cell.position)}
-        className="text-sm font-medium text-link underline-offset-4 hover:underline"
-        data-testid="view-solution"
-      >
-        View solution
-        <span className="sr-only">
-          {" "}
-          of {p.isViewer ? "yours" : p.username} for Problem {cell.position}
-        </span>
-      </Link>
-    );
-  }
-  if (cell.solution.reason === "room_off") return null;
-  return (
-    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" data-testid="solution-hidden">
-      <EyeOffIcon aria-hidden className="size-3.5" />
-      {HIDDEN_REASON[cell.solution.reason]}
-    </span>
-  );
-}
+// --- Problems card ------------------------------------------------------------------
 
-/** "Problem 2 · House Robber · solved by 2 of 3 · first: alice 24:30" (spec §7.4). */
-export function ProblemSummaryList({ results }: { results: FinishedResults }) {
+/** Per problem: title, difficulty, rating slot, "Solved by k of n · first … · median …". */
+export function ProblemSummaryList({ results, rows }: { results: FinishedResults; rows: ScoreRow[] }) {
   const byPos = new Map(results.summaries.map((s) => [s.position, s]));
   return (
-    <section aria-labelledby="problems-heading" className="rounded-xl border bg-card shadow-sm">
+    <section aria-labelledby="problems-heading" className="min-w-0 rounded-xl border bg-card shadow-sm">
       <h2 id="problems-heading" className="px-6 pt-6 text-lg/7 font-semibold">
         Problems
       </h2>
       <ol className="mt-2 divide-y px-6 pb-2" data-testid="problem-summaries">
-        {results.problems.map((p) => (
-          <ProblemSummaryRow key={p.position} problem={p} summary={byPos.get(p.position)!} />
-        ))}
+        {results.problems.map((p) => {
+          const s = byPos.get(p.position)!;
+          const median = columnStats(rows, p.position).medianSeconds;
+          return (
+            <li key={p.position} className="flex flex-col gap-1.5 py-3.5" data-position={p.position}>
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <span className="font-mono text-base/6 text-muted-foreground tabular-nums">{p.position}</span>
+                {p.published ? (
+                  <Link href={`/problems/${p.slug}`} className={tableLinkClasses("min-w-0 break-words")}>
+                    {p.title}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{p.title}</span>
+                )}
+                <DifficultyBadge difficulty={p.difficulty} />
+                {p.pinned && <Badge variant="outline">Pinned</Badge>}
+                {p.rating && (
+                  <span className="rounded-sm border border-border-strong px-1.5 font-mono text-xs text-muted-foreground">
+                    {p.rating.before} → {p.rating.after}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-foreground-secondary">
+                Solved by {s.solvedBy} of {s.participants}
+                {s.attemptedBy > s.solvedBy && <> · {s.attemptedBy - s.solvedBy} tried without a solve</>}
+                {s.firstSolvers.length > 0 && (
+                  <>
+                    {" "}
+                    · first:{" "}
+                    {s.firstSolvers.map((f, i) => (
+                      <span key={f.userId}>
+                        {i > 0 && ", "}
+                        <span className="font-semibold text-foreground">{f.username}</span>{" "}
+                        <span className="tabular-nums">{formatScoreTime(f.solveSeconds)}</span>
+                      </span>
+                    ))}
+                  </>
+                )}
+                {median !== null && (
+                  <>
+                    {" "}
+                    · median <span className="tabular-nums">{formatScoreTime(median)}</span>
+                  </>
+                )}
+              </p>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
 }
 
-function ProblemSummaryRow({
-  problem: p,
-  summary: s,
-}: {
-  problem: ResultProblem;
-  summary: FinishedResults["summaries"][number];
-}) {
+// --- Rating change (slot) --------------------------------------------------------------
+
+/**
+ * Rating change table (§2.2): rendered only when the rating module filled
+ * `ratingChange` for at least one participant; otherwise nothing at all.
+ */
+export function RatingChangeCard({ results, rows }: { results: FinishedResults; rows: ScoreRow[] }) {
+  const rated = results.participants.filter((p) => p.ratingChange !== undefined);
+  if (rated.length === 0) return null;
+  const n = results.problems.length;
+  const rowById = new Map(rows.map((r) => [r.userId, r]));
+  const sorted = [...results.participants].sort((a, b) => (b.ratingChange?.delta ?? -1e9) - (a.ratingChange?.delta ?? -1e9));
   return (
-    <li className="flex flex-col gap-1.5 py-3.5" data-position={p.position}>
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        <span className="font-mono text-base/6 text-muted-foreground tabular-nums">{p.position}</span>
-        {p.published ? (
-          <Link href={`/problems/${p.slug}`} className={tableLinkClasses("min-w-0 break-words")}>
-            {p.title}
-          </Link>
-        ) : (
-          <span className="font-medium">{p.title}</span>
-        )}
-        <DifficultyBadge difficulty={p.difficulty} />
-        {p.pinned && <Badge variant="outline">Pinned</Badge>}
+    <section aria-labelledby="rating-heading" className="overflow-hidden rounded-xl border bg-card shadow-sm" data-testid="rating-change">
+      <div className="px-6 pt-5 pb-3">
+        <h2 id="rating-heading" className="text-lg/7 font-semibold">
+          Rating change
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Expected = the sum of each problem&apos;s solve chance from your rating vs. the problem&apos;s rating. Solving more
+          than expected raises your rating.
+          {n < 4 && ` With ${plural(n, "problem")} the change is scaled down (${n} of 4).`}
+        </p>
       </div>
-      <p className="text-sm text-foreground-secondary">
-        Solved by {s.solvedBy} of {s.participants}
-        {s.attemptedBy > s.solvedBy && <> · {s.attemptedBy - s.solvedBy} tried without a solve</>}
-        {s.firstSolvers.length > 0 && (
-          <>
-            {" "}
-            · first:{" "}
-            {s.firstSolvers.map((f, i) => (
-              <span key={f.userId}>
-                {i > 0 && ", "}
-                <span className="font-semibold text-foreground">{f.username}</span>{" "}
-                <span className="tabular-nums">{formatScoreTime(f.solveSeconds)}</span>
-              </span>
-            ))}
-          </>
-        )}
-      </p>
-    </li>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <caption className="sr-only">Rating change per member</caption>
+          <thead className="label-mono text-muted-foreground">
+            <tr className="border-y bg-surface-sunken">
+              <th scope="col" className="px-6 py-2.5 text-left">Member</th>
+              <th scope="col" className="px-3 py-2.5 text-left">Solved</th>
+              <th scope="col" className="px-3 py-2.5 text-right">Expected</th>
+              <th scope="col" className="px-3 py-2.5 text-right">Before</th>
+              <th scope="col" className="px-6 py-2.5 text-right">Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((p) => {
+              const r = rowById.get(p.userId);
+              const c = p.ratingChange;
+              return (
+                <tr key={p.userId} className="border-b last:border-b-0">
+                  <th scope="row" className="px-6 py-3 text-left font-semibold">
+                    {p.username}
+                  </th>
+                  <td className="px-3 py-3 font-mono">
+                    {r?.cells.map((cell) => (cell.state === "solved" ? cell.position : null)).filter((x) => x !== null).join(" ") || "—"}
+                  </td>
+                  <td className="px-3 py-3 text-right font-mono">{c ? c.expected.toFixed(1) : "—"}</td>
+                  <td className="px-3 py-3 text-right font-mono">{c ? c.before : "—"}</td>
+                  <td className="px-6 py-3 text-right font-mono">
+                    {c ? (
+                      <>
+                        <span className={c.delta >= 0 ? "text-success" : "text-danger"}>
+                          {c.delta >= 0 ? "+" : "−"}
+                          {Math.abs(c.delta)}
+                        </span>{" "}
+                        <span className="text-muted-foreground">→ {c.before + c.delta}</span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">not rated: no submissions</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

@@ -8,8 +8,17 @@ import { EmptyState } from "@/components/empty-state";
 import { NOT_FOUND_TITLE } from "@/components/not-found-content";
 import { PageHead } from "@/components/page-head";
 import { LocalDate } from "@/components/rooms/local-date";
+import { LocalTime } from "@/components/rooms/local-time";
 import { MemberPreferencesCard } from "@/components/rooms/room-settings";
-import { FinalScoreboard, ProblemSummaryList, SessionDetails } from "@/components/rooms/session-results";
+import {
+  FinalScoreboard,
+  ProblemSummaryList,
+  RatingChangeCard,
+  ResultFacts,
+  resultRows,
+  SessionDetails,
+  SessionTimeline,
+} from "@/components/rooms/session-results";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { plural, sessionResultsHref, sessionScreenHref } from "@/lib/rooms/history";
@@ -79,6 +88,8 @@ export default async function SessionResultsPage({
 
   const { session, room, viewer } = results;
   const dateLabel = formatShortDate(new Date(session.startedAt));
+  const rows = resultRows(results);
+  const n = results.problems.length;
   return (
     <>
       <PageHead
@@ -86,10 +97,15 @@ export default async function SessionResultsPage({
         title={
           <>
             Results ·{" "}
-            <LocalDate iso={session.startedAt} options={{ month: "short", day: "numeric", year: "numeric" }} />
+            <LocalDate iso={session.startedAt} options={{ weekday: "short", month: "short", day: "numeric" }} />
           </>
         }
-        subtitle={`Finished · ${plural(results.participants.length, "participant")} · ${plural(results.problems.length, "problem")}`}
+        subtitle={
+          <>
+            <LocalTime iso={session.startedAt} />–<LocalTime iso={session.endedAt} /> · {plural(n, "problem")} ·{" "}
+            {session.durationMin} min · {plural(results.participants.length, "participant")}
+          </>
+        }
         qed
       />
       <div className="container-page flex flex-col gap-8 py-8">
@@ -106,10 +122,14 @@ export default async function SessionResultsPage({
             </AlertDescription>
           </Alert>
         )}
-        <FinalScoreboard results={results} />
-        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <ProblemSummaryList results={results} />
-          <div className="flex min-w-0 flex-col gap-6">
+        <ResultFacts results={results} rows={rows} />
+        <FinalScoreboard results={results} rows={rows} />
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+          <SessionTimeline results={results} rows={rows} />
+          <ProblemSummaryList results={results} rows={rows} />
+        </div>
+        <RatingChangeCard results={results} rows={rows} />
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-2">
             <SessionDetails results={results} />
             {room.shareSolutions ? (
               viewer.isParticipant && <MemberPreferencesCard roomId={roomId} shareSolutions={viewer.shareSolutions} />
@@ -117,11 +137,10 @@ export default async function SessionResultsPage({
               <Alert variant="info">
                 <AlertTitle>Solution sharing is off in this room</AlertTitle>
                 <AlertDescription>
-                  Only you can open your own accepted code. The room owner can turn sharing on in the Members tab.
+                  Only you can open your own accepted code. The room owner can turn sharing on in the Settings tab.
                 </AlertDescription>
               </Alert>
             )}
-          </div>
         </div>
       </div>
     </>

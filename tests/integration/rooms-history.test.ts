@@ -33,7 +33,7 @@ import { GET as solutionRoute } from "@/app/api/rooms/[roomId]/sessions/[session
 import { SESSION_COOKIE } from "@/server/auth/cookie";
 import { signSessionToken } from "@/server/auth/token";
 import { getEnv } from "@/server/env";
-import { getMemberTimeline, getRoomHistory, getRoomLeaderboard } from "@/server/rooms/history";
+import { getMemberTimeline, getRoomHistory, getRoomMemberStats } from "@/server/rooms/history";
 import { getSessionResults, getSessionSolution, type FinishedResults } from "@/server/rooms/results";
 
 import { finalize, toFinalFields } from "../../worker/queue";
@@ -308,7 +308,7 @@ describe("solutions viewer (§4.5, D2, AC-S-SEC-2)", () => {
     expect(await getSessionSolution(db(), room.id, session.id, users.bob.id, { username: "alice" }, "1")).toBeNull();
     expect(await getSessionResults(db(), room.id, session.id, users.bob.id)).toBeNull();
     expect(await getRoomHistory(db(), room.id, users.bob.id)).toBeNull();
-    expect(await getRoomLeaderboard(db(), room.id, users.bob.id, "all")).toBeNull();
+    expect(await getRoomMemberStats(db(), room.id, users.bob.id, "all")).toBeNull();
     expect(await getMemberTimeline(db(), room.id, users.bob.id, "alice")).toBeNull();
     // Others still see bob's results ("(left)"), but not his code.
     const r = await finished(sample, "alice");
@@ -505,27 +505,27 @@ describe("room history (§5.2, Q2)", () => {
   });
 });
 
-describe("leaderboard (§5.2, Q4, Q5)", () => {
-  it("§6.4: one session; ties on solved + solve rate share a rank; calibration easy 3/3, medium 5/6, hard 0/3", async () => {
+describe("members tab (rooms-v2 §2.4; replaces the v1 leaderboard, Q5)", () => {
+  it("§6.4: one session: solved, first solves (window over result rows), wins, attendance; no calibration", async () => {
     const sample = await loadSampleSession();
-    const lb = (await getRoomLeaderboard(db(), sample.room.id, sample.users.bob.id, "all"))!;
-    expect(lb.sessions).toBe(1);
-    expect(lb.rows.map((r) => [r.username, r.rank, r.sessions, r.solved, r.offered, r.wins, r.avgRank, r.solveRate])).toEqual([
-      ["alice", 1, 1, 3, 4, 1, 1, 0.75],
-      ["carol", 1, 1, 3, 4, 0, 2, 0.75],
-      ["bob", 3, 1, 2, 4, 0, 3, 0.5],
+    const st = (await getRoomMemberStats(db(), sample.room.id, sample.users.bob.id, "all"))!;
+    expect(st.sessions).toBe(1);
+    expect(st.attendanceSessions).toBe(1);
+    // Wins first (alice), then solved (carol 3 > bob 2).
+    expect(st.rows.map((r) => [r.username, r.role, r.sessions, r.solved, r.firstSolves, r.wins, r.isMember])).toEqual([
+      ["alice", "owner", 1, 3, 1, 1, true],
+      ["carol", "member", 1, 3, 0, 0, true],
+      ["bob", "member", 1, 2, 2, 0, true],
     ]);
-    expect(lb.calibration.sessions).toBe(1);
-    expect(lb.calibration.counts).toEqual({
-      easy: { solved: 3, pairs: 3 },
-      medium: { solved: 5, pairs: 6 },
-      hard: { solved: 0, pairs: 3 },
-    });
+    for (const r of st.rows) expect(r.attendance).toMatchObject({ played: 1, of: 1, marks: ["played"] });
+    expect("calibration" in st).toBe(false);
   });
 
-  it("matches Q5 by hand over several sessions; windows; members without sessions; people who left", async () => {
+  it("several sessions, periods, members without sessions, people who left, attendance over the last 8", async () => {
     const [ann, ben, cat, dan] = await Promise.all(["ann", "ben", "cat", "dan"].map((u) => createUser({ username: u })));
     const { room } = await createRoom({ owner: ann, members: [ben, cat, dan] });
+    // Members joined long ago, so missed sessions count as missed (not "before").
+    await db().update(roomMembers).set({ joinedAt: new Date(Date.now() - 400 * DAY) }).where(eq(roomMembers.roomId, room.id));
     const p = await createProblem();
     const p2 = await createProblem();
     const p3 = await createProblem();
@@ -546,39 +546,41 @@ describe("leaderboard (§5.2, Q4, Q5)", () => {
     }
     await db().delete(roomMembers).where(eq(roomMembers.userId, cat.id)); // cat left
 
-    const all = (await getRoomLeaderboard(db(), room.id, ann.id, "all"))!;
-    // By hand: ann 6/9 (wins 2, avg 4/3), ben 5/9 (wins 2, avg 4/3), cat 1/6 (avg 3), dan none.
-    expect(all.rows.map((r) => [r.username, r.rank, r.sessions, r.solved, r.offered, r.wins, r.isMember])).toEqual([
-      ["ann", 1, 3, 6, 9, 2, true],
-      ["ben", 2, 3, 5, 9, 2, true],
-      ["cat", 3, 2, 1, 6, 0, false],
-      ["dan", null, 0, 0, 0, 0, true],
+    const all = (await getRoomMemberStats(db(), room.id, ann.id, "all"))!;
+    expect(all.rows.map((r) => [r.username, r.sessions, r.solved, r.wins, r.isMember])).toEqual([
+      ["ann", 3, 6, 2, true],
+      ["ben", 3, 5, 2, true],
+      ["dan", 0, 0, 0, true],
+      ["cat", 2, 1, 0, false],
     ]);
-    expect(all.rows[0].avgRank).toBeCloseTo(4 / 3, 6);
     expect(all.sessions).toBe(3);
+    const byName = new Map(all.rows.map((r) => [r.username, r]));
+    expect(byName.get("ann")!.attendance).toMatchObject({ played: 3, of: 3, streak: 3, marks: ["played", "played", "played"] });
+    expect(byName.get("dan")!.attendance).toMatchObject({ played: 0, of: 3, marks: ["missed", "missed", "missed"] });
+    expect(byName.get("cat")!.attendance).toBeNull();
 
-    const threeMonths = (await getRoomLeaderboard(db(), room.id, ann.id, "3m"))!;
+    const threeMonths = (await getRoomMemberStats(db(), room.id, ann.id, "3m"))!;
     expect(threeMonths.sessions).toBe(2);
-    // ben 4/6 vs ann 3/6.
-    expect(threeMonths.rows.map((r) => [r.username, r.rank, r.solved, r.offered])).toEqual([
-      ["ben", 1, 4, 6],
-      ["ann", 2, 3, 6],
-      ["cat", 3, 1, 6],
-      ["dan", null, 0, 0],
+    // ben: wins 2 > ann 1.
+    expect(threeMonths.rows.map((r) => [r.username, r.solved, r.wins])).toEqual([
+      ["ben", 4, 2],
+      ["ann", 3, 1],
+      ["dan", 0, 0],
+      ["cat", 1, 0],
     ]);
-    const fourWeeks = (await getRoomLeaderboard(db(), room.id, ann.id, "4w"))!;
+    const fourWeeks = (await getRoomMemberStats(db(), room.id, ann.id, "4w"))!;
     expect(fourWeeks.sessions).toBe(1);
-    expect(fourWeeks.rows.slice(0, 2).map((r) => [r.username, r.rank])).toEqual([
+    expect(fourWeeks.rows.slice(0, 2).map((r) => [r.username, r.wins])).toEqual([
       ["ann", 1],
       ["ben", 1],
     ]);
   });
 
-  it("leaderboard budget: Q0, Q5, members, Q4 = 4 queries", async () => {
+  it("members budget: Q0 + stats + members + attendance = 4 queries", async () => {
     const sample = await loadSampleSession();
     const c = countingDb();
     try {
-      await getRoomLeaderboard(c.db, sample.room.id, sample.users.alice.id, "3m");
+      await getRoomMemberStats(c.db, sample.room.id, sample.users.alice.id, "3m");
       expect(c.counter.n).toBe(4);
     } finally {
       await c.close();
@@ -656,7 +658,7 @@ describe("cross-room isolation (§8.2, AC-S-SEC-1)", () => {
     const B = sample.room.id;
     const bSession = sample.session.id;
     expect(await getRoomHistory(db(), B, eve.id)).toBeNull();
-    expect(await getRoomLeaderboard(db(), B, eve.id, "all")).toBeNull();
+    expect(await getRoomMemberStats(db(), B, eve.id, "all")).toBeNull();
     expect(await getSessionResults(db(), B, bSession, eve.id)).toBeNull();
     expect(await getSessionResults(db(), roomA.id, bSession, eve.id)).toBeNull(); // B's session through A's id
     expect(await getSessionSolution(db(), roomA.id, bSession, eve.id, { username: "alice" }, "1")).toBeNull();

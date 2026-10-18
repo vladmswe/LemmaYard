@@ -1,4 +1,5 @@
 import { Link2Icon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import type { RoomDetail } from "@/server/rooms/queries";
@@ -8,16 +9,36 @@ import { MembersList } from "./members-list";
 import { memberCountLabel } from "./room-card";
 import { DangerZoneCard, MemberPreferencesCard, RoomSettingsCard } from "./room-settings";
 
-/** Members tab (spec §7.4): list + invite (owner) on the left, settings on the right. */
-export function RoomMembersTab({ detail }: { detail: RoomDetail }) {
+/**
+ * Region of the Settings tab for room defaults & presets and the weekly
+ * schedule (rooms-v2 §2.4, §4, §5; module V2-2). Renders nothing until that
+ * module passes its cards in.
+ */
+export function RoomDefaultsRegion({ children }: { children?: ReactNode }) {
+  if (!children) return null;
+  return (
+    <div data-slot="room-defaults" className="flex min-w-0 flex-col gap-6">
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Settings tab (rooms-v2 §2.4): name and sharing (owner), your preferences,
+ * the member list with owner actions, the invite link, room defaults (V2-2)
+ * and the danger zone.
+ */
+export function RoomSettingsTab({ detail, defaults }: { detail: RoomDetail; defaults?: ReactNode }) {
   const { room, viewer, members, invite } = detail;
   const isOwner = viewer.role === "owner";
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
+    <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]" data-testid="room-settings">
       <div className="flex min-w-0 flex-col gap-6">
+        {isOwner && <RoomSettingsCard roomId={room.id} name={room.name} shareSolutions={room.shareSolutions} />}
+        <RoomDefaultsRegion>{defaults}</RoomDefaultsRegion>
         <Card>
           <CardHeader>
-            <h2 className="text-lg/7 font-semibold">Members</h2>
+            <h2 className="text-lg/7 font-semibold">People in this room</h2>
             <CardDescription>{memberCountLabel(members.length)} · up to 20 per room</CardDescription>
           </CardHeader>
           <CardContent>
@@ -30,6 +51,9 @@ export function RoomMembersTab({ detail }: { detail: RoomDetail }) {
             />
           </CardContent>
         </Card>
+      </div>
+      <div className="flex min-w-0 flex-col gap-6">
+        <MemberPreferencesCard roomId={room.id} shareSolutions={viewer.shareSolutions} />
         {isOwner && invite ? (
           <InviteLinkCard roomId={room.id} invite={invite} />
         ) : (
@@ -45,10 +69,6 @@ export function RoomMembersTab({ detail }: { detail: RoomDetail }) {
             </CardContent>
           </Card>
         )}
-      </div>
-      <div className="flex min-w-0 flex-col gap-6">
-        <MemberPreferencesCard roomId={room.id} shareSolutions={viewer.shareSolutions} />
-        {isOwner && <RoomSettingsCard roomId={room.id} name={room.name} shareSolutions={room.shareSolutions} />}
         <DangerZoneCard roomId={room.id} roomName={room.name} isOwner={isOwner} memberCount={members.length} />
       </div>
     </div>

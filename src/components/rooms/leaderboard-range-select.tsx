@@ -12,7 +12,7 @@ import {
   type LeaderboardRange,
 } from "@/lib/rooms/history";
 
-/** Window of the Leaderboard tab (spec §5.2); the value lives in `?range=`. */
+/** Period of the Members tab (rooms-v2 §2.4); the value lives in `?range=`. */
 export function LeaderboardRangeSelect({ roomId, range }: { roomId: string; range: LeaderboardRange }) {
   const router = useRouter();
   const labelId = useId();

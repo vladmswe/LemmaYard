@@ -2,7 +2,7 @@
 // token's sessionStorage handoff and the room tab parser.
 import { describe, expect, it } from "vitest";
 
-import { parseRoomTab } from "@/components/rooms/room-page-slots";
+import { legacyRoomTabRedirect, parseRoomTab } from "@/components/rooms/room-page-slots";
 import { generateInviteToken } from "@/lib/rooms/invite";
 import {
   clearInviteToken,
@@ -163,11 +163,22 @@ describe("invite token handoff (sessionStorage)", () => {
 describe("parseRoomTab", () => {
   it.each([
     ["members", "members"],
-    ["leaderboard", "leaderboard"],
+    ["settings", "settings"],
+    // v1 tab: the page redirects it to Members (legacyRoomTabRedirect).
+    ["leaderboard", "sessions"],
     [undefined, "sessions"],
     ["nope", "sessions"],
     [["members", "x"], "members"],
   ])("%j → %s", (input, out) => {
     expect(parseRoomTab(input)).toBe(out);
+  });
+});
+
+describe("legacyRoomTabRedirect (rooms-v2 AC-V2-MX-5)", () => {
+  it("sends the v1 Leaderboard tab to Members; anything else stays", () => {
+    expect(legacyRoomTabRedirect("leaderboard")).toBe("members");
+    expect(legacyRoomTabRedirect(["leaderboard"])).toBe("members");
+    expect(legacyRoomTabRedirect("members")).toBeNull();
+    expect(legacyRoomTabRedirect(undefined)).toBeNull();
   });
 });

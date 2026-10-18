@@ -180,7 +180,7 @@ export function JoinRoom({ signedIn }: { signedIn: boolean }) {
                   <InfoIcon aria-hidden />
                   <AlertDescription>
                     Accepted solutions in this room are visible to members after each session ends. You can turn
-                    this off for yourself in the room&apos;s Members tab.
+                    this off for yourself in the room&apos;s Settings tab.
                   </AlertDescription>
                 </Alert>
               )
