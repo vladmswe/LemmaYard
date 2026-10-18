@@ -30,6 +30,7 @@ vi.mock("next/headers", () => ({
 import { GET as icsRoute } from "@/app/api/rooms/[roomId]/schedule.ics/route";
 import { GET as lobbyRoute } from "@/app/api/rooms/[roomId]/sessions/[sessionId]/lobby/route";
 import { GET as roomsGet } from "@/app/api/rooms/route";
+import type { SessionTemplate } from "@/lib/rooms/room-defaults";
 import { nextOccurrence } from "@/lib/rooms/schedule";
 import type { LobbyView } from "@/lib/rooms/session-view";
 import { SESSION_COOKIE } from "@/server/auth/cookie";
@@ -55,10 +56,10 @@ async function as<T>(user: User | null, fn: () => Promise<T>): Promise<T> {
 const ics = (roomId: string) => icsRoute(get(`/api/rooms/${roomId}/schedule.ics`), params({ roomId }));
 
 const SATURDAY = { weekday: 6, time: "18:00", timeZone: "Europe/Kyiv", presetId: null };
-const PRESETS = [
+const PRESETS: SessionTemplate[] = [
   { id: "sat12345", name: "Saturday", problemCount: 4, durationMin: 90, mode: "rating", challenge: "balanced", tags: [], avoidSolved: true, rated: true },
   { id: "short123", name: "Short", problemCount: 2, durationMin: 45, mode: "rating", challenge: "relaxed", tags: [], avoidSolved: true, rated: true },
-] as const;
+];
 
 beforeAll(() => {
   state.db = getTestDb();
