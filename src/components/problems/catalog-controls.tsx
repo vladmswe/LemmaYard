@@ -184,7 +184,7 @@ export function CatalogFilterBar({
                 <ChipCount>
                   <span className="sr-only">(</span>
                   {t.count}
-                  <span className="sr-only"> problems)</span>
+                  <span className="sr-only">{t.count === 1 ? " problem)" : " problems)"}</span>
                 </ChipCount>
               </Chip>
             );
