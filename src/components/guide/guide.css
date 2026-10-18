@@ -513,12 +513,16 @@ a.guide-term:hover {
   max-height: 32rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--editor-bg);
+  /* Light: white, where Shiki's github-light comments keep 4.5:1; dark: the editor night. */
+  background: var(--card);
   padding-block: 0.625rem;
   font-family: var(--font-mono);
   font-size: 0.875rem;
   line-height: 1.5rem;
   font-variant-ligatures: none;
+}
+.dark .guide-code-body {
+  background: var(--editor-bg);
 }
 /* The box scrolls, not the <pre> inside it. */
 .guide-code-body pre {

@@ -102,7 +102,11 @@
   background: var(--viz-code-active);
   box-shadow: inset 3px 0 0 var(--viz-code-active-bar);
 }
+/* Code: white in light (Shiki's github-light comments need it for 4.5:1), editor night in dark. */
 [data-player-code] [data-code-scroll] {
+  background: var(--card);
+}
+.dark [data-player-code] [data-code-scroll] {
   background: var(--viz-bg);
 }
 /* Grid drops the whitespace-only "\n" text between line spans, so each line is one row. */
