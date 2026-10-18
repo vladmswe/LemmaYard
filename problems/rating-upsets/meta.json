@@ -1,0 +1,18 @@
+{
+  "number": 44,
+  "slug": "rating-upsets",
+  "title": "Rating Upsets",
+  "difficulty": "hard",
+  "rating": 1900,
+  "tags": ["array", "sorting", "binary-search"],
+  "signature": {
+    "name": "countUpsets",
+    "params": [
+      { "name": "ratings", "type": "int[]" },
+      { "name": "gap", "type": "int" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

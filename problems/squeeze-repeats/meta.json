@@ -1,0 +1,17 @@
+{
+  "number": 24,
+  "slug": "squeeze-repeats",
+  "title": "Squeeze Repeats",
+  "difficulty": "easy",
+  "rating": 1180,
+  "tags": ["string", "two-pointers"],
+  "signature": {
+    "name": "squeeze",
+    "params": [
+      { "name": "text", "type": "string" }
+    ],
+    "returns": "string"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

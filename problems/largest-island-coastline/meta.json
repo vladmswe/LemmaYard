@@ -1,0 +1,15 @@
+{
+  "number": 34,
+  "slug": "largest-island-coastline",
+  "title": "Largest Island Coastline",
+  "difficulty": "medium",
+  "rating": 1540,
+  "tags": ["matrix", "graph", "breadth-first-search"],
+  "signature": {
+    "name": "coastline",
+    "params": [{ "name": "grid", "type": "string[]" }],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

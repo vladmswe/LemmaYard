@@ -1,0 +1,21 @@
+{
+  "number": 48,
+  "slug": "toll-free-passes",
+  "title": "Toll-Free Passes",
+  "difficulty": "hard",
+  "rating": 2040,
+  "tags": ["graph", "shortest-path", "heap"],
+  "signature": {
+    "name": "cheapestRoute",
+    "params": [
+      { "name": "n", "type": "int" },
+      { "name": "roads", "type": "int[][]" },
+      { "name": "passes", "type": "int" },
+      { "name": "source", "type": "int" },
+      { "name": "target", "type": "int" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

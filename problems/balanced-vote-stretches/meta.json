@@ -1,0 +1,15 @@
+{
+  "number": 36,
+  "slug": "balanced-vote-stretches",
+  "title": "Balanced Vote Stretches",
+  "difficulty": "medium",
+  "rating": 1610,
+  "tags": ["string", "prefix-sum", "hash-table"],
+  "signature": {
+    "name": "countBalanced",
+    "params": [{ "name": "votes", "type": "string" }],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

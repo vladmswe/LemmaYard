@@ -1,0 +1,19 @@
+{
+  "number": 22,
+  "slug": "lucky-digit-sums",
+  "title": "Lucky Digit Sums",
+  "difficulty": "easy",
+  "rating": 1090,
+  "tags": ["math"],
+  "signature": {
+    "name": "countLucky",
+    "params": [
+      { "name": "lo", "type": "int" },
+      { "name": "hi", "type": "int" },
+      { "name": "k", "type": "int" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

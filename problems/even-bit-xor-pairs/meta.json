@@ -1,0 +1,15 @@
+{
+  "number": 33,
+  "slug": "even-bit-xor-pairs",
+  "title": "Even-Bit XOR Pairs",
+  "difficulty": "medium",
+  "rating": 1510,
+  "tags": ["bit-manipulation", "math", "hash-table"],
+  "signature": {
+    "name": "countEvenXorPairs",
+    "params": [{ "name": "nums", "type": "int[]" }],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

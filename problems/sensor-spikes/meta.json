@@ -1,0 +1,18 @@
+{
+  "number": 21,
+  "slug": "sensor-spikes",
+  "title": "Sensor Spikes",
+  "difficulty": "easy",
+  "rating": 1060,
+  "tags": ["array"],
+  "signature": {
+    "name": "countSpikes",
+    "params": [
+      { "name": "readings", "type": "int[]" },
+      { "name": "margin", "type": "int" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

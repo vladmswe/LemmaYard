@@ -7,7 +7,7 @@ import path from "node:path";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
-import { buildProblemsSql, OUTPUT_FILE } from "../../scripts/export-problems-sql";
+import { buildProblemsSql, existingPartFiles, OUTPUT_FILE, partFile } from "../../scripts/export-problems-sql";
 import { createDb } from "@/server/db";
 import { problems } from "@/server/db/schema";
 import { importProblems, loadProblems } from "@/server/problems/importer";
@@ -60,7 +60,7 @@ describe("docs/supabase/problems.sql", () => {
   it("writes the same rows as problems:import, and again when re-run", async () => {
     await importProblems(getTestDb(), await loadProblems("problems"));
     const imported = await snapshot();
-    expect(imported.problems).toHaveLength(20);
+    expect(imported.problems).toHaveLength(50);
 
     await resetTestDb();
     const script = await readFile(OUTPUT_FILE, "utf8");
@@ -78,6 +78,34 @@ describe("docs/supabase/problems.sql", () => {
       rows.map((row) => Object.fromEntries(Object.entries(row).filter(([key]) => key !== "id")));
     expect(strip(again.testCases)).toEqual(strip(imported.testCases));
     expect((await getTestDb().execute(sql`SELECT id, slug FROM problems ORDER BY slug`)).rows).toEqual(firstIds);
+  });
+
+  it("the split parts, run in any order, write the same rows as problems:import", async () => {
+    await importProblems(getTestDb(), await loadProblems("problems"));
+    const imported = await snapshot();
+    // Tag ids depend on the order the parts run in; compare tags by slug.
+    const withoutTagIds = (snap: Awaited<ReturnType<typeof snapshot>>) => ({
+      ...snap,
+      tags: snap.tags.map(({ slug, name }) => ({ slug, name })).sort((a, b) => String(a.slug).localeCompare(String(b.slug))),
+      // Test case ids (and so the snapshot order) also depend on the run order.
+      testCases: snap.testCases
+        .map((row) => Object.fromEntries(Object.entries(row).filter(([key]) => key !== "id")))
+        .sort((a, b) => String(a.slug).localeCompare(String(b.slug)) || Number(a.position) - Number(b.position)),
+    });
+
+    const count = existingPartFiles().length;
+    expect(count).toBeGreaterThan(1);
+    for (const order of [
+      Array.from({ length: count }, (_, i) => i + 1),
+      Array.from({ length: count }, (_, i) => count - i),
+    ]) {
+      await resetTestDb();
+      for (const index of order) await runScript(await readFile(partFile(index), "utf8"));
+      expect(withoutTagIds(await snapshot())).toEqual(withoutTagIds(imported));
+    }
+    // Re-running a part is safe.
+    await runScript(await readFile(partFile(1), "utf8"));
+    expect(withoutTagIds(await snapshot())).toEqual(withoutTagIds(imported));
   });
 
   it("stores hostile titles and descriptions verbatim and refuses a taken number", async () => {

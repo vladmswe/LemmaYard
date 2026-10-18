@@ -1,0 +1,15 @@
+{
+  "number": 40,
+  "slug": "shortest-full-playlist",
+  "title": "Shortest Full-Genre Playlist",
+  "difficulty": "medium",
+  "rating": 1730,
+  "tags": ["array", "sliding-window", "hash-table"],
+  "signature": {
+    "name": "shortestFullSegment",
+    "params": [{ "name": "genres", "type": "int[]" }],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

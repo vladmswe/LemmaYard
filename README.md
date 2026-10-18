@@ -12,7 +12,7 @@ in a locked-down Docker container.
 
 ## What you can do
 
-- **Solve problems.** 20 original problems (11 easy, 6 medium, 3 hard) with
+- **Solve problems.** 50 original problems (22 easy, 17 medium, 11 hard) with
   search, difficulty/tag/status filters and acceptance rates.
 - **Write and run code** in Monaco (bundled locally, no CDN) in Python 3 or
   JavaScript (Node 22). Run checks the sample tests or your own input; Submit
@@ -214,7 +214,7 @@ docs/               deploy guide, specs, generated Supabase SQL, images
 | `pnpm db:generate` | drizzle-kit: new migration after editing `src/server/db/schema.ts`. |
 | `pnpm db:migrate` | Applies migrations (`DATABASE_URL_DIRECT`, else `DATABASE_URL`). |
 | `pnpm db:export-sql` | Regenerates `docs/supabase/schema.sql` from `drizzle/*.sql`. |
-| `pnpm problems:export-sql` | Regenerates `docs/supabase/problems.sql` (the problem catalog as one idempotent SQL script) from `problems/`; `--check` exits 1 when it is stale. |
+| `pnpm problems:export-sql` | Regenerates `docs/supabase/problems.sql` (the problem catalog as one idempotent SQL script) and the same catalog split into `docs/supabase/problems-<n>.sql` parts (each under 800 KB, run in any order) from `problems/`; `--check` exits 1 when any of them is stale. |
 | `pnpm db:seed` | `db:migrate` + `problems:import`. |
 | `pnpm problems:import` | Validates and upserts `problems/` (`--dir <path>`, `--prune`). |
 | `pnpm problems:verify` | Runs every reference solution in the real sandbox; must all be Accepted (`--dir`, `--only <slug>`, `--concurrency <n>`). |
@@ -258,7 +258,7 @@ A problem is a directory `problems/<slug>/` with five files. Schemas:
 
 ```json
 {
-  "number": 21,
+  "number": 51,
   "slug": "running-sum",
   "title": "Running Sum",
   "difficulty": "easy",
@@ -350,9 +350,38 @@ Rules worth knowing:
 - Names must be valid identifiers in both languages and must not be reserved
   words or common builtins (`src/lib/problems/identifiers.ts`).
 - `number` and `slug` must be unique. Write your own statement; do not copy
-  one from another site.
+  one from another site (see the authoring policy below).
 - Starter code in the editor is generated from `signature`
   (`src/lib/templates`), so there is nothing else to write.
+
+### Test generators
+
+Problems with many tests have a generator `problems/_generators/<slug>.py`
+(the importer skips directories starting with `_`). It is seeded and
+deterministic: it checks the reference `solution.py` against an independently
+written brute force on random small inputs and on every stored test small
+enough for it, computes `expected` with the reference and rewrites
+`tests.json`. Run it from the repository root, then verify:
+
+```bash
+python3 problems/_generators/<slug>.py
+pnpm problems:verify --only <slug>
+pnpm problems:export-sql
+```
+
+Keep inputs small unless a test is about performance: every test is stored in
+the database and in `docs/supabase/problems*.sql`, and all outputs of one
+submission share the judge's 1 MB output cap.
+
+### Problem authoring policy
+
+Every problem in `problems/` is original work of this project and is released
+under the repository license (MIT, see `LICENSE`). Classic algorithmic ideas
+are common knowledge, but statements, stories, examples, constraints and test
+data are written from scratch: never copy, closely paraphrase or reconstruct a
+problem (or its tests) from LeetCode, Codeforces, HackerRank or any other site.
+New problems also get their own titles and their own twist rather than being a
+recognisable one-to-one clone of a well-known problem.
 
 ## How to add a language
 
@@ -489,7 +518,8 @@ The owner guide is [docs/DEPLOY.md](docs/DEPLOY.md): Vercel for the web app,
 Supabase Postgres (pooler URLs, TLS, migrating and seeding from your machine,
 or without credentials by running
 [`docs/supabase/schema.sql`](docs/supabase/schema.sql) and then
-[`docs/supabase/problems.sql`](docs/supabase/problems.sql) in the SQL Editor),
+[`docs/supabase/problems.sql`](docs/supabase/problems.sql), or its parts
+`docs/supabase/problems-<n>.sql`, in the SQL Editor),
 environment variables, region, `/api/health` and troubleshooting.
 
 - **Without a judge (the Vercel default):** `JUDGE_EXECUTOR` and

@@ -155,10 +155,16 @@ database with two generated SQL files instead of section 5. In Supabase open
 
 1. Paste the whole of [`docs/supabase/schema.sql`](supabase/schema.sql) and
    press **Run**. The result lists every table with `rls = true`.
-2. Open a new query, paste the whole of
-   [`docs/supabase/problems.sql`](supabase/problems.sql) and press **Run**. The
+2. Seed the problems. The catalog is about 4 MB, which may be more than the
+   browser SQL Editor accepts in one paste, so it is also split into parts
+   `docs/supabase/problems-1.sql`, `problems-2.sql`, ... (currently 6, each
+   under 800 KB). Open a new query for each part, paste the whole file and
+   press **Run**; run every part once, in any order (each part is its own
+   transaction, and running one again is harmless). After the last part the
    result shows `published_problems` and `test_cases` with the counts named in
-   the file's header comment (currently 20 and 275).
+   the parts' header comment (currently 50 and 6625). If your editor accepts
+   it, the single file [`docs/supabase/problems.sql`](supabase/problems.sql)
+   does the same in one run.
 
 Then open `https://<production domain>/api/health` (section 6): it must answer
 `200 {"ok":true,"db":"up",...}`, and `/` shows the problem count.
@@ -174,10 +180,14 @@ the same validation and the same rows as `pnpm problems:import`) is idempotent:
 it upserts every problem by slug (published, with its author rating), its tags
 and its test cases in one transaction, so it is safe to run again after the
 problems change; it never unpublishes problems. It contains the hidden test
-cases too, which are already public in `problems/*/tests.json`. The file is
-about 1.9 MB; if the editor struggles with it, use `pnpm problems:import`
-(section 5) instead. Unit tests (`tests/unit/supabase-sql.test.ts`,
-`tests/unit/problems-sql.test.ts`) fail when either file is stale; regenerate
+cases too, which are already public in `problems/*/tests.json`. The parts
+`problems-<n>.sql` contain exactly the same statements, grouped by problem:
+each part checks, parks and upserts only its own problems and inserts the tags
+they use. One limitation: renumbering a problem to a number that a problem in
+another part still holds fails in that part; run the single file or
+`pnpm problems:import` in that case. `pnpm problems:import` (section 5) stays
+the primary way to seed. Unit tests (`tests/unit/supabase-sql.test.ts`,
+`tests/unit/problems-sql.test.ts`) fail when any of these files is stale; regenerate
 with `pnpm db:export-sql` after adding a migration and with
 `pnpm problems:export-sql` after changing `problems/`.
 

@@ -1,0 +1,19 @@
+{
+  "number": 26,
+  "slug": "alarm-streak",
+  "title": "Alarm Streak",
+  "difficulty": "easy",
+  "rating": 1290,
+  "tags": ["array", "sliding-window"],
+  "signature": {
+    "name": "longestAlarmStreak",
+    "params": [
+      { "name": "load", "type": "int[]" },
+      { "name": "k", "type": "int" },
+      { "name": "limit", "type": "int" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}
