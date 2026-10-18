@@ -1,0 +1,18 @@
+{
+  "number": 38,
+  "slug": "earliest-free-server",
+  "title": "Earliest Free Server",
+  "difficulty": "medium",
+  "rating": 1670,
+  "tags": ["heap", "array"],
+  "signature": {
+    "name": "serverFinishTimes",
+    "params": [
+      { "name": "servers", "type": "int" },
+      { "name": "jobs", "type": "int[]" }
+    ],
+    "returns": "int[]"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

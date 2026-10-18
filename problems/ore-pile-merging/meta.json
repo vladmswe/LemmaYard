@@ -1,0 +1,15 @@
+{
+  "number": 47,
+  "slug": "ore-pile-merging",
+  "title": "Ore Pile Merging",
+  "difficulty": "hard",
+  "rating": 1990,
+  "tags": ["array", "dynamic-programming", "prefix-sum"],
+  "signature": {
+    "name": "mergeCost",
+    "params": [{ "name": "piles", "type": "int[]" }],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

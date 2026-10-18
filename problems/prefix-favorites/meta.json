@@ -1,0 +1,18 @@
+{
+  "number": 42,
+  "slug": "prefix-favorites",
+  "title": "Prefix Favorites",
+  "difficulty": "medium",
+  "rating": 1820,
+  "tags": ["trie", "string", "hash-table"],
+  "signature": {
+    "name": "favorites",
+    "params": [
+      { "name": "searches", "type": "string[]" },
+      { "name": "prefixes", "type": "string[]" }
+    ],
+    "returns": "string[]"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

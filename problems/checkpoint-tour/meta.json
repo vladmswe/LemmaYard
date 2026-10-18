@@ -1,0 +1,15 @@
+{
+  "number": 49,
+  "slug": "checkpoint-tour",
+  "title": "Checkpoint Tour",
+  "difficulty": "hard",
+  "rating": 2080,
+  "tags": ["bit-manipulation", "dynamic-programming"],
+  "signature": {
+    "name": "shortestTour",
+    "params": [{ "name": "points", "type": "int[][]" }],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

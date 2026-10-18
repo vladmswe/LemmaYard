@@ -1,0 +1,17 @@
+{
+  "number": 25,
+  "slug": "reversed-twins",
+  "title": "Reversed Twins",
+  "difficulty": "easy",
+  "rating": 1230,
+  "tags": ["string", "hash-table"],
+  "signature": {
+    "name": "countTwinPairs",
+    "params": [
+      { "name": "words", "type": "string[]" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

@@ -1,0 +1,19 @@
+{
+  "number": 50,
+  "slug": "best-hub-town",
+  "title": "Best Hub Town",
+  "difficulty": "hard",
+  "rating": 2130,
+  "tags": ["tree", "depth-first-search", "dynamic-programming"],
+  "signature": {
+    "name": "bestHub",
+    "params": [
+      { "name": "parent", "type": "int[]" },
+      { "name": "population", "type": "int[]" },
+      { "name": "roadLength", "type": "int[]" }
+    ],
+    "returns": "int[]"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

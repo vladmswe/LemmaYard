@@ -1,0 +1,17 @@
+{
+  "number": 29,
+  "slug": "deepest-bracket-nesting",
+  "title": "Deepest Bracket Nesting",
+  "difficulty": "easy",
+  "rating": 1370,
+  "tags": ["string", "stack"],
+  "signature": {
+    "name": "deepestNesting",
+    "params": [
+      { "name": "text", "type": "string" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

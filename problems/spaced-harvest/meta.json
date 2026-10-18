@@ -1,0 +1,18 @@
+{
+  "number": 35,
+  "slug": "spaced-harvest",
+  "title": "Spaced Harvest",
+  "difficulty": "medium",
+  "rating": 1570,
+  "tags": ["array", "dynamic-programming"],
+  "signature": {
+    "name": "spacedHarvest",
+    "params": [
+      { "name": "yields", "type": "int[]" },
+      { "name": "gap", "type": "int" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

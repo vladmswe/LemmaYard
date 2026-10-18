@@ -1,0 +1,15 @@
+{
+  "number": 41,
+  "slug": "banner-widths",
+  "title": "Banner Widths",
+  "difficulty": "medium",
+  "rating": 1780,
+  "tags": ["array", "stack", "monotonic-stack"],
+  "signature": {
+    "name": "bannerWidths",
+    "params": [{ "name": "heights", "type": "int[]" }],
+    "returns": "int[]"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

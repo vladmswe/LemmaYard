@@ -1,0 +1,19 @@
+{
+  "number": 46,
+  "slug": "ladder-word-routes",
+  "title": "Ladder Word Routes",
+  "difficulty": "hard",
+  "rating": 1960,
+  "tags": ["string", "graph", "breadth-first-search"],
+  "signature": {
+    "name": "countShortestLadders",
+    "params": [
+      { "name": "start", "type": "string" },
+      { "name": "goal", "type": "string" },
+      { "name": "words", "type": "string[]" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

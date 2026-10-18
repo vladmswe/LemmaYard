@@ -1,0 +1,15 @@
+{
+  "number": 45,
+  "slug": "guarded-queens",
+  "title": "Guarded Queens",
+  "difficulty": "hard",
+  "rating": 1930,
+  "tags": ["backtracking", "bit-manipulation"],
+  "signature": {
+    "name": "countQueenLayouts",
+    "params": [{ "name": "board", "type": "string[]" }],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

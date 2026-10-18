@@ -1,0 +1,18 @@
+{
+  "number": 43,
+  "slug": "smallest-task-order",
+  "title": "Smallest Task Order",
+  "difficulty": "hard",
+  "rating": 1850,
+  "tags": ["graph", "topological-sort", "heap"],
+  "signature": {
+    "name": "taskOrder",
+    "params": [
+      { "name": "n", "type": "int" },
+      { "name": "rules", "type": "int[][]" }
+    ],
+    "returns": "int[]"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}
