@@ -1,6 +1,9 @@
 // AC-M7-1 happy path, judged by the real worker in Docker: sign up through
 // the form → Two Sum → paste a correct solution → Run passes the samples →
 // Submit is Accepted on every test → the public profile shows it solved.
+import { existsSync, readdirSync } from "node:fs";
+import path from "node:path";
+
 import { expect, test } from "@playwright/test";
 
 import { JUDGE_TAG, requireJudge } from "../../e2e-support/judge";
@@ -15,6 +18,10 @@ import {
 } from "../../e2e-support/workspace";
 
 const JUDGED_MS = 60_000;
+/** The e2e database imports every problem directory in problems/. */
+const PROBLEM_COUNT = readdirSync(path.join(process.cwd(), "problems"), { withFileTypes: true }).filter(
+  (e) => e.isDirectory() && existsSync(path.join(process.cwd(), "problems", e.name, "meta.json")),
+).length;
 
 test.describe("solve Two Sum", { tag: JUDGE_TAG }, () => {
   requireJudge();
@@ -48,7 +55,7 @@ test.describe("solve Two Sum", { tag: JUDGE_TAG }, () => {
 
       await page.goto(`/u/${username}`);
       const stats = page.getByRole("main").getByTestId("profile-stats");
-      await expect(stats).toContainText(/Solved\s*1\s*\/\s*20/);
+      await expect(stats).toContainText(new RegExp(`Solved\\s*1\\s*/\\s*${PROBLEM_COUNT}`));
       const recent = page.getByRole("main").getByTestId("recent-solved");
       await expect(recent.getByRole("listitem")).toHaveCount(1);
       await expect(recent.getByRole("link", { name: /Two Sum/ })).toBeVisible();
