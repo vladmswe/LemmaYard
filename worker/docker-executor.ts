@@ -135,10 +135,14 @@ export function sandboxImages(config: DockerExecutorConfig): string[] {
  *   only for errors and only to stderr (stdout carries the frames).
  */
 export function javaFlags(memoryMb: number): string[] {
+  return ["-XX:AOTCache=/sandbox/harness.aot", ...jvmLimitFlags(memoryMb)];
+}
+
+/** `javaFlags` without the image's AOT cache (shared with the Vercel Sandbox executor). */
+export function jvmLimitFlags(memoryMb: number): string[] {
   const heapMb = Math.max(32, Math.floor(memoryMb * 0.5));
   const stackMb = Math.min(64, Math.max(8, Math.floor(memoryMb / 8)));
   return [
-    "-XX:AOTCache=/sandbox/harness.aot",
     "-XX:+UseSerialGC",
     `-Xmx${heapMb}m`,
     `-XX:MaxDirectMemorySize=${heapMb}m`,
@@ -160,9 +164,12 @@ export function sandboxCommand(language: Language, memoryMb: number): string[] {
   if (language === "java") {
     return ["java", ...javaFlags(memoryMb), "-cp", "/sandbox/harness.jar", "Harness"];
   }
-  // V8 heap below the cgroup limit so heap exhaustion aborts cleanly (exit 134).
-  const heapMb = Math.max(16, Math.floor(memoryMb * 0.75));
-  return ["node", `--max-old-space-size=${heapMb}`, "/sandbox/harness.js"];
+  return ["node", `--max-old-space-size=${nodeHeapMb(memoryMb)}`, "/sandbox/harness.js"];
+}
+
+/** V8 heap below the memory limit so heap exhaustion aborts cleanly (exit 134). */
+export function nodeHeapMb(memoryMb: number): number {
+  return Math.max(16, Math.floor(memoryMb * 0.75));
 }
 
 /** `docker create` arguments. Deliberately no `-e`, `-v` or `--mount`. */

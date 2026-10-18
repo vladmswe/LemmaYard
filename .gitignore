@@ -48,5 +48,8 @@ next-env.d.ts
 /playwright/.cache/
 .gstack/
 
+# python bytecode (problems/_generators)
+__pycache__/
+
 # Claude Code local state / agent worktrees
 .claude/

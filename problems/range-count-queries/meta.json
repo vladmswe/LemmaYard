@@ -1,0 +1,18 @@
+{
+  "number": 28,
+  "slug": "range-count-queries",
+  "title": "Range Count Queries",
+  "difficulty": "easy",
+  "rating": 1340,
+  "tags": ["array", "binary-search", "sorting"],
+  "signature": {
+    "name": "countInRanges",
+    "params": [
+      { "name": "values", "type": "int[]" },
+      { "name": "queries", "type": "int[][]" }
+    ],
+    "returns": "int[]"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

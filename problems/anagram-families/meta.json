@@ -1,0 +1,17 @@
+{
+  "number": 27,
+  "slug": "anagram-families",
+  "title": "Anagram Families",
+  "difficulty": "easy",
+  "rating": 1310,
+  "tags": ["string", "hash-table", "sorting"],
+  "signature": {
+    "name": "anagramFamilies",
+    "params": [
+      { "name": "words", "type": "string[]" }
+    ],
+    "returns": "int[]"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

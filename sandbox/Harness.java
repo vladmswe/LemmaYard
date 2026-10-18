@@ -738,7 +738,23 @@ public final class Harness {
     @SuppressWarnings("unchecked")
     static void run() throws Exception {
         final FileOutputStream realOut = new FileOutputStream(FileDescriptor.out);
-        String line = readLine(new FileInputStream(FileDescriptor.in));
+        // Vercel Sandbox (worker/vercel-sandbox-executor.ts) passes the payload
+        // as a file, read once and deleted; Docker sends it on stdin.
+        String payloadFile = System.getProperty("runtime.payload");
+        String line;
+        if (payloadFile != null) {
+            Path payloadPath = Path.of(payloadFile);
+            try (InputStream in = Files.newInputStream(payloadPath)) {
+                line = readLine(in);
+            }
+            try {
+                Files.deleteIfExists(payloadPath);
+            } catch (IOException | RuntimeException ignored) {
+                // a read-only or special file (e.g. /dev/stdin in tests) stays
+            }
+        } else {
+            line = readLine(new FileInputStream(FileDescriptor.in));
+        }
         Map<String, Object> payload = (Map<String, Object>) JsonReader.parse(line);
         line = null;
         final byte[] prefix = ("\n@@" + payload.remove("nonce") + "@@").getBytes(StandardCharsets.UTF_8);

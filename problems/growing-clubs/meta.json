@@ -1,0 +1,18 @@
+{
+  "number": 39,
+  "slug": "growing-clubs",
+  "title": "Growing Clubs",
+  "difficulty": "medium",
+  "rating": 1700,
+  "tags": ["union-find", "graph"],
+  "signature": {
+    "name": "largestClubAfterEach",
+    "params": [
+      { "name": "n", "type": "int" },
+      { "name": "friendships", "type": "int[][]" }
+    ],
+    "returns": "int[]"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

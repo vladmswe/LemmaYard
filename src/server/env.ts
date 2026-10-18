@@ -56,9 +56,19 @@ export const envSchema = z.object({
   QUEUED_TIMEOUT_MS: int(60000),
   // Guide (/learn): "1" enables the /learn/dev-fixtures pages used by Playwright.
   GUIDE_FIXTURES: z.enum(["0", "1"]).default("0"),
-  // Code execution (Run / Submit / room sessions): "1" on, "0" off. Unset: off
-  // on Vercel (no judge worker there), on everywhere else. See isJudgeEnabled().
+  // Code execution (Run / Submit / room sessions): "1" on, "0" off. Unset: on,
+  // except on Vercel with the docker executor (no worker there). See isJudgeEnabled().
   JUDGE_ENABLED: z.enum(["0", "1"]).optional(),
+  // Who runs user code (docs/specs/judge-prod.md): "docker" = the `pnpm worker`
+  // process with Docker (local dev, CI, a worker host); "vercel-sandbox" = the
+  // web app itself judges queued submissions in Vercel Sandbox microVMs.
+  JUDGE_EXECUTOR: z.enum(["docker", "vercel-sandbox"]).default("docker"),
+  // Vercel Sandbox images for JUDGE_EXECUTOR=vercel-sandbox (managed images).
+  VERCEL_SANDBOX_IMAGE_PYTHON: z.string().min(1).default("vercel/sandbox/python:3.14"),
+  VERCEL_SANDBOX_IMAGE_NODE: z.string().min(1).default("vercel/sandbox/node:22"),
+  // Java has no managed image: the owner pushes sandbox/Dockerfile.java to the
+  // team's registry once (docs/specs/judge-prod.md, "Adding a language").
+  VERCEL_SANDBOX_IMAGE_JAVA: z.string().min(1).default("lemmayard-java:1"),
   // Login/register rate limits (src/server/auth/rate-limit.ts). "0" only for
   // local Playwright runs, which register many users from one address;
   // rejected on Vercel.
@@ -109,12 +119,15 @@ export type Env = z.infer<typeof envSchema>;
 
 /**
  * Whether this deployment accepts Run / Submit / session starts. An explicit
- * `JUDGE_ENABLED` wins; otherwise enabled unless `VERCEL` is set, so a Vercel
- * deployment without a worker never queues jobs nobody processes.
+ * `JUDGE_ENABLED` wins; otherwise enabled unless `VERCEL` is set with the
+ * docker executor, so a Vercel deployment without a worker never queues jobs
+ * nobody processes. With `JUDGE_EXECUTOR=vercel-sandbox` the app judges itself.
  */
-export function isJudgeEnabled(env: Pick<Env, "JUDGE_ENABLED" | "VERCEL">): boolean {
+export function isJudgeEnabled(
+  env: Pick<Env, "JUDGE_ENABLED" | "VERCEL"> & Partial<Pick<Env, "JUDGE_EXECUTOR">>,
+): boolean {
   if (env.JUDGE_ENABLED !== undefined) return env.JUDGE_ENABLED === "1";
-  return !env.VERCEL;
+  return !env.VERCEL || env.JUDGE_EXECUTOR === "vercel-sandbox";
 }
 
 /** Parses an env-like record; throws a readable error listing every invalid variable. */

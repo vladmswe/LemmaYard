@@ -14,6 +14,9 @@ RUN javac --release 25 -d /build/classes /build/Harness.java \
 FROM alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
 COPY --from=build /opt/jre /opt/jre
 COPY --from=build --chown=0:0 --chmod=0444 /build/harness.jar /sandbox/harness.jar
+# The source too: Vercel Sandbox runs it in single-file source mode (worker/
+# vercel-sandbox-executor.ts, VM_LANGUAGES.java) when this image is the VCR image.
+COPY --chown=0:0 --chmod=0444 Harness.java /sandbox/Harness.java
 COPY --chown=0:0 --chmod=0444 java-train.json /build/java-train.json
 # AOT cache (JDK 25, JEP 514/515): one training run of the runner compiling and
 # judging a small solution, so the JVM and javac classes start pre-loaded and

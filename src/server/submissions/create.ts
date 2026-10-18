@@ -14,6 +14,7 @@ import { problems, submissions } from "@/server/db/schema";
 import { getEnv } from "@/server/env";
 import { assertSameOrigin, internalServerError, jsonError, readJsonBody } from "@/server/http/request";
 import { judgeDisabledResponse, judgeEnabled } from "@/server/judge";
+import { scheduleJudge } from "@/server/judge-runner";
 import {
   checkSubmitSession,
   recheckSubmitSession,
@@ -216,5 +217,7 @@ export async function createSubmission(
     response.headers.set("Retry-After", String(outcome.retryAfterSec));
     return response;
   }
+  // JUDGE_EXECUTOR=vercel-sandbox: judge it after this response (no-op for docker).
+  scheduleJudge();
   return NextResponse.json({ id: outcome.id }, { status: 202, headers: { "Cache-Control": "no-store" } });
 }

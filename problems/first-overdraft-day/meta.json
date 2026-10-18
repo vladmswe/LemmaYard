@@ -1,0 +1,18 @@
+{
+  "number": 23,
+  "slug": "first-overdraft-day",
+  "title": "First Overdraft Day",
+  "difficulty": "easy",
+  "rating": 1130,
+  "tags": ["array", "prefix-sum"],
+  "signature": {
+    "name": "firstOverdraft",
+    "params": [
+      { "name": "start", "type": "int" },
+      { "name": "changes", "type": "int[]" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

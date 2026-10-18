@@ -1,0 +1,17 @@
+{
+  "number": 31,
+  "slug": "back-to-back-talks",
+  "title": "Back-to-Back Talks",
+  "difficulty": "easy",
+  "rating": 1440,
+  "tags": ["greedy", "sorting"],
+  "signature": {
+    "name": "maxTalks",
+    "params": [
+      { "name": "talks", "type": "int[][]" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

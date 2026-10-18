@@ -1,0 +1,18 @@
+{
+  "number": 30,
+  "slug": "pair-sum-under-cap",
+  "title": "Pair Sum Under a Cap",
+  "difficulty": "easy",
+  "rating": 1400,
+  "tags": ["array", "sorting", "two-pointers"],
+  "signature": {
+    "name": "bestPairSum",
+    "params": [
+      { "name": "prices", "type": "int[]" },
+      { "name": "cap", "type": "int" }
+    ],
+    "returns": "int"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}

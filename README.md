@@ -12,7 +12,7 @@ in a locked-down Docker container.
 
 ## What you can do
 
-- **Solve problems.** 20 original problems (11 easy, 6 medium, 3 hard) with
+- **Solve problems.** 50 original problems (22 easy, 17 medium, 11 hard) with
   search, difficulty/tag/status filters and acceptance rates.
 - **Write and run code** in Monaco (bundled locally, no CDN) in Python 3,
   JavaScript (Node 22) or Java 25. Java is offered on every problem that has a
@@ -187,7 +187,7 @@ src/components/     UI (ui/ = shadcn on Base UI; problem/, rooms/, guide/, ...)
 src/lib/            shared code: value types, templates, problem schemas, rooms domain, guide contracts
 src/server/         server-only: env.ts (Zod env), db/ (Drizzle schema + client), auth/, submissions/, rooms/
 src/content/learn/  guide lessons (MDX, metadata, quizzes, code samples)
-worker/             judge worker: queue, loop, Docker executor, protocol, judge
+worker/             judge worker: queue, loop + drain, Docker and Vercel Sandbox executors, protocol, judge
 sandbox/            Dockerfile.{python,node,java}, harness.py, harness.js, Harness.java (+ java-train.json)
 problems/<slug>/    problem files (meta.json, description.md, tests.json, solution.py, solution.js, optional solution.java)
 drizzle/            SQL migrations
@@ -216,7 +216,7 @@ docs/               deploy guide, specs, generated Supabase SQL, images
 | `pnpm db:generate` | drizzle-kit: new migration after editing `src/server/db/schema.ts`. |
 | `pnpm db:migrate` | Applies migrations (`DATABASE_URL_DIRECT`, else `DATABASE_URL`). |
 | `pnpm db:export-sql` | Regenerates `docs/supabase/schema.sql` from `drizzle/*.sql`. |
-| `pnpm problems:export-sql` | Regenerates `docs/supabase/problems.sql` (the problem catalog as one idempotent SQL script) from `problems/`; `--check` exits 1 when it is stale. |
+| `pnpm problems:export-sql` | Regenerates `docs/supabase/problems.sql` (the problem catalog as one idempotent SQL script) and the same catalog split into `docs/supabase/problems-<n>.sql` parts (each under 800 KB, run in any order) from `problems/`; `--check` exits 1 when any of them is stale. |
 | `pnpm db:seed` | `db:migrate` + `problems:import`. |
 | `pnpm problems:import` | Validates and upserts `problems/` (`--dir <path>`, `--prune`). |
 | `pnpm problems:verify` | Runs every reference solution present (Python, JavaScript, and Java where `solution.java` exists) in the real sandbox; must all be Accepted (`--dir`, `--only <slug>`, `--concurrency <n>`). |
@@ -243,7 +243,8 @@ production table is in [docs/DEPLOY.md, section 3](docs/DEPLOY.md#3-vercel-envir
 | `AUTH_SECRET` | placeholder | JWT key, at least 32 characters; placeholders are rejected in production. |
 | `AUTH_URL` | `http://localhost:3000` | Exact origin the browser uses; mutating requests from another origin get 403. |
 | `PORT` | 3000 | Web port for `dev` / `start`. |
-| `JUDGE_ENABLED` | on, off on Vercel | `0` disables Run, Submit and room session start. |
+| `JUDGE_ENABLED` | on, off on Vercel with `docker` | `0` disables Run, Submit and room session start. |
+| `JUDGE_EXECUTOR` | `docker` | `docker` = `pnpm worker`; `vercel-sandbox` = the web app judges in Vercel Sandbox (production). |
 | `TEST_DATABASE_URL` | compose Postgres | Server for the integration and e2e databases. |
 | `WORKER_CONCURRENCY`, `WORKER_POLL_MS` | 2, 500 | Worker slots and poll interval. |
 | `SANDBOX_IMAGE_PYTHON`, `SANDBOX_IMAGE_NODE`, `SANDBOX_IMAGE_JAVA` | `lemmayard-sandbox-*:latest` | Sandbox image tags. |
@@ -260,7 +261,7 @@ A problem is a directory `problems/<slug>/` with five files, plus an optional
 
 ```json
 {
-  "number": 21,
+  "number": 51,
   "slug": "running-sum",
   "title": "Running Sum",
   "difficulty": "easy",
@@ -373,11 +374,40 @@ Rules worth knowing:
   present (`problems.languages`, written by the import); Run/Submit in any
   other language answers 400 "Java is not available for this problem yet".
 - `number` and `slug` must be unique. Write your own statement; do not copy
-  one from another site.
+  one from another site (see the authoring policy below).
 - Starter code in the editor is generated from `signature`
   (`src/lib/templates`), so there is nothing else to write. For Java the
   import also records which `int` positions need `long` (`problems.wide_ints`,
   derived from tests.json).
+
+### Test generators
+
+Problems with many tests have a generator `problems/_generators/<slug>.py`
+(the importer skips directories starting with `_`). It is seeded and
+deterministic: it checks the reference `solution.py` against an independently
+written brute force on random small inputs and on every stored test small
+enough for it, computes `expected` with the reference and rewrites
+`tests.json`. Run it from the repository root, then verify:
+
+```bash
+python3 problems/_generators/<slug>.py
+pnpm problems:verify --only <slug>
+pnpm problems:export-sql
+```
+
+Keep inputs small unless a test is about performance: every test is stored in
+the database and in `docs/supabase/problems*.sql`, and all outputs of one
+submission share the judge's 1 MB output cap.
+
+### Problem authoring policy
+
+Every problem in `problems/` is original work of this project and is released
+under the repository license (MIT, see `LICENSE`). Classic algorithmic ideas
+are common knowledge, but statements, stories, examples, constraints and test
+data are written from scratch: never copy, closely paraphrase or reconstruct a
+problem (or its tests) from LeetCode, Codeforces, HackerRank or any other site.
+New problems also get their own titles and their own twist rather than being a
+recognisable one-to-one clone of a well-known problem.
 
 ## How to add a language
 
@@ -553,19 +583,24 @@ The owner guide is [docs/DEPLOY.md](docs/DEPLOY.md): Vercel for the web app,
 Supabase Postgres (pooler URLs, TLS, migrating and seeding from your machine,
 or without credentials by running
 [`docs/supabase/schema.sql`](docs/supabase/schema.sql) and then
-[`docs/supabase/problems.sql`](docs/supabase/problems.sql) in the SQL Editor),
+[`docs/supabase/problems.sql`](docs/supabase/problems.sql), or its parts
+`docs/supabase/problems-<n>.sql`, in the SQL Editor),
 environment variables, region, `/api/health` and troubleshooting.
 
-- **Without a judge (the Vercel default):** `JUDGE_ENABLED` unset on Vercel
-  means judge-disabled mode. Everything except code execution works: catalog,
+- **Without a judge (the Vercel default):** `JUDGE_EXECUTOR` and
+  `JUDGE_ENABLED` unset on Vercel mean judge-disabled mode. Everything except code execution works: catalog,
   problem pages and the editor (drafts are kept), accounts, history, profiles,
   the guide, rooms and their lobbies. Run, Submit and room session start are
   disabled in the UI and the API answers `503 {"code":"judge_disabled"}`
   without creating rows. `/api/health` reports `"judge":"disabled"`.
-- **With a judge:** run `pnpm worker` on a host with Docker and the sandbox
-  images, pointed at the same database (`DATABASE_URL`), and set
-  `JUDGE_ENABLED=1` on the web deployment. A Vercel Sandbox executor behind
-  the same `Executor` interface (`worker/types.ts`) is the planned alternative.
+- **With a judge on Vercel:** set `JUDGE_EXECUTOR=vercel-sandbox`. The API
+  routes then judge queued submissions themselves (`after()` → `drainQueue`)
+  in Vercel Sandbox microVMs with all network egress denied, through the same
+  `Executor` interface (`worker/vercel-sandbox-executor.ts`), queue and
+  `finalize()`. Decision and design: [docs/specs/judge-prod.md](docs/specs/judge-prod.md).
+- **With a worker host:** run `pnpm worker` on a host with Docker and the
+  sandbox images, pointed at the same database (`DATABASE_URL`), and set
+  `JUDGE_ENABLED=1` on the web deployment.
 
 ## Accepted MVP properties and known limitations
 

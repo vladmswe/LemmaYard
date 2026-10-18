@@ -1,0 +1,15 @@
+{
+  "number": 32,
+  "slug": "busiest-moment",
+  "title": "Busiest Moment",
+  "difficulty": "medium",
+  "rating": 1480,
+  "tags": ["array", "sorting", "prefix-sum"],
+  "signature": {
+    "name": "busiestMoment",
+    "params": [{ "name": "sessions", "type": "int[][]" }],
+    "returns": "int[]"
+  },
+  "compare": { "mode": "exact" },
+  "limits": { "timeMs": 2000, "memoryMb": 256 }
+}
