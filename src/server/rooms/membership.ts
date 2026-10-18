@@ -12,9 +12,9 @@ import {
   inviteUrl,
   isInviteTokenFormat,
 } from "@/lib/rooms/invite";
+import { createRoomV2BodySchema } from "@/lib/rooms/room-defaults";
 import {
   confirmsRoomName,
-  createRoomBodySchema,
   deleteRoomBodySchema,
   emptyBodySchema,
   inviteBodySchema,
@@ -34,6 +34,7 @@ import { clientAddress, createRateLimiter } from "@/server/http/rate-limit";
 
 import { json, readAuthedBody, roomMutation, tooMany } from "./http";
 import { lockRoom, lockRoomUser, type Tx } from "./queries";
+import { ensureMemberRatings } from "./ratings";
 
 export const INVITE_INVALID = "This invite link is invalid or has expired. Ask the room owner for a new one.";
 export const MEMBER_NOT_FOUND = "Member not found";
@@ -51,7 +52,7 @@ const userIdSchema = z.uuid();
 // --- POST /api/rooms ------------------------------------------------------
 
 export async function createRoom(request: Request): Promise<NextResponse> {
-  const pre = await readAuthedBody(request, createRoomBodySchema);
+  const pre = await readAuthedBody(request, createRoomV2BodySchema);
   if ("response" in pre) return pre.response;
   const { user, data, db } = pre;
 
@@ -84,9 +85,16 @@ export async function createRoom(request: Request): Promise<NextResponse> {
     }
     const [room] = await tx
       .insert(rooms)
-      .values({ name: data.name, createdBy: user.id })
+      .values({
+        name: data.name,
+        createdBy: user.id,
+        // v2 §10: optional profile fields; an empty description is no description.
+        ...(data.description ? { description: data.description } : {}),
+        ...(data.color !== undefined ? { color: data.color } : {}),
+      })
       .returning({ id: rooms.id });
     await tx.insert(roomMembers).values({ roomId: room.id, userId: user.id, role: "owner" });
+    await ensureMemberRatings(tx, room.id, [user.id]);
     return json({ id: room.id }, 201);
   });
 }
@@ -263,6 +271,8 @@ export async function joinRoom(request: Request): Promise<NextResponse> {
     if (memberships >= MAX_MEMBERSHIPS) return { kind: "too_many_rooms" } as const;
 
     await tx.insert(roomMembers).values({ roomId: room.id, userId: user.id, role: "member" });
+    // v2 §6.4: the starting rating is seeded when joining the room.
+    await ensureMemberRatings(tx, room.id, [user.id]);
     return { kind: "ok", roomId: room.id } as const;
   });
 

@@ -261,5 +261,40 @@ describe("importProblems", () => {
     expect(await byDifficulty("easy")).toBeGreaterThanOrEqual(6);
     expect(await byDifficulty("medium")).toBeGreaterThanOrEqual(6);
     expect(await byDifficulty("hard")).toBeGreaterThanOrEqual(3);
+    // Rooms v2 §8.1: every seed problem carries its author rating.
+    const rated = await db.select({ slug: problems.slug, rating: problems.authorRating }).from(problems);
+    expect(rated.every((r) => r.rating !== null)).toBe(true);
+    expect(Object.fromEntries(rated.map((r) => [r.slug, r.rating]))).toMatchObject({
+      "fizz-buzz": 1050,
+      "two-sum": 1180,
+      "house-robber": 1500,
+      "coin-change": 1680,
+      "longest-valid-parentheses": 2150,
+    });
+  });
+
+  it("upserts meta.json rating as author_rating and never overwrites rating_adjust (AC-V2-RAT-5)", async () => {
+    const dir = await copyFixtures();
+    await importDir(dir);
+    const first = await getTestDb().select({ slug: problems.slug, rating: problems.authorRating }).from(problems);
+    expect(first.every((r) => r.rating === null)).toBe(true);
+    await getTestDb().update(problems).set({ ratingAdjust: -37 });
+    const [slug] = first.map((r) => r.slug).sort();
+    await editMeta(dir, slug, (meta) => {
+      meta.rating = 1333;
+    });
+    await importDir(dir);
+    const rows = await getTestDb()
+      .select({ slug: problems.slug, rating: problems.authorRating, adjust: problems.ratingAdjust })
+      .from(problems)
+      .orderBy(asc(problems.slug));
+    expect(rows.find((r) => r.slug === slug)).toEqual({ slug, rating: 1333, adjust: -37 });
+    expect(rows.every((r) => r.adjust === -37)).toBe(true);
+    await editMeta(dir, slug, (meta) => {
+      delete meta.rating;
+    });
+    await importDir(dir);
+    const [after] = await getTestDb().select({ rating: problems.authorRating, adjust: problems.ratingAdjust }).from(problems).where(eq(problems.slug, slug));
+    expect(after).toEqual({ rating: null, adjust: -37 });
   });
 });

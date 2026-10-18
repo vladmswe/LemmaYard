@@ -3,6 +3,7 @@
   "slug": "climbing-stairs",
   "title": "Climbing Stairs",
   "difficulty": "easy",
+  "rating": 1300,
   "tags": [
     "dynamic-programming",
     "math"

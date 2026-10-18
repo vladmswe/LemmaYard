@@ -18,6 +18,7 @@ import {
 
 import { appendRoomEvent, lockSession } from "./events";
 import type { Tx } from "./queries";
+import { applySessionRatings } from "./ratings";
 
 export type OutcomeInput = {
   sessionId: string;
@@ -37,6 +38,14 @@ export function countingEnd(session: { endsAt: Date; endedAt: Date | null }): Da
 }
 
 export async function applySessionOutcome(tx: Tx, input: OutcomeInput): Promise<OutcomeResult> {
+  const result = await applyCellOutcome(tx, input);
+  // Rooms v2: the last verdict of a finished rated session applies its ratings
+  // (a no-op while live, unrated, already applied or still judging).
+  await applySessionRatings(tx, input.sessionId);
+  return result;
+}
+
+async function applyCellOutcome(tx: Tx, input: OutcomeInput): Promise<OutcomeResult> {
   // 1. Serialize with every other writer of this session's events.
   await lockSession(tx, input.sessionId);
 

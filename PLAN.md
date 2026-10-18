@@ -27,7 +27,7 @@ Pet-проект, запускается локально (docker-compose для
   - Tech debt (WP-7): CI, мелкие исправления.
   - Переименование в LemmaYard (пакет, образы `lemmayard-sandbox-*`, cookie `lemmayard_session`, label `lemmayard.sandbox`).
 - **Осталось:** судья в продакшене (`VercelSandboxExecutor` или worker на VPS, см. §13 и `docs/DEPLOY.md` §7); уроки гайда 6–15; фичи F1–F5 (`docs/specs/features-f1-f5.md`); QA/perf follow-ups (AC-M7-5, проверка консоли в flows, AC-M7-7 целиком); выбор LICENSE (владелец); CSP с nonce без `'unsafe-inline'`; rate limits в БД (между инстансами).
-- Схема: кроме M1 добавлены `0002_enable_rls` (деплой) и `0003_rooms` (Rooms) — по исключению для фич (см. `CLAUDE.md`).
+- Схема: кроме M1 добавлены `0002_enable_rls` (деплой), `0003_rooms` (Rooms) и `0004_rooms_v2` (Rooms v2) — по исключению для фич (см. `CLAUDE.md`).
 
 ---
 

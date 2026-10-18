@@ -3,6 +3,7 @@
   "slug": "merge-intervals",
   "title": "Merge Intervals",
   "difficulty": "medium",
+  "rating": 1580,
   "tags": [
     "array",
     "sorting"

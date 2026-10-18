@@ -8,6 +8,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
+import { ratingBandWarning } from "@/lib/problems/schema";
 import { loadProblems, ProblemValidationError, type LoadedProblem } from "@/server/problems/importer";
 import { getEnv } from "@/server/env";
 
@@ -122,6 +123,11 @@ async function main(): Promise<number> {
       return 1;
     }
     problems = problems.filter((p) => wanted.has(p.meta.slug));
+  }
+  // Rooms v2 §8: a rating outside its difficulty's usual band is a warning, not an error.
+  for (const p of problems) {
+    const warning = ratingBandWarning(p.meta);
+    if (warning) console.warn(`problems:verify: warning: ${warning}`);
   }
 
   const config = dockerConfigFromEnv(getEnv());

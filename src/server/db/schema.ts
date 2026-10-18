@@ -3,6 +3,8 @@
 // without policies. The app connects as the table owner and bypasses RLS;
 // other roles (e.g. Supabase's REST API roles) are denied by default.
 // Migration 0003 (Rooms, docs/specs/rooms.md) is the first feature migration.
+// Migration 0004 (Rooms v2, docs/specs/rooms-v2.md §8, owner decision D2:
+// ratings are PER ROOM, stored on room_members) adds columns only.
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -29,7 +31,9 @@ import type { CompareSpec, Signature } from "@/lib/problems/schema";
 // Relative (not `@/`) imports for runtime values: drizzle-kit loads this file
 // without the tsconfig path alias.
 import { ROOM_EVENT_TYPES } from "../../lib/rooms/events";
+import type { RoomSchedule, SessionTemplate } from "../../lib/rooms/room-defaults";
 import {
+  RATING_SOURCES,
   ROOM_ROLES,
   ROOM_SESSION_STATUSES,
   type RoomSessionSettings,
@@ -60,11 +64,20 @@ export const users = pgTable(
     email: text("email").notNull().unique(),
     username: text("username").notNull().unique(),
     passwordHash: text("password_hash").notNull(),
+    /**
+     * Rooms v2 §6.4: optional self-reported LeetCode contest rating. Private
+     * (only its owner reads it); only seeds a member's first rating in a room.
+     */
+    leetcodeRating: smallint("leetcode_rating"),
     createdAt: createdAt(),
   },
   (t) => [
     check("users_email_lowercase", sql`${t.email} = lower(${t.email})`),
     check("users_username_format", sql`${t.username} ~ '^[a-z0-9_]{3,20}$'`),
+    check(
+      "users_leetcode_rating_range",
+      sql`${t.leetcodeRating} IS NULL OR ${t.leetcodeRating} BETWEEN 0 AND 4000`,
+    ),
   ],
 ).enableRLS();
 
@@ -82,6 +95,10 @@ export const problems = pgTable(
     timeLimitMs: integer("time_limit_ms").notNull(),
     memoryLimitMb: integer("memory_limit_mb").notNull(),
     published: boolean("published").notNull().default(false),
+    /** Rooms v2: `meta.json` "rating"; null → band default (easy 1200, medium 1600, hard 2000). */
+    authorRating: smallint("author_rating"),
+    /** Rooms v2: observed drift from rated sessions (global per problem); never written by the importer. */
+    ratingAdjust: smallint("rating_adjust").notNull().default(0),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -94,6 +111,11 @@ export const problems = pgTable(
     check("problems_number_positive", sql`${t.number} > 0`),
     check("problems_time_limit_positive", sql`${t.timeLimitMs} > 0`),
     check("problems_memory_limit_positive", sql`${t.memoryLimitMb} > 0`),
+    check(
+      "problems_author_rating",
+      sql`${t.authorRating} IS NULL OR ${t.authorRating} BETWEEN 800 AND 3000`,
+    ),
+    check("problems_rating_adjust", sql`${t.ratingAdjust} BETWEEN -200 AND 200`),
   ],
 ).enableRLS();
 
@@ -264,6 +286,7 @@ export const submissions = pgTable(
 export const roomRoleEnum = pgEnum("room_role", ROOM_ROLES);
 export const roomSessionStatusEnum = pgEnum("room_session_status", ROOM_SESSION_STATUSES);
 export const roomEventTypeEnum = pgEnum("room_event_type", ROOM_EVENT_TYPES);
+export const ratingSourceEnum = pgEnum("rating_source", RATING_SOURCES);
 
 export type { RoomSessionSettings };
 
@@ -278,9 +301,28 @@ export const rooms = pgTable(
     shareSolutions: boolean("share_solutions").notNull().default(true),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
+    // Rooms v2 §4, §5, §10: profile, presets (NULL = code default), weekly schedule.
+    description: text("description"),
+    color: smallint("color").notNull().default(0),
+    presets: jsonb("presets").$type<SessionTemplate[]>(),
+    defaultPresetId: text("default_preset_id"),
+    schedule: jsonb("schedule").$type<RoomSchedule>(),
   },
   (t) => [
     check("rooms_name_length", sql`char_length(${t.name}) BETWEEN 1 AND 60`),
+    check(
+      "rooms_description",
+      sql`${t.description} IS NULL OR (char_length(${t.description}) <= 200 AND ${t.description} !~ '[[:cntrl:]]')`,
+    ),
+    check("rooms_color", sql`${t.color} BETWEEN 0 AND 7`),
+    check(
+      "rooms_presets",
+      sql`${t.presets} IS NULL OR (jsonb_typeof(${t.presets}) = 'array' AND octet_length(${t.presets}::text) <= 4096)`,
+    ),
+    check(
+      "rooms_schedule",
+      sql`${t.schedule} IS NULL OR (jsonb_typeof(${t.schedule}) = 'object' AND octet_length(${t.schedule}::text) <= 512)`,
+    ),
     check(
       "rooms_invite_hash_format",
       sql`${t.inviteTokenHash} IS NULL OR ${t.inviteTokenHash} ~ '^[0-9a-f]{64}$'`,
@@ -307,9 +349,24 @@ export const roomMembers = pgTable(
     /** Per-member opt-out of solution sharing (owner decision D2). */
     shareSolutions: boolean("share_solutions").notNull().default(true),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Rooms v2 (owner decision D2): the member's rating IN THIS ROOM. Null
+     * until first needed (join, lobby, start), then seeded per §6.4.
+     * Provisional while `rated_pairs` < 8.
+     */
+    rating: smallint("rating"),
+    ratedPairs: integer("rated_pairs").notNull().default(0),
+    ratedSessions: integer("rated_sessions").notNull().default(0),
+    ratingSource: ratingSourceEnum("rating_source"),
   },
   (t) => [
     primaryKey({ columns: [t.roomId, t.userId] }),
+    check("room_members_rating_range", sql`${t.rating} IS NULL OR ${t.rating} BETWEEN 400 AND 3500`),
+    check("room_members_rating_source", sql`(${t.rating} IS NULL) = (${t.ratingSource} IS NULL)`),
+    check(
+      "room_members_rated_counts",
+      sql`${t.ratedPairs} >= 0 AND ${t.ratedSessions} >= 0 AND ${t.ratedSessions} <= ${t.ratedPairs}`,
+    ),
     // My rooms (Q1), owned/membership counts.
     index("room_members_user_idx").on(t.userId, t.joinedAt.desc()),
     // At most one owner per room ("exactly one" is kept by the app).
@@ -341,8 +398,13 @@ export const roomSessions = pgTable(
       .default(sql`'{}'::uuid[]`),
     rerollCount: smallint("reroll_count").notNull().default(0),
     createdAt: createdAt(),
+    /** Rooms v2 §6.2: results change the room's ratings. */
+    rated: boolean("rated").notNull().default(true),
+    /** Set once, when the ratings were applied (idempotency guard). */
+    ratedAt: timestamp("rated_at", { withTimezone: true }),
   },
   (t) => [
+    check("room_sessions_rated_at", sql`${t.ratedAt} IS NULL OR (${t.status} = 'finished' AND ${t.rated})`),
     check(
       "room_sessions_duration",
       sql`${t.durationMin} BETWEEN 15 AND 240 AND ${t.durationMin} % 5 = 0`,
@@ -377,6 +439,10 @@ export const roomSessions = pgTable(
       .where(sql`${t.status} = 'finished'`),
     // Repeat avoidance (Q7) and session creation rate per room.
     index("room_sessions_room_status_idx").on(t.roomId, t.status),
+    // Rooms v2: the worker's backstop for ratings not applied yet (pending judging at the end).
+    index("room_sessions_unrated_idx")
+      .on(t.endedAt)
+      .where(sql`${t.status} = 'finished' AND ${t.rated} AND ${t.ratedAt} IS NULL`),
   ],
 ).enableRLS();
 
@@ -394,6 +460,9 @@ export const roomSessionProblems = pgTable(
     /** Snapshot at pick time (calibration). */
     difficulty: difficultyEnum("difficulty").notNull(),
     pinned: boolean("pinned").notNull().default(false),
+    /** Rooms v2: effective problem rating at session start, and its change when ratings were applied. */
+    ratingAtStart: smallint("rating_at_start"),
+    ratingDelta: smallint("rating_delta"),
   },
   (t) => [
     primaryKey({ columns: [t.sessionId, t.position] }),
@@ -417,6 +486,10 @@ export const roomSessionParticipants = pgTable(
     penaltySec: integer("penalty_sec").notNull().default(0),
     /** Null until the first scoring pass. */
     rank: smallint("rank"),
+    /** Rooms v2: the member's room rating at start (or at a late join). */
+    ratingAtStart: smallint("rating_at_start"),
+    /** Null until ratings were applied; 0 when not active (no counted submit). */
+    ratingDelta: smallint("rating_delta"),
   },
   (t) => [
     primaryKey({ columns: [t.sessionId, t.userId] }),

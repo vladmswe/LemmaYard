@@ -3,6 +3,7 @@
   "slug": "maximum-subarray",
   "title": "Maximum Subarray",
   "difficulty": "easy",
+  "rating": 1420,
   "tags": [
     "array",
     "dynamic-programming"

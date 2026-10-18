@@ -3,6 +3,7 @@
   "slug": "two-sum",
   "title": "Two Sum",
   "difficulty": "easy",
+  "rating": 1180,
   "tags": [
     "array",
     "hash-table"

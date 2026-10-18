@@ -3,6 +3,7 @@
   "slug": "longest-valid-parentheses",
   "title": "Longest Valid Parentheses",
   "difficulty": "hard",
+  "rating": 2150,
   "tags": ["string", "stack", "dynamic-programming"],
   "signature": {
     "name": "longestValidParentheses",

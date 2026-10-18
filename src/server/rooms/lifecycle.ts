@@ -15,6 +15,7 @@ import { roomSessions } from "@/server/db/schema";
 import { appendRoomEvent, lockSession } from "./events";
 import { recomputeSessionScores } from "./outcome";
 import type { Tx } from "./queries";
+import { applyDueSessionRatings, applySessionRatings } from "./ratings";
 
 export type DueResult = "expired" | "stale" | null;
 
@@ -40,6 +41,8 @@ export async function closeIfDue(tx: Tx, sessionId: string): Promise<DueResult> 
       type: "session_ended",
       payload: { endedAt: expired[0].endedAt!.toISOString(), reason: "time" },
     });
+    // Rooms v2: a rated session updates the room's ratings once nothing is pending.
+    await applySessionRatings(tx, sessionId);
     return "expired";
   }
   const stale = await tx
@@ -67,9 +70,10 @@ export function closeIfDueNow(db: Db, sessionId: string): Promise<DueResult> {
 
 /**
  * Worker backstop: closes every due session (expired live, stale lobby), one
- * transaction each. Returns the ids that changed.
+ * transaction each, then applies ratings that waited for judging (v2 §6.6).
+ * Returns the ids that changed.
  */
-export async function sweepRoomSessions(db: Db): Promise<{ expired: string[]; stale: string[] }> {
+export async function sweepRoomSessions(db: Db): Promise<{ expired: string[]; stale: string[]; rated: string[] }> {
   const due = await db
     .select({ id: roomSessions.id })
     .from(roomSessions)
@@ -82,11 +86,12 @@ export async function sweepRoomSessions(db: Db): Promise<{ expired: string[]; st
       ),
     )
     .limit(500);
-  const result = { expired: [] as string[], stale: [] as string[] };
+  const result = { expired: [] as string[], stale: [] as string[], rated: [] as string[] };
   for (const { id } of due) {
     const done = await closeIfDueNow(db, id);
     if (done === "expired") result.expired.push(id);
     if (done === "stale") result.stale.push(id);
   }
+  result.rated = await applyDueSessionRatings(db);
   return result;
 }

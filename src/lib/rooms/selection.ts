@@ -315,11 +315,20 @@ export type DrawnSlot = Slot & {
   lastUsedAt: Date | null;
 };
 
-export type DrawNotice = {
-  /** "No other unused options; showing earlier ones again" */
-  code: "rerolls_reset";
-  difficulty: Difficulty;
-};
+export type DrawNotice =
+  | {
+      /** "No other unused options; showing earlier ones again" */
+      code: "rerolls_reset";
+      difficulty: Difficulty;
+    }
+  | {
+      /** Rating mode (v2 §7 E3, a warning): nothing within 300 of the target; the closest problem was taken. */
+      code: "targets_far";
+      difficulty: Difficulty;
+      position: number;
+      rating: number;
+      target: number;
+    };
 
 export function classify(c: CandidateProblem): Tier {
   if (c.lastUsedAt !== null) return "C";
@@ -376,6 +385,39 @@ export function expectedParticipants(joined: readonly string[], members: readonl
   return joined.length >= 2 ? [...joined] : [...members];
 }
 
+/**
+ * Pinned slots keep their position; a pin beyond N (count lowered) moves to
+ * the lowest free position. `pinnedIn` sorted by position, at most N of them.
+ * Returns the placed pins and the positions left for the draw (ascending).
+ */
+export function placePinnedSlots<S extends Slot>(
+  pinnedIn: readonly S[],
+  n: number,
+): { pinned: S[]; freePositions: number[] } {
+  const taken = new Set<number>();
+  const pinned: S[] = [];
+  const overflow: S[] = [];
+  for (const s of pinnedIn) {
+    if (s.position >= 1 && s.position <= n && !taken.has(s.position)) {
+      taken.add(s.position);
+      pinned.push({ ...s, pinned: true });
+    } else {
+      overflow.push(s);
+    }
+  }
+  const free = () => {
+    const positions: number[] = [];
+    for (let p = 1; p <= n; p++) if (!taken.has(p)) positions.push(p);
+    return positions;
+  };
+  for (const s of overflow) {
+    const position = free()[0];
+    taken.add(position);
+    pinned.push({ ...s, position, pinned: true });
+  }
+  return { pinned, freePositions: free() };
+}
+
 export type DrawResult =
   | { ok: true; slots: DrawnSlot[]; rerolledIds: string[]; notices: DrawNotice[] }
   | DrawError;
@@ -406,29 +448,7 @@ export function drawSlots(input: {
   const error = checkMix({ problemCount: n, mix: input.mix, available: mixOf(pool), pinned: mixOf(pinnedIn) });
   if (error) return error;
 
-  // Pinned slots keep their position; a pin beyond N (count lowered) moves to
-  // the lowest free position.
-  const taken = new Set<number>();
-  const pinned: Slot[] = [];
-  const overflow: Slot[] = [];
-  for (const s of pinnedIn) {
-    if (s.position >= 1 && s.position <= n && !taken.has(s.position)) {
-      taken.add(s.position);
-      pinned.push({ ...s, pinned: true });
-    } else {
-      overflow.push(s);
-    }
-  }
-  const free = () => {
-    const positions: number[] = [];
-    for (let p = 1; p <= n; p++) if (!taken.has(p)) positions.push(p);
-    return positions;
-  };
-  for (const s of overflow) {
-    const position = free()[0];
-    taken.add(position);
-    pinned.push({ ...s, position, pinned: true });
-  }
+  const { pinned, freePositions: free } = placePinnedSlots(pinnedIn, n);
 
   const info = new Map(input.pool.map((c) => [c.id, c]));
   const used = new Set(pinnedIds);
@@ -439,7 +459,7 @@ export function drawSlots(input: {
     Array.from({ length: input.mix[d] - pinnedMix[d] }, () => d),
   );
   const slots: DrawnSlot[] = pinned.map((s) => toDrawnSlot(s, info.get(s.problemId)));
-  const positions = free();
+  const positions = free;
   order.forEach((difficulty, i) => {
     const ofDifficulty = pool.filter((c) => c.difficulty === difficulty && !used.has(c.id));
     let candidates = ofDifficulty.filter((c) => !rerolled.has(c.id));

@@ -269,6 +269,8 @@ export async function importProblems(
         timeLimitMs: meta.limits.timeMs,
         memoryLimitMb: meta.limits.memoryMb,
         published: true,
+        // Rooms v2: the author rating only; `rating_adjust` (observed drift) is never written here.
+        authorRating: meta.rating ?? null,
       };
       const [{ id }] = await tx
         .insert(problems)

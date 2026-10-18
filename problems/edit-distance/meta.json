@@ -3,6 +3,7 @@
   "slug": "edit-distance",
   "title": "Edit Distance",
   "difficulty": "hard",
+  "rating": 1900,
   "tags": ["string", "dynamic-programming"],
   "signature": {
     "name": "minDistance",
