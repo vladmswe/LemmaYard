@@ -12,6 +12,8 @@ import { TimerIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "cn";
 
+import { formatScoreTime } from "@/lib/rooms/scoring";
+
 import {
   countdownLabel,
   crossedMilestones,
@@ -133,7 +135,14 @@ export function Countdown({
           ))}
         </span>
         <span aria-hidden className={cn("text-sm", warning ? "room-warn font-semibold text-warning" : "text-on-night-2")}>
-          left in this session
+          {totalMs && totalMs > 0 ? (
+            <>
+              left · {formatScoreTime(Math.max(0, Math.round((totalMs - remaining) / 1000)))} elapsed of{" "}
+              {formatScoreTime(Math.round(totalMs / 1000))}
+            </>
+          ) : (
+            "left in this session"
+          )}
         </span>
         {left !== null && (
           <span aria-hidden className="room-timer-track">

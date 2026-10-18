@@ -1,8 +1,8 @@
 "use client";
 
 // Session banner on the problem page (docs/specs/rooms.md §3.5, §7.4
-// SessionBanner): "Saturday Algo Club · Problem 2 of 4 · 47:12 left · You 1/4
-// · Leader 2/4" with the way back to the session, prev/next problem and the
+// SessionBanner): "Saturday Algo Club · Problem 2 of 4 · 47:12 left · You:
+// 1✓ 2✗ 3✓ 4·" (rooms-v2 §2.1) with the way back to the session, prev/next problem and the
 // notification settings. While the viewer is a live participant it registers
 // the session for Submit (never Run). Other people's events toast here; the
 // viewer's own verdict stays in the console.
@@ -16,10 +16,11 @@ import { useSetSubmitSession } from "@/components/problem/submit-context";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { RoomEvent } from "@/lib/rooms/events";
 import { milestoneMessage } from "@/lib/rooms/live-clock";
-import { problemLabel, progressSummary, progressText, resultsHref, sessionHref, sessionProblemHref } from "@/lib/rooms/live-view";
+import { problemLabel, resultsHref, sessionHref, sessionProblemHref, viewerChips } from "@/lib/rooms/live-view";
 import { eventNotice, type NoticeContext } from "@/lib/rooms/notifications";
 import type { ProblemSessionContext } from "@/server/rooms/session-page";
 
+import { YouChips } from "../matrix/score-matrix";
 import { Countdown } from "./countdown";
 import { NotificationSettings } from "./notification-settings";
 import { sessionApi } from "./session-api";
@@ -111,7 +112,7 @@ export function SessionBanner({ context, viewerId }: { context: ProblemSessionCo
 
   const prev = position > 1 ? slugs[position - 2] : null;
   const next = position < slugs.length ? slugs[position] : null;
-  const summary = snapshot ? progressText(progressSummary(snapshot, viewerId)) : null;
+  const mine = snapshot ? viewerChips(snapshot, viewerId, live.pending) : null;
 
   return (
     <div
@@ -143,11 +144,11 @@ export function SessionBanner({ context, viewerId }: { context: ProblemSessionCo
               onMilestone={onMilestone}
               announce={false}
             />
-            {summary && (
+            {mine && (
               <>
                 <span aria-hidden className="text-muted-foreground">·</span>
-                <span className="tabular-nums text-foreground-secondary" data-testid="banner-progress">
-                  {summary}
+                <span className="text-foreground-secondary" data-testid="banner-progress">
+                  <YouChips chips={mine} />
                 </span>
               </>
             )}

@@ -35,29 +35,36 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { RoomEvent } from "@/lib/rooms/events";
+import type { PendingCell, RoomEvent } from "@/lib/rooms/events";
 import { milestoneMessage } from "@/lib/rooms/live-clock";
 import {
+  chips,
   pendingJudgingText,
-  problemLabel,
-  progressSummary,
-  progressText,
-  problemSummary,
   resultsHref,
+  scoreboardRows,
   sessionHref,
   sessionProblemHref,
+  viewerChips,
 } from "@/lib/rooms/live-view";
-import { eventNotice, feedLine, isHistoryEvent, type FeedLine, type NoticeContext } from "@/lib/rooms/notifications";
+import {
+  eventNotice,
+  feedLine,
+  isHistoryEvent,
+  judgingFeedLine,
+  type FeedLine,
+  type JudgingEntry,
+  type NoticeContext,
+} from "@/lib/rooms/notifications";
 import type { LobbyView } from "@/lib/rooms/session-view";
 import type { SessionPageData } from "@/server/rooms/session-page";
 
+import { MatrixLegend, ScoreMatrix, YouChips } from "../matrix/score-matrix";
 import { ActivityFeed } from "./activity-feed";
 import { Countdown } from "./countdown";
 import { CLOCK, DAY, DAY_CLOCK, formatLocal, LocalTime, useIsClient } from "./local-time";
 import { NewSessionButton } from "./new-session-button";
-import { NotificationSettings } from "./notification-settings";
+import { NotificationSettings, NotificationSwitches } from "./notification-settings";
 import { ProblemList } from "./problem-list";
-import { Scoreboard } from "./scoreboard";
 import { sessionApi } from "./session-api";
 import { SessionStatusBadge } from "./session-status";
 import { useAnnouncer } from "./use-notifications";
@@ -156,6 +163,10 @@ export function SessionScreen({ data, judgeEnabled }: { data: SessionPageData; j
         .filter((l): l is FeedLine => l !== null)
         .reverse(),
     [events, titles, startedAt],
+  );
+  const judgingLines = useMemo(
+    () => live.judging.map((j: JudgingEntry) => judgingFeedLine(j, startedAt)),
+    [live.judging, startedAt],
   );
 
   const status = live.status;
@@ -292,11 +303,7 @@ export function SessionScreen({ data, judgeEnabled }: { data: SessionPageData; j
             onExpire={live.refresh}
             announce={false}
           />
-          {snapshot && (
-            <span className="text-sm text-muted-foreground tabular-nums">
-              {progressText(progressSummary(snapshot, data.viewerId))}
-            </span>
-          )}
+          {snapshot && <StickyChips snapshot={snapshot} viewerId={data.viewerId} pending={live.pending} />}
         </div>
       )}
       <div className="container-page flex flex-col gap-6 py-8">
@@ -321,8 +328,9 @@ export function SessionScreen({ data, judgeEnabled }: { data: SessionPageData; j
             data={data}
             snapshot={snapshot}
             feed={feed}
+            judging={judgingLines}
             isParticipant={live.viewer.isParticipant}
-            pending={live.pendingJudging}
+            pendingCells={live.pending}
           />
         )}
         {status === "finished" && snapshot && (
@@ -330,6 +338,7 @@ export function SessionScreen({ data, judgeEnabled }: { data: SessionPageData; j
             data={data}
             snapshot={snapshot}
             feed={feed}
+            pendingCells={live.pending}
             pending={live.pendingJudging}
             roomId={roomId}
             sessionId={sessionId}
@@ -389,7 +398,9 @@ function HeadMeta({
     const end = s.endedAt ?? s.endsAt;
     text = `Finished · ${formatLocal(s.startedAt, DAY_CLOCK, client)}${end ? `–${formatLocal(end, CLOCK, client)}` : ""} · ${people}`;
   } else if (status === "live") {
-    text = `Session · ${formatLocal(s.startedAt ?? s.createdAt, DAY, client)} · ${s.problemCount} problems · ${s.durationMin} minutes · ${people}`;
+    const count = `${s.problemCount} problem${s.problemCount === 1 ? "" : "s"}`;
+    const started = s.startedAt ? ` · started ${formatLocal(s.startedAt, CLOCK, client)}` : "";
+    text = `${formatLocal(s.startedAt ?? s.createdAt, DAY, client)} · ${count} · ${s.durationMin} min · ${people}${started}`;
   } else if (status === "lobby") {
     const planned = s.plannedFor ? ` · Planned for ${formatLocal(s.plannedFor, DAY_CLOCK, client)}` : "";
     text = `Lobby · ${data.room.name}${planned}`;
@@ -451,58 +462,71 @@ function RoomRules() {
   );
 }
 
-function PendingLine({ pending, finished }: { pending: number; finished: boolean }) {
+function PendingLine({ pending }: { pending: number }) {
   const text = pendingJudgingText(pending);
   if (!text) return null;
-  if (finished) {
-    return (
-      <Alert variant="info" data-testid="pending-judging">
-        <LoaderCircleIcon aria-hidden className="motion-safe:animate-spin-slow" />
-        <AlertDescription>{text}</AlertDescription>
-      </Alert>
-    );
-  }
   return (
-    <p className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="pending-judging">
-      <LoaderCircleIcon aria-hidden className="size-4 motion-safe:animate-spin-slow" />
-      {pending === 1 ? "1 submission still being judged" : `${pending} submissions still being judged`}
-    </p>
+    <Alert variant="info" data-testid="pending-judging">
+      <LoaderCircleIcon aria-hidden className="motion-safe:animate-spin-slow" />
+      <AlertDescription>{text}</AlertDescription>
+    </Alert>
   );
+}
+
+/** "37:50 left · You 1✓ 2✗ 3✓ 4·" (sticky bar below lg); nothing for watchers. */
+function StickyChips({
+  snapshot,
+  viewerId,
+  pending,
+}: {
+  snapshot: NonNullable<SessionPageData["state"]["snapshot"]>;
+  viewerId: string;
+  pending: readonly PendingCell[];
+}) {
+  const mine = viewerChips(snapshot, viewerId, pending);
+  if (!mine) return null;
+  return <YouChips chips={mine} className="text-sm text-muted-foreground" />;
 }
 
 type BodyProps = {
   data: SessionPageData;
   snapshot: NonNullable<SessionPageData["state"]["snapshot"]>;
   feed: FeedLine[];
+  pendingCells: PendingCell[];
 };
+
+function useMatrix({ data, snapshot, pendingCells }: Pick<BodyProps, "data" | "snapshot" | "pendingCells">) {
+  return useMemo(() => {
+    const rows = scoreboardRows(snapshot, data.viewerId, pendingCells);
+    const me = rows.find((r) => r.isViewer);
+    return { rows, myChips: me ? chips(me.cells) : null };
+  }, [snapshot, data.viewerId, pendingCells]);
+}
 
 function LiveBody({
   data,
   snapshot,
   feed,
+  judging,
   isParticipant,
-  pending,
-}: BodyProps & { isParticipant: boolean; pending: number }) {
+  pendingCells,
+}: BodyProps & { judging: FeedLine[]; isParticipant: boolean }) {
   const large = useMediaQuery(LARGE);
-  const problems = (
-    <section aria-labelledby="live-problems" className="flex flex-col gap-3">
-      <h2 id="live-problems" className="sr-only">
-        Problems
-      </h2>
-      {!isParticipant && (
-        <p className="text-sm text-muted-foreground">
-          You are watching. Join the session to have your submissions count.
-        </p>
-      )}
-      <ProblemList
-        snapshot={snapshot}
-        sessionId={data.session.id}
-        viewerId={data.viewerId}
-        isParticipant={isParticipant}
-      />
-    </section>
+  const { rows, myChips } = useMatrix({ data, snapshot, pendingCells });
+  const sessionId = data.session.id;
+  const matrix = (mobileLegend: boolean) => (
+    <ScoreMatrix
+      problems={snapshot.problems}
+      rows={rows}
+      durationSec={snapshot.session.durationMin * 60}
+      problemHref={(p) => (p.slug ? sessionProblemHref(p.slug, sessionId) : null)}
+      mobileLegend={mobileLegend}
+    />
   );
-  const board = (
+  const watching = !isParticipant && (
+    <p className="text-sm text-muted-foreground">You are watching. Join the session to have your submissions count.</p>
+  );
+  const board = (mobileLegend: boolean) => (
     <section aria-labelledby="scoreboard" id="scoreboard-section" className="flex scroll-mt-32 flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <div className="flex items-baseline gap-3">
@@ -513,14 +537,16 @@ function LiveBody({
             Updates live
           </span>
         </div>
-        {large !== false && <PendingLine pending={pending} finished={false} />}
+        {myChips && <YouChips chips={myChips} className="hidden text-sm text-muted-foreground lg:inline-flex" />}
       </div>
-      <Scoreboard snapshot={snapshot} viewerId={data.viewerId} />
+      {large !== false && watching}
+      {matrix(mobileLegend)}
+      <MatrixLegend className="mt-1" />
     </section>
   );
   const activity = (
-    <div className="flex flex-col gap-4">
-      <section aria-labelledby="activity" className="flex flex-col gap-2 rounded-xl border bg-card p-5 shadow-sm">
+    <section aria-labelledby="activity" className="flex min-w-0 flex-col gap-2 rounded-xl border bg-card p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5">
           <span aria-hidden className="inline-flex h-6 items-center gap-1.5 rounded-full bg-live-bg px-2.5 text-xs font-semibold text-live">
             <span className="live-dot" />
@@ -530,49 +556,68 @@ function LiveBody({
             Activity
           </h2>
         </div>
-        <ActivityFeed lines={feed} />
-      </section>
+        <span aria-hidden className="label-mono text-muted-foreground">
+          Newest first
+        </span>
+      </div>
+      <ActivityFeed lines={feed} judging={judging} />
+    </section>
+  );
+  const notifications = (
+    <section aria-labelledby="notifications-card" className="flex min-w-0 flex-col gap-2 rounded-xl border bg-card p-5 shadow-sm" data-testid="notifications-card">
+      <h2 id="notifications-card" className="text-[1.0625rem]/6 font-semibold">
+        Notifications
+      </h2>
+      <p className="text-sm text-muted-foreground">
+        Saved in this browser. Updates arrive every 3 s, and within about a second after a submission finishes judging.
+      </p>
+      <NotificationSwitches testIdPrefix="card-pref" />
       <RoomRules />
-    </div>
+    </section>
   );
 
   if (large === false) {
     return (
-      <div className="flex flex-col gap-3">
-        <PendingLine pending={pending} finished={false} />
-        <Tabs defaultValue="problems" className="gap-4">
-          <TabsList aria-label="Session" className="w-full">
-            <TabsTrigger value="problems" className="h-11 flex-1">
-              Problems
-            </TabsTrigger>
-            <TabsTrigger value="scoreboard" className="h-11 flex-1">
-              Scoreboard
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="h-11 flex-1">
-              Activity
-            </TabsTrigger>
-          </TabsList>
-          {/* keepMounted: the Activity log stays the live region while another tab is open. */}
-          <TabsContent value="problems" keepMounted>
-            {problems}
-          </TabsContent>
-          <TabsContent value="scoreboard" keepMounted>
-            {board}
-          </TabsContent>
-          <TabsContent value="activity" keepMounted>
-            {activity}
-          </TabsContent>
-        </Tabs>
-      </div>
+      <Tabs defaultValue="problems" className="gap-4">
+        <TabsList aria-label="Session" className="w-full">
+          <TabsTrigger value="problems" className="h-11 flex-1">
+            Problems
+          </TabsTrigger>
+          <TabsTrigger value="scoreboard" className="h-11 flex-1">
+            Scoreboard
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="h-11 flex-1">
+            Activity
+          </TabsTrigger>
+        </TabsList>
+        {/* keepMounted: the Activity log stays the live region while another tab is open. */}
+        <TabsContent value="problems" keepMounted className="flex flex-col gap-3">
+          {watching}
+          <ProblemList
+            snapshot={snapshot}
+            sessionId={sessionId}
+            viewerId={data.viewerId}
+            isParticipant={isParticipant}
+            pending={pendingCells}
+          />
+        </TabsContent>
+        <TabsContent value="scoreboard" keepMounted>
+          {board(false)}
+        </TabsContent>
+        <TabsContent value="activity" keepMounted className="flex flex-col gap-4">
+          {activity}
+          {notifications}
+        </TabsContent>
+      </Tabs>
     );
   }
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
-      <div className="flex min-w-0 flex-col gap-10">
-        {problems}
-        {board}
+    <div className="flex flex-col gap-8">
+      {board(true)}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
+        {activity}
+        {notifications}
       </div>
-      <div className="min-w-0">{activity}</div>
     </div>
   );
 }
@@ -581,55 +626,36 @@ function FinishedBody({
   data,
   snapshot,
   feed,
+  pendingCells,
   pending,
   roomId,
   sessionId,
 }: BodyProps & { pending: number; roomId: string; sessionId: string }) {
+  const { rows } = useMatrix({ data, snapshot, pendingCells });
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
-      <div className="flex min-w-0 flex-col gap-6">
-        <PendingLine pending={pending} finished />
-        <section aria-labelledby="final-standings" className="flex flex-col gap-3">
-          <h2 id="final-standings" className="font-display text-[2rem]/none">
-            Final standings
-          </h2>
-          <Scoreboard snapshot={snapshot} viewerId={data.viewerId} final caption="Final standings" />
-        </section>
-        <section aria-labelledby="per-problem" className="flex flex-col gap-3">
-          <h2 id="per-problem" className="font-display text-[2rem]/none">
-            Problems
-          </h2>
-          <ul className="flex flex-col divide-y rounded-xl border bg-card shadow-sm">
-            {snapshot.problems.map((p) => (
-              <li key={p.position} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 py-3 text-sm">
-                <span className="font-semibold">{problemLabel(p.position)}</span>
-                {p.slug && p.title && (
-                  <Link href={`/problems/${p.slug}`} className="font-medium text-link hover:underline">
-                    {p.title}
-                  </Link>
-                )}
-                <span className="text-muted-foreground">· {problemSummary(snapshot, p.position)}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-        <div className="flex flex-wrap gap-3">
-          {/* No prefetch: the results page is R5's route and may not exist yet. */}
-          <Link
-            href={resultsHref(roomId, sessionId)}
-            prefetch={false}
-            className={buttonVariants()}
-            data-testid="results-link"
-          >
-            Full results
-          </Link>
-          <NewSessionButton roomId={roomId} variant="secondary" />
-        </div>
+    <div className="flex flex-col gap-8">
+      <PendingLine pending={pending} />
+      <section aria-labelledby="final-standings" className="flex flex-col gap-3">
+        <h2 id="final-standings" className="font-display text-[2rem]/none">
+          Final standings
+        </h2>
+        <ScoreMatrix
+          problems={snapshot.problems}
+          rows={rows}
+          durationSec={snapshot.session.durationMin * 60}
+          final
+          caption="Final standings: who solved which problem and when"
+        />
+        <MatrixLegend className="mt-1" />
+      </section>
+      <div className="flex flex-wrap gap-3">
+        {/* No prefetch: the results page is a separate, heavier route. */}
+        <Link href={resultsHref(roomId, sessionId)} prefetch={false} className={buttonVariants()} data-testid="results-link">
+          Full results
+        </Link>
+        <NewSessionButton roomId={roomId} variant="secondary" />
       </div>
-      <section
-        aria-labelledby="activity"
-        className={cn("flex flex-col gap-2 self-start rounded-xl border bg-card p-5 shadow-sm")}
-      >
+      <section aria-labelledby="activity" className={cn("flex flex-col gap-2 rounded-xl border bg-card p-5 shadow-sm")}>
         <h2 id="activity" className="text-[1.0625rem]/6 font-semibold">
           Activity
         </h2>

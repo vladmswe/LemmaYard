@@ -62,24 +62,7 @@ function SwitchRow({
 
 export function NotificationSettings({ className, size = "icon" }: { className?: string; size?: "icon" | "icon-sm" }) {
   const prefs = useNotificationPrefs();
-  const [permission, setPermission] = useState<BrowserPermission>("default");
-  const [asking, setAsking] = useState(false);
-  useEffect(() => {
-    // Read after mount (the server has no Notification API).
-    queueMicrotask(() => setPermission(browserPermission()));
-  }, []);
-
-  const set = (patch: Partial<NotificationPrefs>) => setNotificationPrefs(patch);
-  const muted = !prefs.toasts && !prefs.sound && !(prefs.browser && permission === "granted");
-
-  async function enableBrowser() {
-    setAsking(true);
-    const result = await requestBrowserPermission();
-    setAsking(false);
-    setPermission(result);
-    if (result === "granted") set({ browser: true });
-  }
-
+  const muted = !prefs.toasts && !prefs.sound && !prefs.browser;
   return (
     <Popover>
       <Tooltip>
@@ -105,59 +88,87 @@ export function NotificationSettings({ className, size = "icon" }: { className?:
       <PopoverContent className="w-[22rem]">
         <PopoverTitle>Notifications</PopoverTitle>
         <PopoverDescription className="mt-1">Saved in this browser. Only while this tab is open.</PopoverDescription>
-        <div className="mt-2 divide-y">
-          <SwitchRow
-            label="Pop-up notifications"
-            help="Short messages on the problem page when someone solves a problem."
-            checked={prefs.toasts}
-            onChange={(v) => set({ toasts: v })}
-            testId="pref-toasts"
-          />
-          <SwitchRow
-            label="Sound"
-            help="A short tick when someone else solves a problem."
-            checked={prefs.sound}
-            onChange={(v) => {
-              // The click is the user gesture browsers require before audio.
-              if (v) primeSound();
-              set({ sound: v });
-            }}
-            testId="pref-sound"
-          />
-          <SwitchRow
-            label="Show failed attempts"
-            help="Also announce when someone makes an attempt that did not pass."
-            checked={prefs.showAttempts}
-            onChange={(v) => set({ showAttempts: v })}
-            testId="pref-attempts"
-          />
-          <div className="py-2">
-            {permission === "granted" ? (
-              <SwitchRow
-                label="Browser notifications when this tab is in the background"
-                help={browserPermissionHelp(permission)}
-                checked={prefs.browser}
-                onChange={(v) => set({ browser: v })}
-                testId="pref-browser"
-              />
-            ) : (
-              <div className="flex flex-col items-start gap-2 py-2">
-                <p className="text-sm font-semibold text-foreground">Browser notifications</p>
-                <p className={cn("text-xs", permission === "denied" ? "text-foreground-secondary" : "text-muted-foreground")}>
-                  {permission === "default"
-                    ? "Get a system notification when this tab is in the background. Notifications in background tabs may be delayed by up to a minute."
-                    : browserPermissionHelp(permission)}
-                </p>
-                {permission === "default" && (
-                  <Button variant="secondary" size="sm" loading={asking} onClick={enableBrowser} data-testid="enable-browser-notifications">
-                    Enable browser notifications
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+        <div className="mt-2">
+          <NotificationSwitches />
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** The switches, shared by the header popover and the live screen's Notifications card. */
+/** `testIdPrefix` keeps test ids unique when the card and the popover are both on the page. */
+export function NotificationSwitches({ testIdPrefix = "pref" }: { testIdPrefix?: string }) {
+  const prefs = useNotificationPrefs();
+  const [permission, setPermission] = useState<BrowserPermission>("default");
+  const [asking, setAsking] = useState(false);
+  useEffect(() => {
+    // Read after mount (the server has no Notification API).
+    queueMicrotask(() => setPermission(browserPermission()));
+  }, []);
+
+  const set = (patch: Partial<NotificationPrefs>) => setNotificationPrefs(patch);
+
+  async function enableBrowser() {
+    setAsking(true);
+    const result = await requestBrowserPermission();
+    setAsking(false);
+    setPermission(result);
+    if (result === "granted") set({ browser: true });
+  }
+
+  return (
+    <div className="divide-y">
+      <SwitchRow
+        label="Pop-up notifications"
+        help="Short messages on the problem page when someone solves a problem."
+        checked={prefs.toasts}
+        onChange={(v) => set({ toasts: v })}
+        testId={`${testIdPrefix}-toasts`}
+      />
+      <SwitchRow
+        label="Failed attempts"
+        help="Also announce when someone's attempt is not accepted. On by default; switch off to mute."
+        checked={prefs.showAttempts}
+        onChange={(v) => set({ showAttempts: v })}
+        testId={`${testIdPrefix}-attempts`}
+      />
+      <SwitchRow
+        label="Sound"
+        help="A short tick when someone else solves a problem."
+        checked={prefs.sound}
+        onChange={(v) => {
+          // The click is the user gesture browsers require before audio.
+          if (v) primeSound();
+          set({ sound: v });
+        }}
+        testId={`${testIdPrefix}-sound`}
+      />
+      <div className="py-2">
+        {permission === "granted" ? (
+          <SwitchRow
+            label="Browser notifications when this tab is in the background"
+            help={browserPermissionHelp(permission)}
+            checked={prefs.browser}
+            onChange={(v) => set({ browser: v })}
+            testId={`${testIdPrefix}-browser`}
+          />
+        ) : (
+          <div className="flex flex-col items-start gap-2 py-2">
+            <p className="text-sm font-semibold text-foreground">Browser notifications</p>
+            <p className={cn("text-xs", permission === "denied" ? "text-foreground-secondary" : "text-muted-foreground")}>
+              {permission === "default"
+                ? "Get a system notification when this tab is in the background. Notifications in background tabs may be delayed by up to a minute."
+                : browserPermissionHelp(permission)}
+            </p>
+            {permission === "default" && (
+              <Button variant="secondary" size="sm" loading={asking} onClick={enableBrowser} data-testid="enable-browser-notifications">
+                Enable browser notifications
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
