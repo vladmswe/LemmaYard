@@ -10,6 +10,7 @@ import {
   isProvisional,
   ratingExpectation,
   ratingTargets,
+  solveProbability,
   type RatedCandidate,
   type RatedSlot,
 } from "@/lib/rooms/rating";
@@ -55,7 +56,10 @@ import {
   users,
 } from "@/server/db/schema";
 
+import { getLeetCodeCatalog, slotProvenance } from "@/server/leetcode/catalog";
+
 import type { RoomSessionRow } from "./access";
+import { isAutoSlot, planLeetCode, writeLeetCodePlan, type LeetCodePlan } from "./leetcode";
 import type { Tx } from "./queries";
 import { ensureMemberRatings, problemRatingSql } from "./ratings";
 
@@ -73,7 +77,7 @@ export type DrawContext = {
 };
 
 /** Expected participants (§2.1): joined if at least 2, else all current members. */
-async function expectedUserIds(tx: Tx, roomId: string, sessionId: string): Promise<string[]> {
+export async function expectedUserIds(tx: Tx, roomId: string, sessionId: string): Promise<string[]> {
   // Sequential: one transaction is one connection (pg rejects overlapping queries).
   const joined = await tx
     .select({ userId: roomSessionParticipants.userId })
@@ -219,6 +223,8 @@ export type ExternalSlotRow = {
   difficulty: Difficulty | null;
   rating: number | null;
   bankId: string | null;
+  /** Picked by hand (room list, pasted link, catalog search); false = auto-picked by the draw. */
+  pinned: boolean;
 };
 
 export async function loadExternalSlots(tx: Pick<Tx, "select">, sessionId: string): Promise<ExternalSlotRow[]> {
@@ -230,6 +236,7 @@ export async function loadExternalSlots(tx: Pick<Tx, "select">, sessionId: strin
       difficulty: roomSessionProblems.difficulty,
       rating: roomSessionProblems.externalRating,
       bankId: roomSessionProblems.externalProblemId,
+      pinned: roomSessionProblems.pinned,
     })
     .from(roomSessionProblems)
     .where(and(eq(roomSessionProblems.sessionId, sessionId), isNull(roomSessionProblems.problemId)))
@@ -245,7 +252,7 @@ export function externalSlotValues(sessionId: string, position: number, e: Omit<
     position,
     problemId: null,
     difficulty: e.difficulty,
-    pinned: false,
+    pinned: e.pinned,
     externalProblemId: e.bankId,
     externalSlug: e.slug,
     externalTitle: e.title,
@@ -302,12 +309,24 @@ async function saveDraw(
   session: RoomSessionRow,
   resolved: ResolvedSettings,
   slots: readonly Slot[],
-  settings: RoomSessionSettings,
+  settingsIn: RoomSessionSettings,
   rerolledIds: readonly string[],
+  lc: LeetCodePlan = { kind: "skip" },
 ): Promise<void> {
   // LeetCode slots first: they move to the end of the new count (the internal positions are rewritten next).
-  const external = externalCountOf(settings);
-  await placeExternalSlots(tx, session.id, resolved.problemCount - external, external);
+  const external = externalCountOf(settingsIn);
+  const drawn = resolved.problemCount - external;
+  let settings = settingsIn;
+  if (lc.kind === "plan") {
+    const lcTargets = await writeLeetCodePlan(tx, session.id, drawn, lc);
+    settings = { ...settings, leetcodeRerolled: lc.rerolled };
+    if (settings.leetcodeRerolled?.length === 0) delete settings.leetcodeRerolled;
+    if (selectionModeOf(settings) === "rating") {
+      settings.targets = lcTargets.map((t, i) => (i < drawn ? (settingsIn.targets?.[i] ?? null) : t));
+    }
+  } else {
+    await placeExternalSlots(tx, session.id, drawn, external);
+  }
   await writeSlots(tx, session.id, slots);
   await tx
     .update(roomSessions)
@@ -338,6 +357,13 @@ function settingsWithoutTargets(settings: RoomSessionSettings): RoomSessionSetti
   return rest;
 }
 
+/** Settings a non-host member may see before the start: no targets, no re-rolled LeetCode slugs. */
+export function settingsForMember(settings: RoomSessionSettings): RoomSessionSettings {
+  const { leetcodeRerolled: _rerolled, ...rest } = settingsWithoutTargets(settings);
+  void _rerolled;
+  return rest;
+}
+
 /**
  * Rating-mode draw (v2 §6.3) with persistence: keeps pinned slots, sets
  * ladder targets from the expected participants' room ratings and fills the
@@ -355,7 +381,7 @@ export async function drawByRating(
   const current = await loadSlots(tx, session.id);
   const pinned: RatedSlot[] = current.filter((s) => s.pinned).map((s) => ({ ...toSlot(s), rating: s.rating }));
   const drawn = drawnCount(resolved);
-  if (drawn === 0) return saveWithoutDraw(tx, session, resolved, pinned, context);
+  if (drawn === 0) return saveWithoutDraw(tx, session, resolved, pinned, context, rng);
   const people = await expectedRatings(tx, session.roomId, context.expectedUserIds);
   const result = drawSlotsByRating({
     problemCount: drawn,
@@ -368,6 +394,9 @@ export async function drawByRating(
     challenge: resolved.settings.challenge,
   });
   if (!result.ok) return result;
+  // LeetCode slots after the internal draw (same RNG, so the internal picks never change).
+  const lc = await planLeetCode(tx, session, resolved, rng, context);
+  if ("ok" in lc) return lc;
   const mix = mixOf(result.slots);
   await saveDraw(
     tx,
@@ -376,8 +405,9 @@ export async function drawByRating(
     result.slots.map(toSlot),
     { ...resolved.settings, mode: "rating", mix, targets: result.targetsByPosition },
     result.rerolledIds,
+    lc,
   );
-  return { ok: true, notices: result.notices, mix };
+  return { ok: true, notices: [...result.notices, ...(lc.kind === "plan" ? lc.notices : [])], mix };
 }
 
 /**
@@ -400,7 +430,7 @@ export async function drawAndSave(
   const current = await loadSlots(tx, session.id);
   const pinned = current.filter((s) => s.pinned).map(toSlot);
   const drawn = drawnCount(resolved);
-  if (drawn === 0) return saveWithoutDraw(tx, session, resolved, pinned, ctx);
+  if (drawn === 0) return saveWithoutDraw(tx, session, resolved, pinned, ctx, rng);
   if (mode === "manual") {
     if (pinned.length > drawn) {
       return { ok: false, code: "too_many_pinned", counts: mixOf([...ctx.pool, ...pinned]) };
@@ -434,8 +464,10 @@ export async function drawAndSave(
     rng,
   });
   if (!result.ok) return result;
-  await saveDraw(tx, session, resolved, result.slots, { ...settingsWithoutTargets(resolved.settings), mix }, result.rerolledIds);
-  return { ok: true, notices: result.notices, mix };
+  const lc = await planLeetCode(tx, session, resolved, rng, ctx);
+  if ("ok" in lc) return lc;
+  await saveDraw(tx, session, resolved, result.slots, { ...settingsWithoutTargets(resolved.settings), mix }, result.rerolledIds, lc);
+  return { ok: true, notices: [...result.notices, ...(lc.kind === "plan" ? lc.notices : [])], mix };
 }
 
 /** Slots the draw fills: all of them minus the LeetCode slots at the end. */
@@ -450,11 +482,14 @@ async function saveWithoutDraw(
   resolved: ResolvedSettings,
   pinned: readonly Slot[],
   ctx: DrawContext,
+  rng: Rng,
 ): Promise<DrawOutcome> {
   if (pinned.length > 0) return { ok: false, code: "too_many_pinned", counts: mixOf([...ctx.pool, ...pinned]) };
+  const lc = await planLeetCode(tx, session, resolved, rng, ctx);
+  if ("ok" in lc) return lc;
   const mix = { easy: 0, medium: 0, hard: 0 };
-  await saveDraw(tx, session, resolved, [], { ...settingsWithoutTargets(resolved.settings), mix }, session.rerolledProblemIds);
-  return { ok: true, notices: [], mix };
+  await saveDraw(tx, session, resolved, [], { ...settingsWithoutTargets(resolved.settings), mix }, session.rerolledProblemIds, lc);
+  return { ok: true, notices: lc.kind === "plan" ? lc.notices : [], mix };
 }
 
 export function toSlot(s: Slot): Slot {
@@ -544,13 +579,27 @@ export async function buildLobbyView(
   // LeetCode slots (always last): the host sees what they are; everyone else
   // only that a LeetCode problem is there, never its title, slug or rating
   // before the start (AC-V2-SEL-4, rooms-external-problems §4).
-  const externalViews: LobbySlotView[] = externals.map((e) => ({
-    position: e.position,
-    difficulty: e.difficulty,
-    pinned: false,
-    tags: [],
-    external: canManage ? { slug: e.slug, title: e.title, rating: e.rating, bankId: e.bankId } : {},
-  }));
+  const catalog = canManage ? getLeetCodeCatalog() : null;
+  const externalViews: LobbySlotView[] = externals.map((e) => {
+    if (!canManage) return { position: e.position, difficulty: e.difficulty, pinned: false, tags: [], external: {} };
+    const entry = catalog?.bySlug.get(e.slug);
+    const provenance = slotProvenance(e);
+    return {
+      position: e.position,
+      difficulty: e.difficulty,
+      pinned: false,
+      tags: [],
+      external: {
+        slug: e.slug,
+        title: e.title,
+        rating: e.rating,
+        bankId: e.bankId,
+        auto: isAutoSlot(e),
+        ...(entry ? { n: entry.n } : {}),
+        ...(provenance && entry ? { tags: entry.tags, provenance } : {}),
+      },
+    };
+  });
   const base: LobbyView = {
     sessionId: session.id,
     roomId: session.roomId,
@@ -560,8 +609,9 @@ export async function buildLobbyView(
     problemCount: session.problemCount,
     durationMin: session.durationMin,
     plannedFor: session.plannedFor?.toISOString() ?? null,
-    // Slot targets sit next to the drawn problems' ratings: host/owner only (AC-V2-SEL-4).
-    settings: canManage ? session.settings : settingsWithoutTargets(session.settings),
+    // Slot targets sit next to the drawn problems' ratings, re-rolled LeetCode slugs name
+    // candidates: host/owner only (AC-V2-SEL-4, AC-LC-11).
+    settings: canManage ? session.settings : settingsForMember(session.settings),
     rerollCount: session.rerollCount,
     rerollsLeft: Math.max(0, MAX_REROLLS - session.rerollCount),
     slots: slots.map((s) => ({ position: s.position, difficulty: s.difficulty, pinned: s.pinned, tags: s.tags })),
@@ -623,9 +673,22 @@ export async function buildLobbyView(
           : {}),
       };
     });
+  // Host/owner: LeetCode slots with a rating get the room solve chance and (auto, rating mode) their target.
+  const lcPeople =
+    mode === "rating" && externalViews.some((v) => v.external?.rating != null)
+      ? await expectedRatings(tx, session.roomId, ctx.expectedUserIds)
+      : [];
+  const lcViews = externalViews.map((v) => {
+    const r = v.external?.rating;
+    if (r == null || lcPeople.length === 0) return v;
+    const chance = lcPeople.reduce((sum, p) => sum + solveProbability(p.rating, r), 0) / lcPeople.length;
+    const target = v.external?.auto ? (session.settings.targets?.[v.position - 1] ?? null) : null;
+    return { ...v, rating: { chance, rating: r, target, deviation: target === null ? null : r - target } };
+  });
   return {
     ...base,
-    slots: [...internalViews, ...externalViews],
+    slots: [...internalViews, ...lcViews],
+    ...(catalog ? { leetcodeCatalog: { problems: catalog.visible.length } } : {}),
     calibration: {
       sessions: ctx.calibration.sessions,
       counts: ctx.calibration.counts,

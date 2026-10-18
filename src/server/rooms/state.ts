@@ -6,6 +6,7 @@
 // list) in one statement (Q0 merged with the session read and Q10), (3) events after the cursor (Q6, skipped when the
 // cursor is already the latest). A snapshot adds two (problems; participants
 // with their result cells, Q11). A due lazy close adds one transaction.
+import { slotProvenance } from "@/server/leetcode/catalog";
 import { and, asc, eq, gt, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -135,6 +136,7 @@ async function loadSnapshot(
         externalSlug: roomSessionProblems.externalSlug,
         externalTitle: roomSessionProblems.externalTitle,
         externalRating: roomSessionProblems.externalRating,
+        externalProblemId: roomSessionProblems.externalProblemId,
       })
       .from(roomSessionProblems)
       .leftJoin(problems, eq(problems.id, roomSessionProblems.problemId))
@@ -177,7 +179,17 @@ async function loadSnapshot(
             title: s.externalTitle ?? s.externalSlug,
             difficulty: s.difficulty as Difficulty | null,
             tags: [],
-            external: { slug: s.externalSlug, rating: s.externalRating },
+            external: {
+              slug: s.externalSlug,
+              rating: s.externalRating,
+              provenance: slotProvenance({
+                slug: s.externalSlug,
+                title: s.externalTitle ?? s.externalSlug,
+                difficulty: s.difficulty as Difficulty | null,
+                rating: s.externalRating,
+                bankId: s.externalProblemId,
+              }),
+            },
           }
         : {
             position: s.position,

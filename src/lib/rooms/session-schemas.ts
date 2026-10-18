@@ -79,6 +79,8 @@ export const sessionSettingsBodySchema = z.strictObject({
     .min(0, `Use 0–${MAX_PROBLEM_COUNT}`)
     .max(MAX_PROBLEM_COUNT, `Use 0–${MAX_PROBLEM_COUNT}`)
     .optional(),
+  /** Auto-pick the LeetCode slots from the catalog (leetcode-integration §6.7). */
+  leetcodeAuto: z.boolean().optional(),
 });
 export type SessionSettingsBody = z.infer<typeof sessionSettingsBodySchema>;
 
@@ -97,7 +99,17 @@ export function ratedByDefault(durationMin: number, problemCount: number, preset
 }
 
 /** Body fields whose change re-draws the unpinned slots (§2.5 "Re-draw"). */
-export const DRAW_FIELDS = ["problemCount", "tags", "mixMode", "mix", "challenge", "avoidSolved", "mode", "external"] as const;
+export const DRAW_FIELDS = [
+  "problemCount",
+  "tags",
+  "mixMode",
+  "mix",
+  "challenge",
+  "avoidSolved",
+  "mode",
+  "external",
+  "leetcodeAuto",
+] as const;
 
 export function touchesDraw(body: SessionSettingsBody): boolean {
   return DRAW_FIELDS.some((k) => body[k] !== undefined);
@@ -154,6 +166,7 @@ export function settingsFromTemplate(template: SessionTemplate): ResolvedSetting
   };
   if (template.id !== "default") settings.presetId = template.id;
   if (template.external) settings.external = Math.min(template.external, template.problemCount);
+  if (template.leetcodeAuto) settings.leetcodeAuto = true;
   return {
     problemCount: template.problemCount,
     durationMin: template.durationMin,
@@ -234,6 +247,9 @@ export function resolveSettings(
   if (base.settings.presetId !== undefined) settings.presetId = base.settings.presetId;
   if (mode === "rating" && base.settings.targets !== undefined) settings.targets = [...base.settings.targets];
   if (external > 0) settings.external = external;
+  const leetcodeAuto = body.leetcodeAuto ?? base.settings.leetcodeAuto ?? false;
+  if (leetcodeAuto) settings.leetcodeAuto = true;
+  if (base.settings.leetcodeRerolled !== undefined) settings.leetcodeRerolled = [...base.settings.leetcodeRerolled];
   // New sessions: short ones are unrated unless the body says otherwise; existing ones keep their flag.
   const rated =
     body.rated ?? (current ? current.rated : ratedByDefault(durationMin, problemCount, template ? template.rated : true));

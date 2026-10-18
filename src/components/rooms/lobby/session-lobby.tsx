@@ -249,7 +249,7 @@ export function SessionLobby({
               <InfoIcon aria-hidden />
               <AlertDescription>
                 {notices.map((n) => (
-                  <p key={`${n.code}-${n.difficulty}-${"position" in n ? n.position : ""}`}>{n.message}</p>
+                  <p key={`${n.code}-${"difficulty" in n ? n.difficulty : ""}-${"position" in n ? n.position : ""}`}>{n.message}</p>
                 ))}
               </AlertDescription>
             </Alert>

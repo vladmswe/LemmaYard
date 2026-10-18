@@ -7,6 +7,7 @@ import type { SessionSettingsBody } from "./session-schemas";
 import {
   DIFFICULTIES,
   externalCountOf,
+  leetcodeAutoOf,
   mixTotal,
   selectionModeOf,
   type Challenge,
@@ -148,8 +149,10 @@ export type LobbyForm = {
   mode: SelectionMode;
   /** v2: the results change ratings. */
   rated: boolean;
-  /** LeetCode slots at the end (set by preset tiles; the slot list adds and removes them). */
+  /** LeetCode slots at the end (stepper and preset tiles; the slot list also adds and removes them). */
   external: number;
+  /** Auto-pick the LeetCode slots from the catalog. */
+  leetcodeAuto: boolean;
 };
 
 /** `datetime-local` value in the viewer's zone for an ISO time ("" for none). */
@@ -173,6 +176,7 @@ export function formFromLobby(lobby: LobbyView): LobbyForm {
     mode: lobby.mode ?? selectionModeOf(lobby.settings),
     rated: lobby.rated ?? true,
     external: externalCountOf(lobby.settings),
+    leetcodeAuto: leetcodeAutoOf(lobby.settings),
   };
 }
 
@@ -193,6 +197,7 @@ export function settingsDiff(lobby: LobbyView, form: LobbyForm): SessionSettings
   if (form.challenge !== before.challenge) body.challenge = form.challenge;
   if (form.avoidSolved !== before.avoidSolved) body.avoidSolved = form.avoidSolved;
   if (form.external !== before.external) body.external = form.external;
+  if (form.leetcodeAuto !== before.leetcodeAuto) body.leetcodeAuto = form.leetcodeAuto;
   const countChanged = body.problemCount !== undefined || body.external !== undefined;
   if (form.mode === "difficulty") {
     if (form.mixMode !== before.mixMode) body.mixMode = form.mixMode;

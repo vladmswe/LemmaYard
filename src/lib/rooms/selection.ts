@@ -209,7 +209,9 @@ export type DrawErrorCode =
   /** More pinned slots than N: 400 "Unpin a problem first". */
   | "too_many_pinned"
   /** A manual mix has fewer slots of a difficulty than are pinned: 400. */
-  | "pinned_exceeds_mix";
+  | "pinned_exceeds_mix"
+  /** Not enough LeetCode catalog problems for the auto LeetCode slots: 409 (leetcode-integration §6.6). */
+  | "leetcode_pool_too_small";
 
 export type DrawError = {
   ok: false;
@@ -328,6 +330,10 @@ export type DrawNotice =
       position: number;
       rating: number;
       target: number;
+    }
+  | {
+      /** leetcode-integration §5: too few LeetCode problems carry the session's topics; LeetCode slots ignore them. */
+      code: "leetcode_topics_ignored";
     };
 
 export function classify(c: CandidateProblem): Tier {

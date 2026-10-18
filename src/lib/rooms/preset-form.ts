@@ -46,6 +46,8 @@ export type PresetForm = {
   rated: boolean;
   /** LeetCode slots to fill in the lobby (rooms-external-problems §4). */
   external: number;
+  /** Fill them automatically from the LeetCode catalog (leetcode-integration §6.8). */
+  leetcodeAuto: boolean;
 };
 
 export type FieldErrors = Partial<Record<string, string>>;
@@ -63,6 +65,7 @@ export function emptyPresetForm(): PresetForm {
     avoidSolved: true,
     rated: true,
     external: 0,
+    leetcodeAuto: false,
   };
 }
 
@@ -80,6 +83,7 @@ export function presetToForm(p: SessionTemplate): PresetForm {
     avoidSolved: p.avoidSolved,
     rated: p.rated,
     external: p.external ?? 0,
+    leetcodeAuto: p.leetcodeAuto ?? false,
   };
 }
 
@@ -97,6 +101,7 @@ export function formToPresetInput(f: PresetForm): PresetInput {
     avoidSolved: f.avoidSolved,
     rated: f.rated,
     ...(f.external > 0 ? { external: f.external } : {}),
+    ...(f.external > 0 && f.leetcodeAuto ? { leetcodeAuto: true } : {}),
   };
 }
 
@@ -127,10 +132,10 @@ export function validatePresetForm(f: PresetForm): { ok: true; preset: PresetInp
 
 /** "90 min · 4 problems · by rating · balanced" */
 export function presetSummary(
-  p: Pick<SessionTemplate, "durationMin" | "problemCount" | "mode" | "challenge" | "mix" | "external">,
+  p: Pick<SessionTemplate, "durationMin" | "problemCount" | "mode" | "challenge" | "mix" | "external" | "leetcodeAuto">,
 ): string {
   const parts = [`${p.durationMin} min`, `${p.problemCount} problem${p.problemCount === 1 ? "" : "s"}`];
-  if (p.external) parts.push(`${p.external} from LeetCode`);
+  if (p.external) parts.push(`${p.external} from LeetCode${p.leetcodeAuto ? " (auto)" : ""}`);
   parts.push(MODE_WORD[p.mode]);
   if (p.mode === "difficulty" && p.mix) {
     parts.push(DIFFICULTIES.filter((d) => p.mix![d] > 0).map((d) => `${p.mix![d]} ${d}`).join(" + "));
@@ -205,6 +210,7 @@ export type LobbyPresetFields = {
   avoidSolved: boolean;
   rated: boolean;
   external: number;
+  leetcodeAuto: boolean;
 };
 
 const sortedEqual = (a: readonly string[], b: readonly string[]) =>
@@ -219,6 +225,7 @@ export function lobbyMatchesPreset(form: LobbyPresetFields, p: SessionTemplate):
     form.avoidSolved !== p.avoidSolved ||
     form.rated !== p.rated ||
     form.external !== (p.external ?? 0) ||
+    (form.external > 0 && form.leetcodeAuto !== (p.leetcodeAuto ?? false)) ||
     !sortedEqual(form.tags, p.tags)
   ) {
     return false;
@@ -246,6 +253,7 @@ export function applyPresetToLobby<T extends LobbyPresetFields>(form: T, p: Sess
     avoidSolved: p.avoidSolved,
     rated: p.rated,
     external: p.external ?? 0,
+    leetcodeAuto: p.leetcodeAuto ?? false,
   };
 }
 
@@ -263,5 +271,6 @@ export function presetFormFromLobby(form: LobbyPresetFields, name = ""): PresetF
     avoidSolved: form.avoidSolved,
     rated: form.rated,
     external: form.external,
+    leetcodeAuto: form.external > 0 && form.leetcodeAuto,
   };
 }

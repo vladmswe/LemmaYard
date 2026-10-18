@@ -41,7 +41,9 @@ import {
 } from "@/lib/rooms/session-view";
 import { JUDGE_DISABLED_SESSION_MESSAGE } from "@/lib/judge-availability";
 import { emptyBodySchema } from "@/lib/rooms/schemas";
-import { mixOf, selectionModeOf } from "@/lib/rooms/types";
+import { MAX_REROLLS } from "@/lib/rooms/selection";
+import { leetcodeAutoOf, mixOf, selectionModeOf } from "@/lib/rooms/types";
+import { getLeetCodeCatalog } from "@/server/leetcode/catalog";
 import { getCurrentUser, type SessionUser } from "@/server/auth/session";
 import { getDb } from "@/server/db";
 import { problems, roomSessionParticipants, roomSessionProblems, roomSessions } from "@/server/db/schema";
@@ -62,6 +64,7 @@ import {
   writeSlots,
 } from "./draw";
 import { loadSessionTemplate } from "./defaults";
+import { CATALOG_UNAVAILABLE, isAutoSlot, planLeetCode, writeLeetCodePlan, type LeetCodePlan } from "./leetcode";
 import { appendRoomEvent, lockSession } from "./events";
 import { json, readAuthedBody, roomNotFound, SIGN_IN_REQUIRED, tooMany } from "./http";
 import { closeIfDue } from "./lifecycle";
@@ -193,6 +196,7 @@ export async function createSession(request: Request, roomId: string): Promise<N
   const { user, data, db } = pre;
   if (!(await requireRoomMember(db, roomId, user.id))) return roomNotFound();
   const { presetId, ...body } = data;
+  if (body.leetcodeAuto && !getLeetCodeCatalog()) return catalogUnavailable();
 
   return db.transaction(async (tx) => {
     await lockRoom(tx, roomId);
@@ -263,6 +267,7 @@ export function drawSession(request: Request, roomId: string, sessionId: string)
     { manage: true },
     async ({ tx, session, canManage, data }) => {
       if (session.status !== "lobby") return notInLobby(session);
+      if (data.leetcodeAuto && !getLeetCodeCatalog()) return catalogUnavailable();
       const resolved = resolveSettings(currentSettings(session), data, new Date());
       if ("error" in resolved) return jsonError(400, resolved.error, { [resolved.field]: resolved.error });
       const unknown = await unknownTags(tx, resolved.settings.tags);
@@ -379,17 +384,30 @@ export function rerollAllSlots(request: Request, roomId: string, sessionId: stri
       if (session.status !== "lobby") return notInLobby(session);
       const mode = selectionModeOf(session.settings);
       if (mode === "manual") return codedError(409, "manual_mode", "Pick the problems yourself in this mode");
-      if (drawnCount(session) === 0) return codedError(409, "external_only", "Only LeetCode problems: nothing to re-roll");
+      const autoSlugs = (await loadExternalSlots(tx, session.id)).filter(isAutoSlot).map((e) => e.slug);
+      if (drawnCount(session) === 0 && (autoSlugs.length === 0 || !leetcodeAutoOf(session.settings))) {
+        return codedError(409, "external_only", "Only LeetCode problems you picked yourself: nothing to re-roll");
+      }
       const rows = await loadSlots(tx, session.id);
       const slots = rows.map(toSlot);
       const ctx = await loadDrawContext(tx, session, session.settings.tags);
+      if (session.rerollCount >= MAX_REROLLS) return codedError(409, "reroll_limit", REROLL_LIMIT);
+      const rng = sessionRng();
+      if (drawnCount(session) === 0) {
+        // Only LeetCode slots: re-pick the auto ones, the current picks avoided.
+        const lc = await planLeetCode(tx, session, currentSettings(session), rng, ctx, autoSlugs);
+        if ("ok" in lc) return drawErrorResponse(drawErrorView(lc, session.problemCount, session.settings.tags.length));
+        await saveLeetCodeReroll(tx, session, lc, session.settings);
+        await lobbyUpdated(tx, session.id);
+        return lobbyResponse(tx, session, canManage, { notices: lc.kind === "plan" ? lc.notices : [] });
+      }
       const common = {
         problemCount: drawnCount(session),
         pool: ctx.pool,
         rerolledIds: session.rerolledProblemIds,
         rerollCount: session.rerollCount,
         avoidSolved: session.settings.avoidSolved,
-        rng: sessionRng(),
+        rng,
       };
       const result =
         mode === "rating"
@@ -407,20 +425,52 @@ export function rerollAllSlots(request: Request, roomId: string, sessionId: stri
         }
         return codedError(409, result.code, "Re-roll failed");
       }
+      // LeetCode auto slots are re-picked too (same RNG after the internal draw), current picks avoided.
+      const lc = await planLeetCode(tx, session, currentSettings(session), rng, ctx, autoSlugs);
+      if ("ok" in lc) return drawErrorResponse(drawErrorView(lc, session.problemCount, session.settings.tags.length));
       await writeSlots(tx, session.id, result.slots);
       const targets = "targetsByPosition" in result ? (result.targetsByPosition as (number | null)[]) : null;
+      const settings = targets ? { ...session.settings, mix: mixOf(result.slots), targets } : session.settings;
       await tx
         .update(roomSessions)
         .set({
           rerolledProblemIds: result.rerolledIds,
           rerollCount: result.rerollCount,
-          ...(targets ? { settings: { ...session.settings, mix: mixOf(result.slots), targets } } : {}),
+          ...(targets ? { settings } : {}),
         })
         .where(eq(roomSessions.id, session.id));
+      if (lc.kind === "plan") await saveLeetCodeReroll(tx, session, lc, settings, false);
       await lobbyUpdated(tx, session.id);
-      return lobbyResponse(tx, session, canManage, { notices: result.notices });
+      return lobbyResponse(tx, session, canManage, {
+        notices: [...result.notices, ...(lc.kind === "plan" ? lc.notices : [])],
+      });
     },
   );
+}
+
+/** Writes re-picked LeetCode slots and the session's LeetCode re-roll state (re-roll all). */
+async function saveLeetCodeReroll(
+  tx: Tx,
+  session: RoomSessionRow,
+  lc: LeetCodePlan,
+  settings: RoomSessionRow["settings"],
+  countReroll = true,
+): Promise<void> {
+  if (lc.kind !== "plan") return;
+  const drawn = drawnCount(session);
+  const lcTargets = await writeLeetCodePlan(tx, session.id, drawn, lc);
+  const next = { ...settings, leetcodeRerolled: lc.rerolled };
+  if (selectionModeOf(settings) === "rating") {
+    next.targets = lcTargets.map((t, i) => (i < drawn ? (settings.targets?.[i] ?? null) : t));
+  }
+  await tx
+    .update(roomSessions)
+    .set({ settings: next, ...(countReroll ? { rerollCount: session.rerollCount + 1 } : {}) })
+    .where(eq(roomSessions.id, session.id));
+}
+
+function catalogUnavailable(): NextResponse {
+  return codedError(409, "leetcode_catalog_unavailable", CATALOG_UNAVAILABLE);
 }
 
 export function pinSessionSlot(request: Request, roomId: string, sessionId: string, rawPosition: string) {

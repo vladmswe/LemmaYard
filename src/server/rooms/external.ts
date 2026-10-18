@@ -34,9 +34,17 @@ import {
 import { jsonError } from "@/server/http/request";
 import { createRateLimiter } from "@/server/http/rate-limit";
 
-import { requireRoomMember } from "./access";
+import { rerollLeetCodeSlot } from "@/lib/rooms/leetcode-draw";
+import { MAX_REROLLS } from "@/lib/rooms/selection";
+import { REROLL_LIMIT } from "@/lib/rooms/session-view";
+import { selectionModeOf } from "@/lib/rooms/types";
+import { findVisibleProblem, getLeetCodeCatalog } from "@/server/leetcode/catalog";
+
+import { requireRoomMember, type RoomSessionRow } from "./access";
 import { roomSettingsLimiter } from "./defaults";
-import { externalSlotValues, loadExternalSlots, type ExternalSlotRow } from "./draw";
+import { expectedUserIds, externalSlotValues, loadExternalSlots, type ExternalSlotRow } from "./draw";
+import { CATALOG_UNAVAILABLE, isAutoSlot, loadLeetCodeCandidates, pickSnapshot } from "./leetcode";
+import { sessionRng } from "./rng";
 import { appendRoomEvent } from "./events";
 import { json, OWNER_ONLY, roomMutation, roomNotFound, SIGN_IN_REQUIRED, tooMany } from "./http";
 import { recomputeSessionScores } from "./outcome";
@@ -54,6 +62,8 @@ export const BANK_NOT_FOUND = "LeetCode problem not found";
 export const SESSION_DUPLICATE = "This LeetCode problem is already in the session";
 export const SESSION_FULL = `A session has at most ${MAX_PROBLEM_COUNT} problems`;
 export const JUDGED_SLOT = "Our judge checks this problem: submit your code instead";
+export const CATALOG_NOT_FOUND = "LeetCode problem not found in the list";
+export const NOT_AUTO = "You picked this LeetCode problem yourself: remove it or pick another one instead";
 
 type Executor = Pick<Db, "select">;
 
@@ -208,6 +218,8 @@ export function updateSessionExternal(request: Request, roomId: string, sessionI
       const external = externalCountOf(session.settings);
       const drawn = session.problemCount - external;
 
+      if (data.action === "reroll") return rerollAutoSlot(tx, session, canManage, externals, drawn, data.position);
+
       if (data.action === "remove") {
         const position = data.position;
         if (position > session.problemCount) return jsonError(404, SLOT_NOT_FOUND);
@@ -232,7 +244,13 @@ export function updateSessionExternal(request: Request, roomId: string, sessionI
           .where(and(eq(roomExternalProblems.id, data.bankId), eq(roomExternalProblems.roomId, roomId)))
           .limit(1);
         if (!entry) return jsonError(404, BANK_NOT_FOUND);
-        values = { slug: entry.slug, title: entry.title, difficulty: entry.difficulty, rating: entry.rating, bankId: entry.id };
+        values = { slug: entry.slug, title: entry.title, difficulty: entry.difficulty, rating: entry.rating, bankId: entry.id, pinned: true };
+      } else if ("catalogSlug" in data) {
+        const catalog = getLeetCodeCatalog();
+        if (!catalog) return codedError(409, "leetcode_catalog_unavailable", CATALOG_UNAVAILABLE);
+        const problem = findVisibleProblem(catalog, data.catalogSlug);
+        if (!problem) return jsonError(404, CATALOG_NOT_FOUND);
+        values = { ...pickSnapshot(catalog, problem), pinned: true };
       } else {
         const typed = normalizeExternalInput(data);
         let bankId: string | null = null;
@@ -249,7 +267,7 @@ export function updateSessionExternal(request: Request, roomId: string, sessionI
             bankId = row.id;
           }
         }
-        values = { ...typed, bankId };
+        values = { ...typed, bankId, pinned: true };
       }
       if (externals.some((e) => e.slug === values.slug)) return codedError(409, "duplicate", SESSION_DUPLICATE);
 
@@ -271,6 +289,61 @@ export function updateSessionExternal(request: Request, roomId: string, sessionI
       return lobbyResponse(tx, session, canManage);
     },
   );
+}
+
+/**
+ * `{action: "reroll", position}` (leetcode-integration §6.7): another catalog
+ * problem for an auto-picked LeetCode slot, around its target (rating mode)
+ * or of its difficulty; the old slug is avoided from now on. Hand-picked
+ * slots answer 409 `not_auto`.
+ */
+async function rerollAutoSlot(
+  tx: Tx,
+  session: RoomSessionRow,
+  canManage: boolean,
+  externals: readonly ExternalSlotRow[],
+  drawn: number,
+  position: number,
+) {
+  if (position > session.problemCount) return jsonError(404, SLOT_NOT_FOUND);
+  if (position <= drawn) return codedError(409, "judged_slot", "Use the slot's own Re-roll for our problems");
+  const slot = externals.find((e) => e.position === position);
+  if (!slot) return codedError(409, "slot_empty", "Pick a LeetCode problem for this slot first");
+  if (!isAutoSlot(slot)) return codedError(409, "not_auto", NOT_AUTO);
+  if (session.rerollCount >= MAX_REROLLS) return codedError(409, "reroll_limit", REROLL_LIMIT);
+  const catalog = getLeetCodeCatalog();
+  if (!catalog) return codedError(409, "leetcode_catalog_unavailable", CATALOG_UNAVAILABLE);
+  const mode = selectionModeOf(session.settings);
+  const others = new Set(externals.filter((e) => e.position !== position).map((e) => e.slug));
+  const expected = await expectedUserIds(tx, session.roomId, session.id);
+  const candidates = (await loadLeetCodeCandidates(tx, catalog, session.roomId, expected)).filter((c) => !others.has(c.slug));
+  const result = rerollLeetCodeSlot({
+    mode: mode === "difficulty" ? "difficulty" : "rating",
+    slot: { slug: slot.slug, difficulty: slot.difficulty, rating: slot.rating },
+    target: session.settings.targets?.[position - 1] ?? null,
+    candidates,
+    tags: session.settings.tags,
+    rerolled: session.settings.leetcodeRerolled ?? [],
+    rerollCount: session.rerollCount,
+    avoidSolved: session.settings.avoidSolved,
+    rng: sessionRng(),
+  });
+  if (!result.ok) {
+    return result.code === "reroll_limit"
+      ? codedError(409, "reroll_limit", REROLL_LIMIT)
+      : codedError(409, "no_candidates", "No other LeetCode problem fits this slot");
+  }
+  const snap = pickSnapshot(catalog, result.pick);
+  await tx
+    .update(roomSessionProblems)
+    .set({ externalSlug: snap.slug, externalTitle: snap.title, difficulty: snap.difficulty, externalRating: snap.rating })
+    .where(and(eq(roomSessionProblems.sessionId, session.id), eq(roomSessionProblems.position, position)));
+  await tx
+    .update(roomSessions)
+    .set({ rerollCount: session.rerollCount + 1, settings: { ...session.settings, leetcodeRerolled: result.rerolled } })
+    .where(eq(roomSessions.id, session.id));
+  await lobbyUpdated(tx, session.id);
+  return lobbyResponse(tx, session, canManage, { notices: result.notices });
 }
 
 // --- Live: self-reported solves -------------------------------------------------

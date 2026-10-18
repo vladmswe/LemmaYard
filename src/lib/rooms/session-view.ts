@@ -1,6 +1,8 @@
 // Wire shapes of the session routes besides the state poll (docs/specs/rooms.md
 // §2.3–§2.6, §7.2), their user-facing copy, and the pure snapshot builder used
 // by the state endpoint. Pure module, shared by the server and the lobby UI (R4).
+import { TOPICS_IGNORED_NOTICE, type LeetCodeProvenance } from "@/lib/leetcode/labels";
+
 import type { SessionSnapshot } from "./events";
 import { firstSolvers } from "./scoring";
 import type { DrawError, DrawNotice, Tier } from "./selection";
@@ -67,18 +69,22 @@ export function drawErrorView(err: DrawError, problemCount: number, tagCount: nu
     case "invalid_mix":
       error = `The custom mix must add up to ${problemCount} problem${problemCount === 1 ? "" : "s"}`;
       break;
+    case "leetcode_pool_too_small":
+      error = `Only ${total} LeetCode problem${total === 1 ? "" : "s"} can be picked automatically. Choose fewer LeetCode problems or pick them yourself.`;
+      break;
   }
   return { code: err.code, error, counts: err.counts, ...(err.requested ? { requested: err.requested } : {}) };
 }
 
 /** 409 for E1/E2 (§2.6); the other draw errors are request errors (400). */
 export function drawErrorStatus(code: DrawError["code"]): 400 | 409 {
-  return code === "pool_too_small" || code === "mix_infeasible" ? 409 : 400;
+  return code === "pool_too_small" || code === "mix_infeasible" || code === "leetcode_pool_too_small" ? 409 : 400;
 }
 
 export type DrawNoticeView = DrawNotice & { message: string };
 
 export function noticeView(n: DrawNotice): DrawNoticeView {
+  if (n.code === "leetcode_topics_ignored") return { ...n, message: TOPICS_IGNORED_NOTICE };
   if (n.code === "targets_far") {
     return { ...n, message: `Problem ${n.position}: closest available is ${n.rating} (target ${n.target})` };
   }
@@ -96,7 +102,18 @@ export type LobbySlotView = {
    * slot is a LeetCode problem; slug, title, rating and the bank entry are
    * for the host/owner only until the session starts.
    */
-  external?: { slug?: string; title?: string; rating?: number | null; bankId?: string | null };
+  external?: {
+    slug?: string;
+    title?: string;
+    rating?: number | null;
+    bankId?: string | null;
+    /** Host/owner only: picked by the draw from the catalog (re-rollable); false = picked by hand (pinned). */
+    auto?: boolean;
+    /** Host/owner only, catalog problems: LeetCode's number, topics and which values are estimates. */
+    n?: number;
+    tags?: string[];
+    provenance?: LeetCodeProvenance;
+  };
   /** Host/owner only: titles are revealed to everyone at start. */
   problem?: { slug: string; title: string; published: boolean };
   /** Host/owner only: why this problem was drawn (§2.4 muted note). */
@@ -146,6 +163,8 @@ export type LobbyView = {
   rated?: boolean;
   /** v2, rating mode, host/owner only (§6.3 "Shown"). */
   expected?: LobbyExpectationView;
+  /** Host/owner only, when LeetCode auto-pick is available (leetcode-integration §6.5): catalog size. */
+  leetcodeCatalog?: { problems: number };
 };
 
 /** v2 rating numbers of one slot. Non-hosts get `chance` only (a rating narrows the problem down). */
@@ -192,7 +211,7 @@ export type SnapshotInput = {
     title: string;
     difficulty: Difficulty | null;
     tags: string[];
-    external?: { slug: string; rating: number | null };
+    external?: { slug: string; rating: number | null; provenance?: LeetCodeProvenance | null };
   }[];
   participants: {
     userId: string;
@@ -255,7 +274,15 @@ export function buildSessionSnapshot(input: SnapshotInput): SessionSnapshot {
         tags: [...p.tags],
         // A LeetCode slot says so to everyone; which one only once titles are revealed.
         ...(p.external
-          ? { external: input.revealTitles ? { slug: p.external.slug, rating: p.external.rating } : {} }
+          ? {
+              external: input.revealTitles
+                ? {
+                    slug: p.external.slug,
+                    rating: p.external.rating,
+                    ...(p.external.provenance ? { provenance: p.external.provenance } : {}),
+                  }
+                : {},
+            }
           : {}),
       })),
     participants: participants.map((p) => ({

@@ -2,6 +2,7 @@
 // §7.2). Shared by the server (append + replay) and the client (polling
 // event source). Payloads never contain code, verdict types, test data or
 // problem titles.
+import type { LeetCodeProvenance } from "@/lib/leetcode/labels";
 import { z } from "zod";
 
 import { DIFFICULTIES, ROOM_SESSION_STATUSES } from "./types";
@@ -199,7 +200,8 @@ export type SessionSnapshot = {
     /** Null only for a LeetCode slot without a difficulty. */
     difficulty: (typeof DIFFICULTIES)[number] | null;
     tags: string[];
-    external?: { slug?: string; rating?: number | null };
+    /** `provenance` (catalog picks only): which values are estimates (leetcode-integration §6.8). */
+    external?: { slug?: string; rating?: number | null; provenance?: LeetCodeProvenance };
   }[];
   participants: {
     userId: string;

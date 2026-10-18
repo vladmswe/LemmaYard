@@ -53,6 +53,8 @@ export type SessionTemplate = {
    * §4): the last `external` of `problemCount` slots. Absent = 0.
    */
   external?: number;
+  /** Fill the LeetCode slots automatically from the catalog (leetcode-integration §6.8). Absent = false. */
+  leetcodeAuto?: boolean;
 };
 
 export type RoomSchedule = {
@@ -106,6 +108,7 @@ export const sessionTemplateSchema = z
     avoidSolved: z.boolean(),
     rated: z.boolean(),
     external: presetExternalSchema.optional(),
+    leetcodeAuto: z.boolean().optional(),
   })
   .superRefine((t, ctx) => {
     const external = t.external ?? 0;
@@ -179,6 +182,7 @@ export const presetInputSchema = z.strictObject({
   avoidSolved: z.boolean(),
   rated: z.boolean(),
   external: presetExternalSchema.optional(),
+  leetcodeAuto: z.boolean().optional(),
 });
 export type PresetInput = z.infer<typeof presetInputSchema>;
 
@@ -251,6 +255,8 @@ export function applyPresetsAction(
     if (fields.mix !== undefined && fields.mode !== "difficulty") delete fields.mix;
     // 0 LeetCode slots is stored as absent, so old and new presets read the same.
     if (fields.external === 0) delete fields.external;
+    // Auto-pick needs LeetCode slots; off is stored as absent.
+    if (!fields.leetcodeAuto || !fields.external) delete fields.leetcodeAuto;
     let preset: SessionTemplate;
     let next: SessionTemplate[];
     if (id !== undefined) {

@@ -145,6 +145,7 @@ describe("lobby ↔ preset tiles", () => {
     avoidSolved: false,
     rated: false,
     external: 0,
+    leetcodeAuto: false,
   };
 
   it("choosing a tile copies the preset's fields; the tile then reads as selected", () => {
