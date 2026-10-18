@@ -446,7 +446,11 @@ describe("rating properties", () => {
         const probs = update.problems.reduce((sum, p) => sum + p.adjustDelta, 0);
         expect(Math.abs(people - rawPeople)).toBeLessThanOrEqual(active.length * 0.5 + 1e-9);
         expect(Math.abs(probs + 4 * total)).toBeLessThanOrEqual(update.problems.length * 0.5 + 1e-9);
-        if (Math.abs(total) > 1) expect(Math.sign(rawPeople)).toBe(Math.sign(total));
+        // The sign relation only holds when everyone shares the same K: a provisional
+        // member (K 160) outweighs an established one (K 96), so with mixed K the
+        // weighted sum can legitimately point the other way (fast-check found such a case).
+        const sameK = active.every((p) => p.k === active[0]!.k);
+        if (sameK && Math.abs(total) > 1) expect(Math.sign(rawPeople)).toBe(Math.sign(total));
       }),
     );
   });
