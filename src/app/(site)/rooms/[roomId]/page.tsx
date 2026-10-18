@@ -64,8 +64,14 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
           { label: "Rooms", href: "/rooms" },
           { label: detail.room.name },
         ]}
-        title={<span className="break-words">{detail.room.name}</span>}
-        leading={<RoomTile name={detail.room.name} color={detail.room.color} size="lg" />}
+        title={
+          <>
+            {/* Phones: the tile sits above the name (DOM inside the h1 is aria-hidden). */}
+            <RoomTile name={detail.room.name} color={detail.room.color} size="lg" className="mb-4 grid sm:hidden" />
+            <span className="break-words">{detail.room.name}</span>
+          </>
+        }
+        leading={<RoomTile name={detail.room.name} color={detail.room.color} size="lg" className="max-sm:hidden" />}
         subtitle={sub}
       />
       <div className="container-page flex flex-col gap-8 py-8">

@@ -57,20 +57,20 @@ export function AttendanceCard({
                 )}
               </span>
               {sessions.length > 0 && (
-                <span className="flex items-center gap-2.5">
-                  <span role="img" aria-label={a.ariaLabel} className="flex w-[7.75rem] items-center justify-end gap-1">
+                <span className="order-last flex w-full items-center gap-2.5 sm:order-none sm:w-auto">
+                  <span role="img" aria-label={a.ariaLabel} className="flex items-center gap-1 sm:w-[7.75rem] sm:justify-end">
                     {a.marks.map((mark, i) => (
                       <span key={i} aria-hidden className={cn("inline-block shrink-0", MARK_CLASS[mark])} />
                     ))}
                   </span>
-                  <span aria-hidden className="w-36 text-sm text-foreground-secondary max-[400px]:w-auto">
+                  <span aria-hidden className="text-sm text-foreground-secondary sm:w-36">
                     {a.label}
                   </span>
                 </span>
               )}
               {rating && (
                 <span
-                  className="inline-flex h-6 items-center rounded-sm border bg-surface-sunken px-1.5 font-mono text-xs tabular-nums text-foreground-secondary"
+                  className="ml-auto inline-flex h-6 items-center rounded-sm border bg-surface-sunken px-1.5 font-mono text-xs tabular-nums text-foreground-secondary"
                   title={m.rating.provisional ? "Provisional: moves faster for the first two sessions." : "Rating in this room"}
                 >
                   <span className="sr-only">Rating </span>

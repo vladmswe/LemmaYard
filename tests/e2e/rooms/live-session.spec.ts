@@ -75,7 +75,7 @@ test("two friends: lobby → live → solve → toast and scoreboard → finishe
   // Owner: room + invite.
   const po = await owner.newPage();
   await po.goto("/rooms");
-  await po.getByRole("button", { name: "New room" }).first().click();
+  await po.getByRole("button", { name: "Create a team room" }).first().click();
   await po.getByLabel("Room name").fill("E2E Live Club");
   await po.getByRole("button", { name: "Create room" }).click();
   await expect(po).toHaveURL(/\/rooms\/[0-9a-f-]{36}\?tab=members$/);
@@ -96,8 +96,9 @@ test("two friends: lobby → live → solve → toast and scoreboard → finishe
   const sessionPath = new URL(po.url()).pathname;
   await po.getByRole("button", { name: "Fewer: Problems" }).click();
   await po.getByRole("button", { name: "Fewer: Problems" }).click();
-  await po.getByTestId("duration-select").click();
-  await po.getByRole("option", { name: /^30 min/ }).click();
+  // Rooms v2: Duration is 45/60/90/120 + "Other…" (a select of 15–240).
+  await po.getByRole("group", { name: "Duration" }).getByRole("button", { name: "Other…" }).click();
+  await po.getByTestId("duration-other").selectOption("30");
   await po.getByTestId("apply-settings").click();
   await expect(po.getByTestId("slot-2")).toBeVisible();
   await expect(po.getByTestId("slot-3")).toHaveCount(0);

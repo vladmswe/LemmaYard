@@ -69,6 +69,7 @@ export function SessionSettingsForm({
   const [form, setForm] = useState<LobbyForm>(() => formFromLobby(lobby));
   const [base, setBase] = useState(lobby);
   const [saveDialog, setSaveDialog] = useState<null | { makeDefault: boolean }>(null);
+  const [picked, setPicked] = useState<string | null>(null);
   const { run, pending: savingDefault } = useRoomAction();
   // A new lobby view from the server (own or another manager's change) resets the form.
   if (base !== lobby) {
@@ -86,7 +87,9 @@ export function SessionSettingsForm({
   const ordered = presets
     ? [...presets].sort((a, b) => Number(b.id === defaultPresetId) - Number(a.id === defaultPresetId))
     : [];
-  const selected = ordered.find((p) => lobbyMatchesPreset(form, p)) ?? null;
+  // Two presets can hold the same fields: prefer the one the session started from (or was last picked).
+  const matching = ordered.filter((p) => lobbyMatchesPreset(form, p));
+  const selected = matching.find((p) => p.id === (picked ?? lobby.settings.presetId)) ?? matching[0] ?? null;
   const defaultPreset = ordered.find((p) => p.id === defaultPresetId) ?? null;
 
   async function submit(e: FormEvent) {
@@ -148,7 +151,10 @@ export function SessionSettingsForm({
                   role="radio"
                   aria-checked={on}
                   disabled={pending}
-                  onClick={() => setForm((f) => applyPresetToLobby(f, p))}
+                  onClick={() => {
+                    setPicked(p.id);
+                    setForm((f) => applyPresetToLobby(f, p));
+                  }}
                   className={cn(
                     "flex min-w-0 flex-col items-start gap-1 rounded-lg border px-4 py-3 text-left transition-colors duration-120 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60",
                     on ? "border-primary bg-secondary text-secondary-foreground" : "border-border-strong bg-card hover:border-foreground-secondary",

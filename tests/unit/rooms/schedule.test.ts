@@ -7,6 +7,7 @@ import {
   relativeWhen,
   scheduleCadence,
   scheduleSummary,
+  timeZoneOptions,
   wallTime,
   zonedTimeToUtc,
   zoneOffsetMinutes,
@@ -97,6 +98,17 @@ describe("nextOccurrence (AC-V2-DEF-2)", () => {
       expect(at.getTime()).toBeGreaterThan(now.getTime() - 60_000);
       expect(at.getTime() - now.getTime()).toBeLessThanOrEqual(7 * 86_400_000);
     }
+  });
+});
+
+describe("timeZoneOptions", () => {
+  it("lists the runtime's zones plus UTC, current names next to ICU's old ones, and the given zone", () => {
+    const zones = timeZoneOptions(["Europe/Kyiv", "Mars/Olympus"]);
+    expect(zones).toContain("UTC");
+    expect(zones).toContain("Europe/Kyiv");
+    expect(zones).toContain("Mars/Olympus");
+    expect([...zones].sort()).toEqual(zones);
+    expect(new Set(zones).size).toBe(zones.length);
   });
 });
 

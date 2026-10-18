@@ -106,7 +106,7 @@ export function SlotList({
                 else refs.current.delete(pos);
               }}
               data-testid={`slot-${pos}`}
-              className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-card px-5 py-4 shadow-sm outline-offset-2"
+              className="flex flex-wrap items-start gap-x-4 gap-y-2 rounded-xl sm:items-center border bg-card px-5 py-4 shadow-sm outline-offset-2"
             >
               <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-md border bg-surface-sunken font-mono text-sm font-medium tabular-nums">
                 {pos}
@@ -155,7 +155,7 @@ export function SlotList({
                 {canManage && note && <p className="text-sm text-muted-foreground">{note}</p>}
               </div>
               {canManage && (
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:pl-9">
                   {slot && !slot.pinned && mode !== "manual" && (
                     <IconAction
                       label={`Re-roll Problem ${pos}`}

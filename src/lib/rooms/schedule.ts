@@ -162,11 +162,20 @@ export function scheduleSummary(schedule: Pick<RoomSchedule, "weekday" | "time" 
 /** The viewer's IANA zone (browser), or UTC when the runtime does not say. */
 export function localTimeZone(): string {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    return ZONE_RENAMES[zone] ?? zone;
   } catch {
     return "UTC";
   }
 }
+
+const ZONE_RENAMES: Record<string, string> = {
+  "Europe/Kiev": "Europe/Kyiv",
+  "Asia/Calcutta": "Asia/Kolkata",
+  "Asia/Saigon": "Asia/Ho_Chi_Minh",
+  "Asia/Rangoon": "Asia/Yangon",
+  "Asia/Katmandu": "Asia/Kathmandu",
+};
 
 /** Zone names for the settings select; the given zone is always included. */
 export function timeZoneOptions(include: readonly string[] = []): string[] {
@@ -176,6 +185,8 @@ export function timeZoneOptions(include: readonly string[] = []): string[] {
   } catch {
     zones = [];
   }
-  const all = new Set([...zones, "UTC", ...include.filter(Boolean)]);
+  // ICU lists some zones under their old names only; offer the current ones too.
+  const modern = zones.flatMap((z) => (ZONE_RENAMES[z] ? [ZONE_RENAMES[z]] : []));
+  const all = new Set([...zones, ...modern, "UTC", ...include.filter(Boolean)]);
   return [...all].sort();
 }
