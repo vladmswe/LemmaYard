@@ -14,7 +14,7 @@ const C = 2 * Math.PI * R;
 /**
  * Page-head aside of the catalog (DESIGN.md §13.3): a ring with the solved
  * count, then Easy / Medium / Hard with their proof squares (filled =
- * solved, dashed = attempted) and "x / y". Guests get a sign-in card. The
+ * solved, dashed = attempted) and "x / y". Guests get a log-in card. The
  * data comes from the catalog's own queries (AC-M3-7: no extra query).
  */
 export function CatalogProgress({ data }: { data: CatalogPage }) {
@@ -25,13 +25,13 @@ export function CatalogProgress({ data }: { data: CatalogPage }) {
       <div className="w-full max-w-[22rem] rounded-xl border border-border-strong bg-card p-5 shadow-sm">
         <p className="font-semibold">Track your progress</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Sign in to see which problems you have solved and which ones are still open.
+          Log in to see which problems you have solved and which ones are still open.
         </p>
         <Link
           href="/login?next=%2Fproblems"
           className="mt-3 inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-link underline-offset-4 hover:underline"
         >
-          Sign in to track progress
+          Log in to track progress
           <ArrowRightIcon aria-hidden data-arrow className="size-4" />
         </Link>
       </div>

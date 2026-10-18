@@ -30,7 +30,7 @@ export const loginAddressLimiter = createRateLimiter(AUTH_LIMITS.loginPerAddress
 export const registerAddressLimiter = createRateLimiter(AUTH_LIMITS.registerPerAddress);
 export const registerAddressEmailLimiter = createRateLimiter(AUTH_LIMITS.registerPerAddressEmail);
 
-export const LOGIN_RATE_LIMITED = "Too many sign-in attempts.";
+export const LOGIN_RATE_LIMITED = "Too many login attempts.";
 export const REGISTER_RATE_LIMITED = "Too many sign-up attempts.";
 
 /** Shared bucket for requests without a client address (never on Vercel). */

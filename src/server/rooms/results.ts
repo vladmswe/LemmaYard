@@ -15,6 +15,7 @@ import {
   type ProblemSummary,
   type SolutionAccess,
 } from "@/lib/rooms/history";
+import { formatTagLabel } from "@/lib/format";
 import { firstSolvers } from "@/lib/rooms/scoring";
 import { dueAction } from "@/lib/rooms/session-state";
 import type { Difficulty, RoomRole, RoomSessionEndReason, RoomSessionSettings } from "@/lib/rooms/types";
@@ -297,7 +298,7 @@ export async function getSessionResults(
       host: session.host,
       pendingJudging: session.pending,
     },
-    topics: tagRows.map((t) => t.name),
+    topics: tagRows.map((t) => formatTagLabel(t.name)),
     problems: problemRows.map((p) => ({ ...p, difficulty: p.difficulty as Difficulty })),
     participants,
     summaries,

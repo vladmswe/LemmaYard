@@ -185,7 +185,7 @@ describe("POST /api/auth/login", () => {
     );
     expect(wrong.status).toBe(401);
     expect(unknown.status).toBe(401);
-    const expected = { error: "Invalid email or password" };
+    const expected = { error: "Invalid email or password." };
     expect(await wrong.json()).toEqual(expected);
     expect(await unknown.json()).toEqual(expected);
     expect(sessionCookie(wrong)).toBeNull();

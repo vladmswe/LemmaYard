@@ -11,7 +11,7 @@ import { assertSameOrigin, internalServerError, jsonError, readJsonBody } from "
 export const dynamic = "force-dynamic";
 
 const MAX_BODY_BYTES = 4096;
-const INVALID_CREDENTIALS = "Invalid email or password";
+const INVALID_CREDENTIALS = "Invalid email or password.";
 
 export async function POST(request: Request) {
   const denied = assertSameOrigin(request);

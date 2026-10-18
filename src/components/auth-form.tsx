@@ -2,7 +2,7 @@
 
 import { CircleAlertIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,17 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<string, string>>>({});
+  // Where focus goes after a failed attempt: the disabled fieldset drops focus
+  // to <body> while pending, so put it on the first invalid field (or back on
+  // the submit button) once the form is enabled again.
+  const focusTarget = useRef<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (pending || !focusTarget.current) return;
+    formRef.current?.querySelector<HTMLElement>(focusTarget.current)?.focus();
+    focusTarget.current = null;
+  }, [pending]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,18 +99,21 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
       const errors = payload?.fieldErrors ?? {};
       setFieldErrors(errors);
       // Field errors are shown inline; the general message only when none apply.
-      const shownInline = FIELDS[mode].some((f) => errors[f.name]);
+      const firstInvalid = FIELDS[mode].find((f) => errors[f.name]);
+      const shownInline = Boolean(firstInvalid);
+      focusTarget.current = firstInvalid ? `[name="${firstInvalid.name}"]` : "button[type=submit]";
       setFormError(
         shownInline ? null : (payload?.error ?? "Something went wrong. Try again."),
       );
     } catch {
       setFormError("Network error. Check your connection and try again.");
+      focusTarget.current = "button[type=submit]";
     }
     setPending(false);
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+    <form ref={formRef} onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
       {formError && (
         <Alert variant="danger" role="alert" className="motion-safe:animate-enter-up">
           <CircleAlertIcon aria-hidden />

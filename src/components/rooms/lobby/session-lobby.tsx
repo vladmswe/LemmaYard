@@ -15,7 +15,7 @@ import {
   UserPlusIcon,
   XIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -122,6 +122,7 @@ export function SessionLobby({
     return true;
   }
 
+  const clearDrawProblem = useCallback(() => setDrawProblem(lobby.drawError ?? null), [lobby.drawError]);
   const apply = (body: SessionSettingsBody) => act("draw", () => sessionApi.draw(roomId, sessionId, body));
 
   async function join() {
@@ -332,7 +333,16 @@ export function SessionLobby({
         {canManage && (
           <Card>
             <CardContent>
-              <SessionSettingsForm lobby={lobby} tags={tags} pending={busy === "draw"} onApply={apply} />
+              <SessionSettingsForm
+                lobby={lobby}
+                tags={tags}
+                pending={busy === "draw"}
+                onApply={apply}
+                // A failed Apply leaves its error up while the form still holds
+                // the rejected settings; once they are undone the saved draw
+                // stands again, so its own state (usually no error) is back.
+                onClean={clearDrawProblem}
+              />
             </CardContent>
           </Card>
         )}
@@ -341,7 +351,13 @@ export function SessionLobby({
       {canManage && pinFor !== null && (
         <ProblemSearchDialog
           open
-          onOpenChange={(open) => !open && setPinFor(null)}
+          onOpenChange={(open) => {
+            if (open) return;
+            // The dialog unmounts at once and does not return focus itself
+            // (finalFocus off): put it back on the slot, as after the other actions.
+            setFocus({ position: pinFor, message: "", nonce: Date.now() });
+            setPinFor(null);
+          }}
           roomId={roomId}
           sessionId={sessionId}
           position={pinFor}

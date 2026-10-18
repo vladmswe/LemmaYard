@@ -9,10 +9,17 @@ import { forcedTheme } from "@/lib/theme-config";
 import { fontDisplay, fontMono, fontSans } from "./fonts";
 import "./globals.css";
 
+const DESCRIPTION =
+  "LemmaYard is a practice platform for algorithms and data structures: problems, an in-browser editor, a sandboxed judge in Python and JavaScript, and guided learning.";
+
+// Icons come from the file conventions next to this layout (favicon.ico,
+// icon.svg, apple-icon.png). Pages set their own title/description; the
+// Open Graph defaults keep link previews branded.
 export const metadata: Metadata = {
   title: "LemmaYard",
-  description:
-    "LemmaYard is a practice platform for algorithms and data structures: problems, an in-browser editor, a sandboxed judge in Python and JavaScript, and guided learning.",
+  description: DESCRIPTION,
+  applicationName: "LemmaYard",
+  openGraph: { siteName: "LemmaYard", type: "website", title: "LemmaYard", description: DESCRIPTION },
 };
 
 export const viewport: Viewport = {

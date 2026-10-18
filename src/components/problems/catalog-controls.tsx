@@ -83,11 +83,11 @@ const STATUS_OPTIONS: SegmentedOption<CatalogStatus | "any">[] = [
   },
   { value: "solved", label: "Solved" },
   { value: "attempted", label: "Attempted" },
-  { value: "todo", label: "To do" },
+  { value: "todo", label: "Not started" },
 ];
 
 const DIFFICULTY_LABELS: Record<CatalogDifficulty, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
-const STATUS_LABELS: Record<CatalogStatus, string> = { solved: "Solved", attempted: "Attempted", todo: "To do" };
+const STATUS_LABELS: Record<CatalogStatus, string> = { solved: "Solved", attempted: "Attempted", todo: "Not started" };
 
 const normalize = (s: string) => s.replace(/\s+/g, " ").trim().slice(0, MAX_QUERY_LENGTH);
 
@@ -184,7 +184,7 @@ export function CatalogFilterBar({
                 <ChipCount>
                   <span className="sr-only">(</span>
                   {t.count}
-                  <span className="sr-only"> problems)</span>
+                  <span className="sr-only">{t.count === 1 ? " problem)" : " problems)"}</span>
                 </ChipCount>
               </Chip>
             );

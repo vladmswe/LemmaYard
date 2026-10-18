@@ -7,7 +7,7 @@
 // Changes are applied together with "Apply and draw" (only changed fields are
 // sent; a change of count, topics or mix re-draws the unpinned slots).
 import { DicesIcon } from "lucide-react";
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { cn } from "cn";
 
 import { Button } from "@/components/ui/button";
@@ -40,11 +40,14 @@ export function SessionSettingsForm({
   tags,
   pending,
   onApply,
+  onClean,
 }: {
   lobby: LobbyView;
   tags: SessionTag[];
   pending: boolean;
   onApply: (body: SessionSettingsBody) => Promise<boolean>;
+  /** Called when the form matches the saved settings again (e.g. after a failed draw is undone). */
+  onClean?: () => void;
 }) {
   const id = useId();
   const [form, setForm] = useState<LobbyForm>(() => formFromLobby(lobby));
@@ -58,6 +61,9 @@ export function SessionSettingsForm({
   const diff = settingsDiff(lobby, form);
   const dirty = Object.keys(diff).length > 0;
   const mixProblem = mixError(form);
+  useEffect(() => {
+    if (!dirty) onClean?.();
+  }, [dirty, onClean]);
   const durations = DURATION_PRESETS.includes(form.durationMin as (typeof DURATION_PRESETS)[number])
     ? [...DURATION_PRESETS]
     : [...DURATION_PRESETS, form.durationMin].sort((a, b) => a - b);
@@ -139,7 +145,7 @@ export function SessionSettingsForm({
                   {t.name}
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {t.count}
-                    <span className="sr-only"> problems</span>
+                    <span className="sr-only">{t.count === 1 ? " problem" : " problems"}</span>
                   </span>
                 </label>
               </li>

@@ -138,7 +138,7 @@ export async function createSubmission(
 
   // (2) Session.
   const user = await getCurrentUser();
-  if (!user) return jsonError(401, "Sign in to run or submit code");
+  if (!user) return jsonError(401, "Log in to run or submit code");
 
   // (2b) Judge disabled on this deployment (JUDGE_ENABLED): before the body,
   // the limits and any row, so nothing is queued that no worker would take.

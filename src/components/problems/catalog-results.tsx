@@ -22,7 +22,7 @@ import { DifficultyBadge } from "./difficulty-badge";
 import { DIFFICULTIES } from "./difficulty";
 import { ProblemStatusIcon } from "./problem-status-icon";
 
-const STATUS_WORDS = { solved: "Solved", attempted: "Attempted", todo: "To do" } as const;
+const STATUS_WORDS = { solved: "Solved", attempted: "Attempted", todo: "Not started" } as const;
 
 /** "Hard · Dynamic programming · “sum”": the Given line of the empty state. */
 function describeFilters(filters: CatalogFilters, data: CatalogPage): string {

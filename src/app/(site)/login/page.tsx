@@ -9,7 +9,7 @@ import { DEFAULT_REDIRECT, safeRedirectPath } from "@/lib/safe-redirect";
 import { getCurrentUser } from "@/server/auth/session";
 import { getLemmaOfTheDay } from "@/server/landing";
 
-export const metadata: Metadata = { title: "Log in · LemmaYard" };
+export const metadata: Metadata = { title: "Log in · LemmaYard", description: "Log in to LemmaYard to keep practicing." };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next: rawNext } = await searchParams;
@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       footer={
         <p>
           New here?{" "}
-          <Link href={registerHref} className="font-semibold text-link underline-offset-4 hover:underline">
+          <Link href={registerHref} className="relative font-semibold text-link underline-offset-4 after:absolute after:-inset-x-1 after:-inset-y-3 hover:underline">
             Sign up
           </Link>
         </p>

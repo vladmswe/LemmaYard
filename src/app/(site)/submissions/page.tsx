@@ -63,7 +63,8 @@ async function History({ userId, params }: { userId: string; params: HistoryPara
             aria-label={`Remove filter: ${filter.title ?? filter.slug}`}
             data-testid="problem-filter-chip"
             data-pressed="true"
-            className={chipClasses("max-w-full pr-2.5")}
+            // after: = 42px hit area around the 34px chip.
+            className={chipClasses("relative max-w-full pr-2.5 after:absolute after:inset-x-0 after:-inset-y-1")}
           >
             <span className="truncate">{filter.title ?? filter.slug}</span>
             <XIcon aria-hidden />
