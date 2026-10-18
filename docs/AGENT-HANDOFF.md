@@ -24,7 +24,8 @@ Shipped on `main` (see the root `README.md` for details):
 - Problem catalogue: 50 original problems (statements, reference solutions in
   Python and JavaScript, about 180-240 seeded generated tests each for the 30 newest),
   author ratings 1050-2150, tags, problem list, editor (Monaco), Run / Submit
-  with per-test results.
+  with per-test results. Languages: Python, JavaScript and Java (Java only on
+  problems with a verified `solution.java`: the 20 oldest so far).
 - Judge: Docker sandbox per submission (default for dev/CI) and a Vercel Sandbox
   microVM executor for production (`JUDGE_EXECUTOR=vercel-sandbox`,
   `docs/specs/judge-prod.md`). Protocol: stdin JSON, nonce frames, verdict
@@ -32,6 +33,10 @@ Shipped on `main` (see the root `README.md` for details):
 - Auth (email + password, argon2, signed session cookie, rate limits), security
   headers and an enforced CSP.
 - Guide: 5 data-structure lessons with visualisations (`src/content/learn/`).
+- Community (`docs/specs/community.md`): C1 problem discussions, up/down votes,
+  difficulty feedback, reports, moderation queue `/mod`, legal page drafts
+  (`COMMUNITY_ENABLED`, off by default); C2 study plans (`PLANS_ENABLED`, off by
+  default). C3 (interview forum), C4, C5 are planned only.
 - Rooms v2 (`docs/specs/rooms.md`, `docs/specs/rooms-v2.md`): private team rooms
   with invite links, timed sessions, lobby with draw modes (By rating / By
   difficulty / Manual), scoreboard matrix (participant x problem with solve
@@ -44,9 +49,10 @@ Shipped on `main` (see the root `README.md` for details):
   estimated tags and difficulty overrides; kill switch `LEETCODE_CATALOG_ENABLED`). Refresh procedure below
   (section 8, "Maintenance").
 - Design system v2 "Proof" (dark theme only for now: `src/lib/theme-config.ts`).
-- Deploy tooling: `docs/DEPLOY.md`, generated `docs/supabase/schema.sql` and
-  `docs/supabase/problems.sql` (+ split parts) that can be pasted into the
-  Supabase SQL Editor without any credentials, `/api/health`.
+- Deploy tooling: `docs/DEPLOY.md`, generated `docs/supabase/schema.sql` (empty
+  project), `docs/supabase/upgrade.sql` (existing database, hash-guarded and
+  idempotent) and `docs/supabase/problems*.sql` that can be pasted into the
+  Supabase SQL Editor without any credentials, `/api/health`. Migrations 0000-0008.
 
 ## 2. Owner decisions (do not re-litigate)
 
@@ -66,7 +72,7 @@ Product:
   (`src/lib/leetcode/difficulty.ts`) and labelled "estimated"; topic tags were estimated by an agent and live in
   `overlay.json` for the owner to correct.
 - Problems are original work. Never copy LeetCode/Codeforces statements or tests.
-  LeetCode problems may only be **linked** (see "In flight").
+  LeetCode problems may only be **linked** (room LeetCode list and catalog, see section 1).
 - More submission languages are wanted; Java first, then others (C++, Go,
   TypeScript are candidates). Adding one is a documented task
   (`docs/specs/judge-prod.md` "Adding a language", README "How to add a language").
@@ -213,35 +219,39 @@ Known traps:
 
 ## 7. In flight (check `git worktree list`)
 
-Agents were working in parallel on these branches (unmerged when this was
-written):
+Nothing was in flight when this was written: every branch listed in earlier
+versions of this file (Java, rooms external problems, community C1 and C2,
+production judge, 30 new problems, LeetCode catalog) is merged into `main` and its
+worktree removed. If you start parallel work, list the branches here and delete
+the entries when they merge.
 
-- `feature/lang-java`: Java as a third submission language (sandbox image,
-  harness, templates, editor, `solution.java` for the 20 oldest problems; a
-  problem offers a language only if a verified reference solution exists).
-- `feature/rooms-external-problems`: LeetCode problems in rooms. Room Settings
-  has a "LeetCode problems" bank (slug + title + optional difficulty/rating);
-  the lobby can add external slots; results are honor-system (participant marks
-  solved, time is server time since start), marked as self-reported in the
-  matrix, excluded from Elo; nothing is fetched from leetcode.com.
-- `feature/community-c1`: community phase C1 (comments + votes + minimal
-  moderation + legal pages), behind `COMMUNITY_ENABLED`; owns the markdown
-  renderer, the DB-counted rate-limit helper and the roles/CLI.
-- `feature/community-c2-plans`: study plans, behind `PLANS_ENABLED`.
-
-When they merge, move the surviving facts into the README/specs and delete the
-entries here.
+Owner deployment state (personal accounts; never use them from agent tooling):
+the app runs at https://lemma-yard.vercel.app on his Vercel, with his Supabase
+Postgres. He applies SQL himself (SQL Editor: `upgrade.sql`, then the problem
+SQL files) and sets Vercel env vars himself (`docs/DEPLOY.md` section 3). A
+gitignored `.env.personal` with `DATABASE_URL_DIRECT` may be used for
+`pnpm db:migrate` only after the owner says it is ready and confirms the target
+host for that run; deploys happen through Git pushes to `main`.
 
 ## 8. Backlog (rough priority)
 
-1. Finish and merge the in-flight branches; renumber migrations; re-run the full
-   gate including e2e on an idle machine.
+1. Re-run the full gate including `pnpm test:e2e` on an idle machine (the last
+   full runs were made under heavy load; known load-sensitive tests: the
+   `sandbox-judge` timing tests, guide static-markup tests, the markdown
+   highlighting benchmark, some room-page e2e specs).
 2. First real deployment checklist (owner actions, see `docs/DEPLOY.md`):
    Vercel env vars (`DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`,
-   `JUDGE_EXECUTOR=vercel-sandbox`), run `schema.sql` then the problem SQL
-   files in the Supabase SQL Editor, function region near the database, check
-   `/api/health`. The Vercel Sandbox executor has never run against a real
-   project: watch OIDC auth inside `after()`, VM start time and time limits.
+   `JUDGE_EXECUTOR=vercel-sandbox`), database brought up to date with
+   `upgrade.sql`, function region near the database, check `/api/health`. The
+   Vercel Sandbox executor has never run against a real project: watch OIDC
+   auth inside `after()`, VM start time and time limits. Java on Vercel also
+   needs the one-time image push (`docs/DEPLOY.md` section 7, step 6).
+   Community needs `CONTACT_EMAIL`, an owner review of the `/legal/*` drafts and
+   `pnpm user:role <email> admin` before `COMMUNITY_ENABLED=1`.
+2a. Owner review of `src/server/leetcode/overlay.json`: the tags and difficulty
+   there are agent estimates (about 3-6% wrong tags overall, more for the newest
+   contests); mark checked entries `"tagsSource": "owner"`; flag premium problems.
+   Write `solution.java` for the 30 newer problems so Java is offered everywhere.
 3. Community: C3 interview-experience forum with "add to my study plan" (plan in
    `docs/specs/community.md`), C4 full moderation + notifications + data
    export/account deletion, C5 profiles/search/lesson comments/room discussion.
