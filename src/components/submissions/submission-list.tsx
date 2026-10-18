@@ -34,11 +34,11 @@ function viewLabel(row: HistoryRow, now: Date) {
   return `${VERDICTS[row.status].label}, ${row.problem.title}, submitted ${formatRelativeTime(row.createdAt, now)}. View submission`;
 }
 
-function ProblemTitle({ row }: { row: HistoryRow }) {
+function ProblemTitle({ row, className }: { row: HistoryRow; className?: string }) {
   // Unpublished problems have no page any more: plain text, no dead link.
   if (!row.problem.published) return <span className="text-foreground">{row.problem.title}</span>;
   return (
-    <Link href={`/problems/${row.problem.slug}`} className={tableLinkClasses()}>
+    <Link href={`/problems/${row.problem.slug}`} className={cn(tableLinkClasses(), className)}>
       {row.problem.title}
     </Link>
   );
@@ -179,8 +179,9 @@ export function SubmissionList({
                 <VerdictBadge status={row.status} compact />
               </Link>
               {showProblem && (
-                <span className="min-w-0 truncate font-semibold" title={row.problem.title}>
-                  <ProblemTitle row={row} />
+                <span className="relative min-w-0 truncate font-semibold" title={row.problem.title}>
+                  {/* 40px touch target: the hit area extends above and below the line. */}
+                  <ProblemTitle row={row} className="after:absolute after:inset-x-0 after:-inset-y-2.5" />
                 </span>
               )}
             </div>

@@ -83,7 +83,7 @@ export function CodeViewer({
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           {actions}
-          <Button variant="ghost" size="sm" onClick={copy} data-testid="copy-code">
+          <Button variant="ghost" size="sm" onClick={copy} data-testid="copy-code" className="max-sm:h-10">
             {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}
             {copied ? "Copied" : "Copy code"}
           </Button>

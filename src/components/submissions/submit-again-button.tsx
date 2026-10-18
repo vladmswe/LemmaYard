@@ -2,6 +2,7 @@
 
 import { SquarePenIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { cn } from "cn";
 
 import { buttonVariants } from "@/components/ui/button";
 import type { Language } from "@/lib/submission-dto";
@@ -29,7 +30,7 @@ export function SubmitAgainLink({
   return (
     <a
       href={href}
-      className={buttonVariants({ variant: "secondary", size: "sm", className })}
+      className={buttonVariants({ variant: "secondary", size: "sm", className: cn("max-sm:h-10", className) })}
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
         event.preventDefault();

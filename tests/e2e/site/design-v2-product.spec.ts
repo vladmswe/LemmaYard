@@ -13,6 +13,8 @@ import { Pool } from "pg";
 
 import { forcedTheme } from "../../../src/lib/theme-config";
 
+const THEMES = (forcedTheme ? [forcedTheme] : ["light", "dark"]) as ("light" | "dark")[];
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const created: string[] = [];
 let state: { username: string; storage: Awaited<ReturnType<ReturnType<Page["context"]>["storageState"]>>; wa: string } | null = null;
@@ -109,39 +111,36 @@ const PAGES: { name: string; path: (s: { username: string; wa: string }) => stri
 ];
 
 test.describe("product pages", () => {
-  test.use({ colorScheme: (forcedTheme ?? "dark") as "light" | "dark" });
-
-  for (const width of [390, 1440]) {
-    for (const p of PAGES) {
-      test(`${p.name} at ${width}px: axe clean, no horizontal scroll, forced theme, final motion states`, async ({ browser }) => {
-        const s = await seeded(browser);
-        const context = await browser.newContext({
-          storageState: s.storage,
-          viewport: { width, height: 900 },
-          colorScheme: (forcedTheme ?? "dark") as "light" | "dark",
-          reducedMotion: "reduce",
-        });
-        const page = await context.newPage();
-        await page.goto(p.path(s));
-        if (p.ready) await expect(page.locator(p.ready).filter({ visible: true }).first()).toBeVisible({ timeout: 30_000 });
-        await settle(page);
-        if (forcedTheme) await expect(page.locator("html")).toHaveClass(new RegExp(`\\b${forcedTheme}\\b`));
-        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-        expect(overflow).toBeLessThanOrEqual(0);
-        await page.waitForTimeout(300);
-        const motion = await page.evaluate(() => ({
-          // Loaders are the only loops allowed; under reduced motion they are static too.
-          running: document
-            .getAnimations()
-            .filter((a) => a.playState === "running")
-            .map((a) => `${(a as CSSAnimation).animationName ?? "transition"} on ${(a.effect as KeyframeEffect | null)?.target?.className}`),
-          hiddenReveals: [...document.querySelectorAll(".rv")].filter((el) => getComputedStyle(el).opacity !== "1").map((el) => el.className),
-        }));
-        expect(motion).toEqual({ running: [], hiddenReveals: [] });
-        await expectAxeClean(page);
-        await context.close();
+  const cases = THEMES.flatMap((theme) => [390, 1440].flatMap((width) => PAGES.map((p) => ({ theme, width, p }))));
+  for (const { theme, width, p } of cases) {
+    test(`${p.name} at ${width}px (${theme}): axe clean, no horizontal scroll, forced theme, final motion states`, async ({ browser }) => {
+      const s = await seeded(browser);
+      const context = await browser.newContext({
+        storageState: s.storage,
+        viewport: { width, height: 900 },
+        colorScheme: theme,
+        reducedMotion: "reduce",
       });
-    }
+      const page = await context.newPage();
+      await page.goto(p.path(s));
+      if (p.ready) await expect(page.locator(p.ready).filter({ visible: true }).first()).toBeVisible({ timeout: 30_000 });
+      await settle(page);
+      await expect(page.locator("html")).toHaveClass(theme === "dark" ? /\bdark\b/ : /^(?!.*\bdark\b)/);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+      await page.waitForTimeout(300);
+      const motion = await page.evaluate(() => ({
+        // Loaders are the only loops allowed; under reduced motion they are static too.
+        running: document
+          .getAnimations()
+          .filter((a) => a.playState === "running")
+          .map((a) => `${(a as CSSAnimation).animationName ?? "transition"} on ${(a.effect as KeyframeEffect | null)?.target?.className}`),
+        hiddenReveals: [...document.querySelectorAll(".rv")].filter((el) => getComputedStyle(el).opacity !== "1").map((el) => el.className),
+      }));
+      expect(motion).toEqual({ running: [], hiddenReveals: [] });
+      await expectAxeClean(page);
+      await context.close();
+    });
   }
 
   test("profile renders final numbers on the server", async ({ browser, request }) => {
