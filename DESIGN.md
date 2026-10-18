@@ -23,7 +23,7 @@ Implementation map:
 | Landing | `src/app/(site)/page.tsx`, `components/landing/*` (`proof-stage`, `heap-figure`, `progress-preview`, `landing.css`), data `src/server/landing.ts` |
 | Monaco themes (plain data, registered by name) | `src/lib/monaco-themes.ts` |
 | Contrast check over the real token values (light and dark) | `tests/unit/contrast.test.ts` |
-| Design e2e (axe, overflow, forced theme, reduced motion, focus) | `tests/e2e/site/design-v2.spec.ts` |
+| Design e2e (axe, overflow, forced theme, reduced motion, focus) | `tests/e2e/site/design-v2.spec.ts`, product pages `tests/e2e/site/design-v2-product.spec.ts` |
 | Route groups | `src/app/(site)/` = header + footer, `src/app/(workspace)/` = compact header, full height, no footer (problem page) |
 
 ---
@@ -258,7 +258,7 @@ Motion JS stays tiny (reveal observer, count-up, header scroll state). At most ~
 | Pagination | `components/pagination.tsx` | 38px squares radius 10, mono numbers, current = ink fill; links (`?page=`). |
 | Alert | `ui/alert.tsx` | tinted semantic background, the icon carries the colour, text stays ink; radius 14. |
 | Switch / Checkbox / Radio | `ui/switch.tsx` … | unchanged structure, v2 tokens. |
-| VerdictBadge / VerdictLabel / VerdictIcon | `judge/verdict-badge.tsx` | badge = colour + icon + word; `VerdictLabel` = serif 28px word + icon (console, submission head; phase 2 may go to 34px); Running = ∎ loader, static Clock under reduced motion. Dictionaries in `judge/verdict.ts`. |
+| VerdictBadge / VerdictLabel / VerdictIcon | `judge/verdict-badge.tsx` | badge = colour + icon + word; `VerdictLabel` = serif 28px word + icon, `size="lg"` 34px (console verdict row, submission head); Running = ∎ loader, static Clock under reduced motion. Dictionaries in `judge/verdict.ts`. |
 | TestSquares | `judge/test-squares.tsx` | `results: ("pass" | "fail" | "pending")[]`, `animate`, `delayMs`; `squaresFromCounts(passed, total)`. Always `aria-hidden` with a text summary next to it. |
 | DifficultyBadge / DifficultyGlyph | `problems/difficulty-badge.tsx` | `variant="text"` (tables: coloured word + shape) or `"pill"` (cards: tinted pill + shape). |
 | ProblemStatusIcon | `problems/problem-status-icon.tsx` | icon + sr-only word (Solved / Attempted / Not started). |
@@ -296,14 +296,14 @@ Data rules (`src/server/landing.ts`): the ledger shows only real numbers (publis
 ### 13.2 Login / Register (phase 1, done)
 From 961px a split inside the container: left 5/12 the form on paper (`display-2` "Welcome back∎" / "Start your first proof∎", description, 44px fields, full-width primary button, link to the other form); right 7/12 a cobalt block with grain and grid paper: login shows "Lemma of the day" (one published problem per UTC day: number, title, difficulty, tags, a Given/Want/Proof sheet and "Read the problem"), register shows "What you get" as a ∎ list. Mobile: a 120px cobalt strip with the mark above the form; the form stays first in DOM and tab order. Field errors are inline (danger + icon + text); 409 errors attach to their field; pending = ∎ loader in the button.
 
-### 13.3 Problems catalog `/problems` (phase 2)
+### 13.3 Problems catalog `/problems` (phase 2A, done)
 - Page head: breadcrumb, d1 "Problems∎", meta line, and on the right a progress card (ring + Easy/Medium/Hard counts); guests see "Sign in to track progress".
 - Sticky tool row under the header: search with a "/" kbd, a difficulty segmented control, a status segmented control (signed in only), then a topic chip row with counts (horizontal scroll on mobile).
 - Table: status icon (sr-text), #, title, topics, acceptance (mono, "—" with 0 submits), difficulty (word + shape). Mobile: list rows (icon · "1. Two Sum" · difficulty / topics · acceptance).
 - Footer: pagination + "Showing x–y of N". Empty filter result: unfinished proof ("Given: Hard · Graph", "Want: a problem", action "Clear filters").
 - Kept behaviour: filters write to the URL (`q`, `difficulty`, `tag`, `status`, reset `page`), search submits on Enter and a 300ms debounce, the status filter and column are hidden for guests, query budget AC-M3-7. z-index stack: header 40 > tool row 5 > table head; anchors `scroll-margin-top: 140px`.
 
-### 13.4 Problem workspace `/problems/[slug]` (phase 2)
+### 13.4 Problem workspace `/problems/[slug]` (phase 2A, done)
 ```
 52px bar: mark | Problems / 1. Two Sum ‹ › |   [▶ Run ⌘'] [⇧ Submit]   | avatar
 8px canvas (sunken), 3 panes radius 14, 8px resizers (grip turns primary on hover/focus):
@@ -315,6 +315,8 @@ From 961px a split inside the container: left 5/12 the form on paper (`display-2
    case tabs → Input / Expected | Your output (danger) / Stdout
 ```
 Accepted: green word, ∎ snap, runtime and memory chips. Running: ∎ loader + "Running test 6 of 15" with live squares. Custom-input Run shows "Output" without a verdict word. Mobile: Problem / Code / Console tabs under the bar and a fixed bottom action bar (Run, Submit).
+
+As built (phase 2A): Run / Submit stay at the right of the editor toolbar (the 52px header is shared chrome, so no breadcrumb, ‹ › or centred Run/Submit there); the judge reports no per-test progress, so Queued / Running show the ∎ loader + label without live squares; Run results open on the first failing case; the Guide link tab is not built.
 
 Kept behaviour (v1 §8.21–8.22, §9.4): `react-resizable-panels` with `autoSaveId`, keyboard resizers (arrows move 5%), panes scroll internally; console result region `aria-live="polite"` announcing only the final verdict; queued/running timeouts show warning alerts; submit metrics as stat tiles; run cases as pills with per-case icons, a wrong output tinted danger; Runtime/Compile Error text in a mono danger block (≤ 8 KB, scrolls); TLE/MLE as one sentence; Internal Error explains it does not count; truncated values end with "… (truncated)"; guests clicking Run/Submit go to `/login?next=…`; Run/Submit disabled while a job is active, with tooltips carrying the shortcuts; the room-session banner (§13.10) sits between the header and the panes.
 
@@ -336,12 +338,13 @@ Kept behaviour (v1 §8.21–8.22, §9.4): `react-resizable-panels` with `autoSav
 
 Names stay `lemmayard-light` / `lemmayard-dark` (registered by name in `components/problem/monaco/setup`); pick with `monacoThemeFor(useAppliedTheme())`. Options (`MONACO_EDITOR_OPTIONS`): JetBrains Mono 14/22 via `fontMono.style.fontFamily`, **ligatures off**, minimap off, `renderLineHighlight: "all"`, padding top 12, no bracket-pair colours; `remeasureFonts()` after `document.fonts.ready`. Monarch emits no function-call token, so function colours appear only in static samples (`.tok-*` classes).
 
-### 13.6 Submissions `/submissions` and `/submissions/[id]` (phase 2)
+### 13.6 Submissions `/submissions` and `/submissions/[id]` (phase 2A, done)
 - List: d2 head "Submissions" + filters (verdict, language, problem). Columns: time (mono, relative + absolute in a tooltip), problem, verdict badge, language, runtime, memory, test squares (≥ 1280). Mobile list rows. Empty: unfinished proof + "Browse problems".
+- As built (phase 2A): only the existing problem filter (a pressed chip); verdict and language filters are not built yet. "Open in editor" (the former "Submit again") lives in the code viewer header.
 - Detail: two-column head (serif verdict word with icon, problem link, meta chips | the full test-square strip with the failing index labelled); body: the failing case (Input / Expected / Your output / Stdout) for Wrong Answer, the error text in a mono danger block for Runtime/Compile Error, then a read-only code viewer (editor-bg + gutter) with "Open in editor" and "Copy". The verdict card keeps its 4px left edge in the verdict colour.
 
-### 13.7 Profile `/u/[username]` (phase 2)
-Head: 120px cobalt monogram with a ∎ corner, eyebrow "Profile · public", d1 username, meta, "Your submissions" (own profile only). Stats band: three 96px serif numbers with count-ups (Solved x / N, Submissions, Acceptance %). Body: the proof sheet (one square per published problem by difficulty: filled = solved, dashed = attempted; legend and meters) and "Recently solved" (last 10 unique, green ∎, title, difficulty, language, first-Accepted date). Public: never shows code (AC-M6-4).
+### 13.7 Profile `/u/[username]` (phase 2A, done)
+Head: 120px cobalt monogram with a ∎ corner, eyebrow "Profile · public", d1 username, meta, "Your submissions" (own profile only). Stats band: three 96px serif numbers with count-ups (Solved x / N, Submissions, Acceptance %). Body: the proof sheet (one square per published problem by difficulty: filled = solved, dashed = attempted; legend and meters) and "Recently solved" (last 10 unique, green ∎, title, difficulty, language, first-Accepted date). Public: never shows code (AC-M6-4). As built: "attempted", the first-Accepted language and the main language come from `summarizeProfileExtras` over the same grouped query (still two queries); the rooms count is not shown.
 
 ### 13.8 Guide index `/learn` (phase 2, guide team)
 Hero: eyebrow "Guide", d1 "Data structures, *step by step*∎", lead, "Continue: …" when there is local progress. Track map as a vertical proof (gutter numbers), one row per lesson: status square (done ∎ / in progress half / todo outline), title, minutes, prerequisite chip, a monoline glyph. Bonus and review tracks are night-tinted cards. Glossary link.
