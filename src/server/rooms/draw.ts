@@ -1,9 +1,18 @@
 // Inputs and persistence of the lobby draw (docs/specs/rooms.md §2, §6.5
-// Q4, Q7, Q8). The selection itself is the pure core in
-// src/lib/rooms/selection.ts; this file gathers its inputs, writes the slots
-// and builds the lobby view. Callers hold the room and session locks.
-import { and, asc, eq, sql } from "drizzle-orm";
+// Q4, Q7, Q8; Rooms v2 §6.3, §7). The selection itself is the pure core in
+// src/lib/rooms/selection.ts (difficulty mode) and src/lib/rooms/rating.ts
+// (rating mode); this file gathers their inputs, writes the slots and builds
+// the lobby view. Callers hold the room and session locks.
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
+import {
+  drawSlotsByRating,
+  isProvisional,
+  ratingExpectation,
+  ratingTargets,
+  type RatedCandidate,
+  type RatedSlot,
+} from "@/lib/rooms/rating";
 import type { Rng } from "@/lib/rooms/rng";
 import {
   calibrationFromCounts,
@@ -13,23 +22,31 @@ import {
   emptyCounts,
   expectedParticipants,
   MAX_REROLLS,
+  placePinnedSlots,
   suggestMix,
   unusedCounts,
-  type CandidateProblem,
   type Calibration,
   type DrawError,
   type DrawNotice,
   type Slot,
 } from "@/lib/rooms/selection";
 import type { ResolvedSettings } from "@/lib/rooms/session-schemas";
-import { noticeView, type DrawErrorView, type LobbyView } from "@/lib/rooms/session-view";
-import { mixOf, type Difficulty, type Mix } from "@/lib/rooms/types";
-import { problems, roomMembers, roomSessionParticipants, roomSessionProblems, roomSessions } from "@/server/db/schema";
+import { noticeView, type DrawErrorView, type LobbyExpectationView, type LobbyView } from "@/lib/rooms/session-view";
+import { mixOf, selectionModeOf, type Difficulty, type Mix, type RoomSessionSettings } from "@/lib/rooms/types";
+import {
+  problems,
+  roomMembers,
+  roomSessionParticipants,
+  roomSessionProblems,
+  roomSessions,
+  users,
+} from "@/server/db/schema";
 
 import type { RoomSessionRow } from "./access";
 import type { Tx } from "./queries";
+import { ensureMemberRatings, problemRatingSql } from "./ratings";
 
-export type CatalogProblem = CandidateProblem & { slug: string; title: string; tags: string[] };
+export type CatalogProblem = RatedCandidate & { slug: string; title: string; tags: string[] };
 
 export type DrawContext = {
   /** Every published problem with usage and solver counts. */
@@ -37,6 +54,8 @@ export type DrawContext = {
   /** The catalog filtered by the session's topics (any of them). */
   pool: CatalogProblem[];
   expectedCount: number;
+  /** Expected participants (§2.1): joined if at least 2, else all current members. */
+  expectedUserIds: string[];
   calibration: Calibration;
 };
 
@@ -108,6 +127,7 @@ export async function loadDrawContext(
       slug: problems.slug,
       title: problems.title,
       difficulty: problems.difficulty,
+      rating: problemRatingSql,
       tags: sql<string[]>`coalesce((
         SELECT array_agg(t.slug ORDER BY t.slug) FROM problem_tags pt JOIN tags t ON t.id = pt.tag_id
         WHERE pt.problem_id = "problems"."id"), '{}')`,
@@ -140,18 +160,19 @@ export async function loadDrawContext(
   const solvers = new Map(solved.rows.map((r) => [r.problem_id, Number(r.solvers)]));
   const catalog: CatalogProblem[] = catalogRows.map((p) => ({
     ...p,
+    rating: Number(p.rating),
     lastUsedAt: lastUsed.get(p.id) ?? null,
     solvedBy: solvers.get(p.id) ?? 0,
   }));
   const wanted = new Set(tags);
   const pool = wanted.size === 0 ? catalog : catalog.filter((p) => p.tags.some((t) => wanted.has(t)));
-  return { catalog, pool, expectedCount: expected.length, calibration };
+  return { catalog, pool, expectedCount: expected.length, expectedUserIds: expected, calibration };
 }
 
-export type SlotRow = Slot & { slug: string; title: string; published: boolean; tags: string[] };
+export type SlotRow = Slot & { slug: string; title: string; published: boolean; tags: string[]; rating: number };
 
 export async function loadSlots(tx: Tx, sessionId: string): Promise<SlotRow[]> {
-  return tx
+  const rows = await tx
     .select({
       position: roomSessionProblems.position,
       problemId: roomSessionProblems.problemId,
@@ -160,6 +181,7 @@ export async function loadSlots(tx: Tx, sessionId: string): Promise<SlotRow[]> {
       slug: problems.slug,
       title: problems.title,
       published: problems.published,
+      rating: problemRatingSql,
       tags: sql<string[]>`coalesce((
         SELECT array_agg(t.slug ORDER BY t.slug) FROM problem_tags pt JOIN tags t ON t.id = pt.tag_id
         WHERE pt.problem_id = "problems"."id"), '{}')`,
@@ -168,6 +190,7 @@ export async function loadSlots(tx: Tx, sessionId: string): Promise<SlotRow[]> {
     .innerJoin(problems, eq(problems.id, roomSessionProblems.problemId))
     .where(eq(roomSessionProblems.sessionId, sessionId))
     .orderBy(asc(roomSessionProblems.position));
+  return rows.map((r) => ({ ...r, rating: Number(r.rating) }));
 }
 
 /** Replaces the session's slots with `slots` (positions 1..N, one problem each). */
@@ -187,10 +210,90 @@ export async function writeSlots(tx: Tx, sessionId: string, slots: readonly Slot
 
 export type DrawOutcome = { ok: true; notices: DrawNotice[]; mix: Mix } | DrawError;
 
+async function saveDraw(
+  tx: Tx,
+  session: RoomSessionRow,
+  resolved: ResolvedSettings,
+  slots: readonly Slot[],
+  settings: RoomSessionSettings,
+  rerolledIds: readonly string[],
+): Promise<void> {
+  await writeSlots(tx, session.id, slots);
+  await tx
+    .update(roomSessions)
+    .set({
+      problemCount: resolved.problemCount,
+      durationMin: resolved.durationMin,
+      plannedFor: resolved.plannedFor,
+      settings,
+      rated: resolved.rated,
+      rerolledProblemIds: [...rerolledIds],
+    })
+    .where(eq(roomSessions.id, session.id));
+}
+
+/** Room ratings of the expected participants, initialised on first need (v2 §6.4). */
+export async function expectedRatings(
+  tx: Tx,
+  roomId: string,
+  userIds: readonly string[],
+): Promise<{ userId: string; rating: number; ratedPairs: number }[]> {
+  const ratings = await ensureMemberRatings(tx, roomId, userIds);
+  return [...ratings.values()].map((r) => ({ userId: r.userId, rating: r.rating, ratedPairs: r.ratedPairs }));
+}
+
+function settingsWithoutTargets(settings: RoomSessionSettings): RoomSessionSettings {
+  const { targets: _targets, ...rest } = settings;
+  void _targets;
+  return rest;
+}
+
+/**
+ * Rating-mode draw (v2 §6.3) with persistence: keeps pinned slots, sets
+ * ladder targets from the expected participants' room ratings and fills the
+ * free slots near them. On an error nothing is written. The lobby view
+ * (`buildLobbyView`) then carries the rating numbers.
+ */
+export async function drawByRating(
+  tx: Tx,
+  session: RoomSessionRow,
+  resolved: ResolvedSettings,
+  rng: Rng,
+  ctx?: DrawContext,
+): Promise<DrawOutcome> {
+  const context = ctx ?? (await loadDrawContext(tx, session, resolved.settings.tags));
+  const current = await loadSlots(tx, session.id);
+  const pinned: RatedSlot[] = current.filter((s) => s.pinned).map((s) => ({ ...toSlot(s), rating: s.rating }));
+  const people = await expectedRatings(tx, session.roomId, context.expectedUserIds);
+  const result = drawSlotsByRating({
+    problemCount: resolved.problemCount,
+    pool: context.pool,
+    pinned,
+    rerolledIds: session.rerolledProblemIds,
+    avoidSolved: resolved.settings.avoidSolved,
+    rng,
+    ratings: people.map((p) => p.rating),
+    challenge: resolved.settings.challenge,
+  });
+  if (!result.ok) return result;
+  const mix = mixOf(result.slots);
+  await saveDraw(
+    tx,
+    session,
+    resolved,
+    result.slots.map(toSlot),
+    { ...resolved.settings, mode: "rating", mix, targets: result.targetsByPosition },
+    result.rerolledIds,
+  );
+  return { ok: true, notices: result.notices, mix };
+}
+
 /**
  * Re-draw (§2.5): keeps pinned slots, draws the rest for the resolved
- * settings (suggested mix recomputed from calibration), then persists slots
- * and settings. On an error nothing is written.
+ * settings and mode, then persists slots and settings. On an error nothing
+ * is written. Difficulty mode = v1 (suggested mix recomputed from
+ * calibration); manual mode keeps only the pinned slots (the host fills the
+ * rest by search).
  */
 export async function drawAndSave(
   tx: Tx,
@@ -198,9 +301,22 @@ export async function drawAndSave(
   resolved: ResolvedSettings,
   rng: Rng,
 ): Promise<DrawOutcome> {
+  const mode = selectionModeOf(resolved.settings);
   const ctx = await loadDrawContext(tx, session, resolved.settings.tags);
+  if (mode === "rating") return drawByRating(tx, session, resolved, rng, ctx);
+
   const current = await loadSlots(tx, session.id);
   const pinned = current.filter((s) => s.pinned).map(toSlot);
+  if (mode === "manual") {
+    if (pinned.length > resolved.problemCount) {
+      return { ok: false, code: "too_many_pinned", counts: mixOf([...ctx.pool, ...pinned]) };
+    }
+    const placed = placePinnedSlots(pinned, resolved.problemCount).pinned;
+    const mix = mixOf(placed);
+    await saveDraw(tx, session, resolved, placed, { ...settingsWithoutTargets(resolved.settings), mix }, session.rerolledProblemIds);
+    return { ok: true, notices: [], mix };
+  }
+
   const pinnedIds = new Set(pinned.map((s) => s.problemId));
   let mix = resolved.settings.mix;
   if (resolved.settings.mixMode === "suggested") {
@@ -224,17 +340,7 @@ export async function drawAndSave(
     rng,
   });
   if (!result.ok) return result;
-  await writeSlots(tx, session.id, result.slots);
-  await tx
-    .update(roomSessions)
-    .set({
-      problemCount: resolved.problemCount,
-      durationMin: resolved.durationMin,
-      plannedFor: resolved.plannedFor,
-      settings: { ...resolved.settings, mix },
-      rerolledProblemIds: result.rerolledIds,
-    })
-    .where(eq(roomSessions.id, session.id));
+  await saveDraw(tx, session, resolved, result.slots, { ...settingsWithoutTargets(resolved.settings), mix }, result.rerolledIds);
   return { ok: true, notices: result.notices, mix };
 }
 
@@ -242,9 +348,75 @@ export function toSlot(s: Slot): Slot {
   return { position: s.position, problemId: s.problemId, difficulty: s.difficulty, pinned: s.pinned };
 }
 
+/** Rating-mode numbers of the lobby (v2 §6.3 "Shown"). */
+async function ratingLobbyParts(
+  tx: Tx,
+  session: RoomSessionRow,
+  slots: readonly SlotRow[],
+  expectedUserIds: readonly string[],
+): Promise<{
+  slotRatings: Map<number, { chance: number; rating: number; target: number | null }>;
+  expected: LobbyExpectationView;
+}> {
+  const people = await expectedRatings(tx, session.roomId, expectedUserIds);
+  const names =
+    people.length === 0
+      ? []
+      : await tx
+          .select({ id: users.id, username: users.username })
+          .from(users)
+          .where(inArray(users.id, people.map((p) => p.userId)));
+  const nameOf = new Map(names.map((n) => [n.id, n.username]));
+  const exp = ratingExpectation({
+    people,
+    slots: slots.map((s) => ({ position: s.position, rating: s.rating })),
+    challenge: session.settings.challenge,
+  });
+  const targets = session.settings.targets ?? [];
+  const slotRatings = new Map(
+    exp.slots.map((s) => [
+      s.position,
+      { chance: s.chance, rating: s.rating, target: slots.find((x) => x.position === s.position)?.pinned ? null : (targets[s.position - 1] ?? null) },
+    ]),
+  );
+  const ratings = people.map((p) => p.rating);
+  const freeCount = slots.filter((s) => !s.pinned).length;
+  const plan =
+    ratings.length > 0 && freeCount > 0
+      ? ratingTargets({
+          ratings,
+          freeCount,
+          pinnedRatings: slots.filter((s) => s.pinned).map((s) => s.rating),
+          challenge: session.settings.challenge,
+        })
+      : null;
+  return {
+    slotRatings,
+    expected: {
+      target: exp.target,
+      expectedPerPerson: exp.room.expectedPerPerson,
+      share: exp.room.share,
+      perUser: exp.perUser
+        .map((u) => ({
+          userId: u.userId,
+          username: nameOf.get(u.userId) ?? "",
+          rating: u.rating,
+          provisional: isProvisional(people.find((p) => p.userId === u.userId)?.ratedPairs ?? 0),
+          expected: u.expected,
+        }))
+        .sort((a, b) => b.rating - a.rating || a.username.localeCompare(b.username)),
+      center: plan ? Math.round(plan.center) : null,
+      widened: plan?.widened ?? false,
+      ratingRange: ratings.length > 0 ? { min: Math.min(...ratings), max: Math.max(...ratings) } : null,
+    },
+  };
+}
+
 /**
- * The lobby as the viewer may see it. Titles, slugs, draw notes, calibration
- * and pool counts only for the host/owner (§1.2 step 5, §8.4).
+ * The lobby as the viewer may see it. Titles, slugs, draw notes, calibration,
+ * pool counts, problem ratings and per-person expectations only for the
+ * host/owner (§1.2 step 5, §8.4; v2 §2.3, AC-V2-SEL-4). In rating mode every
+ * viewer gets each slot's room solve chance.
  */
 export async function buildLobbyView(
   tx: Tx,
@@ -253,6 +425,7 @@ export async function buildLobbyView(
   extra: { notices?: DrawNotice[]; drawError?: DrawErrorView } = {},
 ): Promise<LobbyView> {
   const slots = await loadSlots(tx, session.id);
+  const mode = selectionModeOf(session.settings);
   const base: LobbyView = {
     sessionId: session.id,
     roomId: session.roomId,
@@ -269,10 +442,25 @@ export async function buildLobbyView(
     actualMix: mixOf(slots),
     notices: (extra.notices ?? []).map(noticeView),
     ...(extra.drawError ? { drawError: extra.drawError } : {}),
+    mode,
+    rated: session.rated,
   };
-  if (!canManage) return base;
+  const needsContext = canManage || (mode === "rating" && slots.length > 0);
+  if (!needsContext) return base;
 
   const ctx = await loadDrawContext(tx, session, session.settings.tags);
+  const rating = mode === "rating" && slots.length > 0 ? await ratingLobbyParts(tx, session, slots, ctx.expectedUserIds) : null;
+  if (!canManage) {
+    // Non-hosts: the solve chance only, never the rating, title or slug.
+    return {
+      ...base,
+      slots: base.slots.map((s) => {
+        const r = rating?.slotRatings.get(s.position);
+        return r ? { ...s, rating: { chance: r.chance } } : s;
+      }),
+    };
+  }
+
   const info = new Map(ctx.catalog.map((p) => [p.id, p]));
   const pinnedIds = new Set(slots.filter((s) => s.pinned).map((s) => s.problemId));
   const suggestion = suggestMix({
@@ -286,6 +474,7 @@ export async function buildLobbyView(
     ...base,
     slots: slots.map((s, i) => {
       const c = info.get(s.problemId);
+      const r = rating?.slotRatings.get(s.position);
       return {
         ...base.slots[i],
         problem: { slug: s.slug, title: s.title, published: s.published },
@@ -295,6 +484,16 @@ export async function buildLobbyView(
           expectedCount: ctx.expectedCount,
           lastUsedAt: c?.lastUsedAt?.toISOString() ?? null,
         },
+        ...(r
+          ? {
+              rating: {
+                chance: r.chance,
+                rating: r.rating,
+                target: r.target,
+                deviation: r.target === null ? null : r.rating - r.target,
+              },
+            }
+          : {}),
       };
     }),
     calibration: {
@@ -306,6 +505,7 @@ export async function buildLobbyView(
       expectedSolved: suggestion.ok ? suggestion.evaluation.expected * session.problemCount : null,
     },
     pool: { available: mixOf(ctx.pool), unused: unusedCounts(ctx.pool) },
+    ...(rating ? { expected: rating.expected } : {}),
   };
 }
 

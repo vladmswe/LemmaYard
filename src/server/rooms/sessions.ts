@@ -13,8 +13,10 @@ import { and, asc, count, eq, gt, ilike, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import type { z } from "zod";
 
+import { rerollAllByRating, rerollSlotByRating } from "@/lib/rooms/rating";
 import { pinSlot, rerollAll, rerollSlot, unpinSlot, type DrawNotice, type Slot } from "@/lib/rooms/selection";
 import {
+  createSessionBodySchema,
   parseSlotPosition,
   pinBodySchema,
   PROBLEM_SEARCH_LIMIT,
@@ -39,7 +41,7 @@ import {
 } from "@/lib/rooms/session-view";
 import { JUDGE_DISABLED_SESSION_MESSAGE } from "@/lib/judge-availability";
 import { emptyBodySchema } from "@/lib/rooms/schemas";
-import { mixOf } from "@/lib/rooms/types";
+import { mixOf, selectionModeOf } from "@/lib/rooms/types";
 import { getCurrentUser, type SessionUser } from "@/server/auth/session";
 import { getDb } from "@/server/db";
 import { problems, roomSessionParticipants, roomSessionProblems, roomSessions } from "@/server/db/schema";
@@ -57,11 +59,19 @@ import {
   unknownTags,
   writeSlots,
 } from "./draw";
+import { loadSessionTemplate } from "./defaults";
 import { appendRoomEvent, lockSession } from "./events";
 import { json, readAuthedBody, roomNotFound, SIGN_IN_REQUIRED, tooMany } from "./http";
 import { closeIfDue } from "./lifecycle";
 import { recomputeSessionScores } from "./outcome";
 import { lockRoom, type Tx } from "./queries";
+import {
+  applySessionRatings,
+  ensureMemberRatings,
+  loadSessionRatings,
+  snapshotLateJoin,
+  snapshotSessionStart,
+} from "./ratings";
 import { sessionRng } from "./rng";
 
 export const SLOT_NOT_FOUND = "Slot not found";
@@ -131,6 +141,7 @@ function currentSettings(session: RoomSessionRow): ResolvedSettings {
     durationMin: session.durationMin,
     plannedFor: session.plannedFor,
     settings: session.settings,
+    rated: session.rated,
   };
 }
 
@@ -174,16 +185,20 @@ async function lobbyResponse(
 // --- POST /api/rooms/:roomId/sessions -------------------------------------
 
 export async function createSession(request: Request, roomId: string): Promise<NextResponse> {
-  const pre = await readAuthedBody(request, sessionSettingsBodySchema);
+  const pre = await readAuthedBody(request, createSessionBodySchema);
   if ("response" in pre) return pre.response;
   const { user, data, db } = pre;
   if (!(await requireRoomMember(db, roomId, user.id))) return roomNotFound();
-  const resolved = resolveSettings(null, data, new Date());
-  if ("error" in resolved) return jsonError(400, resolved.error, { [resolved.field]: resolved.error });
+  const { presetId, ...body } = data;
 
   return db.transaction(async (tx) => {
     await lockRoom(tx, roomId);
     if (!(await requireRoomMember(tx, roomId, user.id))) return roomNotFound();
+    // v2 §4: the room's default preset (or `presetId`); explicit fields override it.
+    const template = await loadSessionTemplate(tx, roomId, presetId);
+    if (!template) return jsonError(400, "Unknown preset", { presetId: "Unknown preset" });
+    const resolved = resolveSettings(null, body, new Date(), template);
+    if ("error" in resolved) return jsonError(400, resolved.error, { [resolved.field]: resolved.error });
     const unknown = await unknownTags(tx, resolved.settings.tags);
     if (unknown.length > 0) return jsonError(400, "Unknown topic", { tags: `Unknown topic: ${unknown[0]}` });
 
@@ -216,10 +231,12 @@ export async function createSession(request: Request, roomId: string): Promise<N
         durationMin: resolved.durationMin,
         plannedFor: resolved.plannedFor,
         settings: resolved.settings,
+        rated: resolved.rated,
       })
       .returning();
     await lockSession(tx, session.id);
     await tx.insert(roomSessionParticipants).values({ sessionId: session.id, userId: user.id });
+    await ensureMemberRatings(tx, roomId, [user.id]);
     await appendRoomEvent(tx, session.id, { type: "participant_joined", actorUserId: user.id, payload: {} });
 
     const drawn = await drawAndSave(tx, session, resolved, sessionRng());
@@ -259,7 +276,7 @@ export function drawSession(request: Request, roomId: string, sessionId: string)
       } else {
         await tx
           .update(roomSessions)
-          .set({ durationMin: resolved.durationMin, plannedFor: resolved.plannedFor })
+          .set({ durationMin: resolved.durationMin, plannedFor: resolved.plannedFor, rated: resolved.rated })
           .where(eq(roomSessions.id, session.id));
       }
       await lobbyUpdated(tx, session.id);
@@ -295,15 +312,23 @@ export function rerollSessionSlot(request: Request, roomId: string, sessionId: s
         return codedError(409, "slot_empty", "Draw the problems first");
       }
       const ctx = await loadDrawContext(tx, session, session.settings.tags);
-      const result = rerollSlot({
-        slots,
+      const common = {
         position,
         pool: ctx.pool,
         rerolledIds: session.rerolledProblemIds,
         rerollCount: session.rerollCount,
         avoidSolved: session.settings.avoidSolved,
         rng: sessionRng(),
-      });
+      };
+      // v2: in rating mode a re-roll searches around the slot's target instead of its difficulty.
+      const result =
+        selectionModeOf(session.settings) === "rating"
+          ? rerollSlotByRating({
+              ...common,
+              slots: (await loadSlots(tx, session.id)).map((s) => ({ ...toSlot(s), rating: s.rating })),
+              target: session.settings.targets?.[position - 1] ?? null,
+            })
+          : rerollSlot({ ...common, slots });
       if (!result.ok) {
         if ("counts" in result) {
           return drawErrorResponse(drawErrorView(result, session.problemCount, session.settings.tags.length));
@@ -328,6 +353,8 @@ export function rerollSessionSlot(request: Request, roomId: string, sessionId: s
         .update(roomSessions)
         .set({ rerolledProblemIds: result.rerolledIds, rerollCount: result.rerollCount })
         .where(eq(roomSessions.id, session.id));
+      // Any difficulty may fill a rating-mode slot, so the stored mix follows the slots.
+      if (selectionModeOf(session.settings) === "rating") await syncActualMix(tx, session);
       await lobbyUpdated(tx, session.id);
       return lobbyResponse(tx, session, canManage, { notices: result.notices });
     },
@@ -343,18 +370,28 @@ export function rerollAllSlots(request: Request, roomId: string, sessionId: stri
     { manage: true },
     async ({ tx, session, canManage }) => {
       if (session.status !== "lobby") return notInLobby(session);
-      const slots = (await loadSlots(tx, session.id)).map(toSlot);
+      const mode = selectionModeOf(session.settings);
+      if (mode === "manual") return codedError(409, "manual_mode", "Pick the problems yourself in this mode");
+      const rows = await loadSlots(tx, session.id);
+      const slots = rows.map(toSlot);
       const ctx = await loadDrawContext(tx, session, session.settings.tags);
-      const result = rerollAll({
+      const common = {
         problemCount: session.problemCount,
-        mix: session.settings.mix,
-        slots,
         pool: ctx.pool,
         rerolledIds: session.rerolledProblemIds,
         rerollCount: session.rerollCount,
         avoidSolved: session.settings.avoidSolved,
         rng: sessionRng(),
-      });
+      };
+      const result =
+        mode === "rating"
+          ? rerollAllByRating({
+              ...common,
+              slots: rows.map((s) => ({ ...toSlot(s), rating: s.rating })),
+              ratings: [...(await ensureMemberRatings(tx, session.roomId, ctx.expectedUserIds)).values()].map((r) => r.rating),
+              challenge: session.settings.challenge,
+            })
+          : rerollAll({ ...common, mix: session.settings.mix, slots });
       if (!result.ok) {
         if (result.code === "reroll_limit") return codedError(409, "reroll_limit", REROLL_LIMIT);
         if ("counts" in result) {
@@ -363,9 +400,14 @@ export function rerollAllSlots(request: Request, roomId: string, sessionId: stri
         return codedError(409, result.code, "Re-roll failed");
       }
       await writeSlots(tx, session.id, result.slots);
+      const targets = "targetsByPosition" in result ? (result.targetsByPosition as (number | null)[]) : null;
       await tx
         .update(roomSessions)
-        .set({ rerolledProblemIds: result.rerolledIds, rerollCount: result.rerollCount })
+        .set({
+          rerolledProblemIds: result.rerolledIds,
+          rerollCount: result.rerollCount,
+          ...(targets ? { settings: { ...session.settings, mix: mixOf(result.slots), targets } } : {}),
+        })
         .where(eq(roomSessions.id, session.id));
       await lobbyUpdated(tx, session.id);
       return lobbyResponse(tx, session, canManage, { notices: result.notices });
@@ -449,7 +491,13 @@ export function joinSession(request: Request, roomId: string, sessionId: string)
         .returning({ userId: roomSessionParticipants.userId });
       if (inserted.length === 1) {
         await appendRoomEvent(tx, session.id, { type: "participant_joined", actorUserId: user.id, payload: {} });
-        if (session.status === "live") await recomputeSessionScores(tx, session.id);
+        if (session.status === "live") {
+          await recomputeSessionScores(tx, session.id);
+          // v2 §6.6: a late joiner's start rating is the one at join time.
+          await snapshotLateJoin(tx, session, user.id);
+        } else {
+          await ensureMemberRatings(tx, session.roomId, [user.id]);
+        }
       }
       return json({ joined: true, status: session.status });
     },
@@ -520,6 +568,8 @@ export function startSession(request: Request, roomId: string, sessionId: string
       `);
       const startedAt = new Date(rows[0].started_at).toISOString();
       const endsAt = new Date(rows[0].ends_at).toISOString();
+      // v2 §6.2: every P and Δ later uses the ratings at start.
+      await snapshotSessionStart(tx, session);
       await recomputeSessionScores(tx, session.id);
       await appendRoomEvent(tx, session.id, { type: "session_started", payload: { startedAt, endsAt } });
       return json({ startedAt, endsAt });
@@ -550,6 +600,7 @@ export function endSession(request: Request, roomId: string, sessionId: string) 
       const endedAt = row.endedAt!.toISOString();
       await recomputeSessionScores(tx, session.id);
       await appendRoomEvent(tx, session.id, { type: "session_ended", payload: { endedAt, reason: "host" } });
+      await applySessionRatings(tx, session.id);
       return json({ endedAt, endReason: "host" });
     },
   );
@@ -609,6 +660,17 @@ export async function getLobby(roomId: string, sessionId: string): Promise<NextR
   return sessionRead(roomId, sessionId, async ({ tx, session, canManage }) =>
     json({ lobby: await buildLobbyView(tx, session, canManage) }),
   );
+}
+
+/**
+ * GET …/ratings (v2 §11, D3): the session's rating ledger, for members of
+ * the room only (everyone else gets the uniform 404).
+ */
+export async function getSessionRatings(roomId: string, sessionId: string): Promise<NextResponse> {
+  return sessionRead(roomId, sessionId, async ({ tx, session }) => {
+    const view = await loadSessionRatings(tx, session.id);
+    return view ? json(view) : sessionNotFound();
+  });
 }
 
 function escapeLike(q: string): string {

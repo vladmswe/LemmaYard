@@ -87,7 +87,8 @@ describe("migration 0003_rooms", () => {
     const journal = JSON.parse(readFileSync(path.join(MIGRATIONS_DIR, "meta", "_journal.json"), "utf8")) as {
       entries: { idx: number; tag: string }[];
     };
-    expect(journal.entries.map((e) => e.tag)).toEqual(["0000_init", "0001_review_checks_indexes", "0002_enable_rls", "0003_rooms"]);
+    // Later feature migrations (0004 Rooms v2, …) follow it.
+    expect(journal.entries.slice(0, 4).map((e) => e.tag)).toEqual(["0000_init", "0001_review_checks_indexes", "0002_enable_rls", "0003_rooms"]);
     const migration = readFileSync(path.join(MIGRATIONS_DIR, "0003_rooms.sql"), "utf8");
     expect(migration).not.toMatch(/\bDROP\b/i);
     expect(migration).not.toMatch(/ALTER COLUMN/i);
@@ -130,7 +131,8 @@ describe("migration 0003_rooms", () => {
       const { rows: applied } = await db.execute<{ n: number }>(
         sql`SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations`,
       );
-      expect(applied[0].n).toBe(4);
+      const journal = JSON.parse(readFileSync(path.join(MIGRATIONS_DIR, "meta", "_journal.json"), "utf8")) as { entries: unknown[] };
+      expect(applied[0].n).toBe(journal.entries.length);
     });
   });
 });

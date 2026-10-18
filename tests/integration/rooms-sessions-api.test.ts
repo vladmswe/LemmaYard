@@ -196,13 +196,14 @@ beforeEach(async () => {
 });
 afterAll(closeTestDb);
 
-async function createLobby(host: User = alice, settings: unknown = {}) {
-  const res = await as(host, () => api.create(roomId, settings));
+/** v1 suites pin the difficulty mode explicitly (Rooms v2 made "rating" the default; see rooms-ratings-api.test.ts). */
+async function createLobby(host: User = alice, settings: Record<string, unknown> = {}) {
+  const res = await as(host, () => api.create(roomId, { mode: "difficulty", ...settings }));
   expect(res.status).toBe(201);
   return body<{ id: string; lobby: LobbyView }>(res);
 }
 
-async function liveSession(host: User = alice, settings: unknown = { problemCount: 2, durationMin: 30 }) {
+async function liveSession(host: User = alice, settings: Record<string, unknown> = { problemCount: 2, durationMin: 30 }) {
   const { id } = await createLobby(host, settings);
   expect((await as(host, () => api.start(roomId, id))).status).toBe(200);
   return id;
@@ -953,11 +954,16 @@ describe("negative cases per mutating route (AC-S-SEC-4)", () => {
     expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(3000);
   });
 
-  it("the room members table is untouched by session routes", async () => {
-    const before = await getTestDb().select().from(roomMembers);
+  it("the room members table is untouched by session routes (membership columns; v2 ratings live there too)", async () => {
+    const membership = () =>
+      getTestDb()
+        .select({ roomId: roomMembers.roomId, userId: roomMembers.userId, role: roomMembers.role, share: roomMembers.shareSolutions, joinedAt: roomMembers.joinedAt })
+        .from(roomMembers)
+        .orderBy(asc(roomMembers.userId));
+    const before = await membership();
     const id = await liveSession();
     await as(bob, () => api.join(roomId, id));
     await as(alice, () => api.end(roomId, id));
-    expect(await getTestDb().select().from(roomMembers)).toEqual(before);
+    expect(await membership()).toEqual(before);
   });
 });

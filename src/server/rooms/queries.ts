@@ -4,11 +4,13 @@
 // invite token is never read back: only whether a link is active and until when.
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
+import { roomDefaultsView, type RoomDefaultsView } from "@/lib/rooms/room-defaults";
 import type { RoomRole, RoomSessionStatus } from "@/lib/rooms/types";
 import type { Db } from "@/server/db";
 import { roomMembers, rooms, roomSessions, users } from "@/server/db/schema";
 
 import { requireRoomMember } from "./access";
+import { memberRatingView, type MemberRatingView } from "./ratings";
 
 /** Members shown on a room card before "+N". */
 export const CARD_MEMBER_PREVIEW = 5;
@@ -92,10 +94,12 @@ export type RoomMemberItem = {
   username: string;
   role: RoomRole;
   joinedAt: string;
+  /** Rooms v2 (D2/D3): the member's rating in THIS room, visible to every member of it. */
+  rating: MemberRatingView;
 };
 
 export type RoomDetail = {
-  room: { id: string; name: string; shareSolutions: boolean; createdAt: string };
+  room: { id: string; name: string; shareSolutions: boolean; createdAt: string } & RoomDefaultsView;
   viewer: { userId: string; role: RoomRole; shareSolutions: boolean };
   /** Owner first, then by join time. */
   members: RoomMemberItem[];
@@ -154,6 +158,11 @@ export async function getRoomDetail(db: Db, roomId: string, userId: string): Pro
       createdAt: rooms.createdAt,
       expiresAt: rooms.inviteExpiresAt,
       active: sql<boolean>`(${rooms.inviteTokenHash} IS NOT NULL AND ${rooms.inviteExpiresAt} > now())`,
+      description: rooms.description,
+      color: rooms.color,
+      presets: rooms.presets,
+      defaultPresetId: rooms.defaultPresetId,
+      schedule: rooms.schedule,
     })
     .from(rooms)
     .where(eq(rooms.id, roomId))
@@ -166,6 +175,7 @@ export async function getRoomDetail(db: Db, roomId: string, userId: string): Pro
       name: room.name,
       shareSolutions: room.shareSolutions,
       createdAt: room.createdAt.toISOString(),
+      ...roomDefaultsView(room),
     },
     viewer: { userId, role: viewer.role, shareSolutions: access.memberShareSolutions },
     members,
@@ -183,12 +193,22 @@ async function loadMembers(db: Db, roomId: string): Promise<RoomMemberItem[]> {
       username: users.username,
       role: roomMembers.role,
       joinedAt: roomMembers.joinedAt,
+      rating: roomMembers.rating,
+      ratedPairs: roomMembers.ratedPairs,
+      ratedSessions: roomMembers.ratedSessions,
+      ratingSource: roomMembers.ratingSource,
     })
     .from(roomMembers)
     .innerJoin(users, eq(users.id, roomMembers.userId))
     .where(eq(roomMembers.roomId, roomId))
     .orderBy(sql`${roomMembers.role} = 'owner' DESC`, asc(roomMembers.joinedAt), asc(users.username));
-  return rows.map((r) => ({ ...r, joinedAt: r.joinedAt.toISOString() }));
+  return rows.map((r) => ({
+    userId: r.userId,
+    username: r.username,
+    role: r.role,
+    joinedAt: r.joinedAt.toISOString(),
+    rating: memberRatingView(r),
+  }));
 }
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];

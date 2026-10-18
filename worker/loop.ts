@@ -145,9 +145,16 @@ export function startWorker(options: WorkerOptions): WorkerHandle {
     // Rooms backstop for the lazy close (docs/specs/rooms.md §7.3): expired
     // live sessions → finished, stale lobbies → cancelled.
     try {
-      const { expired, stale } = await sweepRoomSessions(db);
-      if (expired.length > 0 || stale.length > 0) {
-        log({ level: "info", msg: "room sessions closed", workerId, expired: expired.length, stale: stale.length });
+      const { expired, stale, rated } = await sweepRoomSessions(db);
+      if (expired.length > 0 || stale.length > 0 || rated.length > 0) {
+        log({
+          level: "info",
+          msg: "room sessions closed",
+          workerId,
+          expired: expired.length,
+          stale: stale.length,
+          rated: rated.length,
+        });
       }
     } catch (error) {
       log({ level: "error", msg: "room session sweep failed", workerId, reason: safeErrorMessage(error) });
