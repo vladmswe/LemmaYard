@@ -5,6 +5,7 @@
 // nothing).
 import { and, asc, eq, sql } from "drizzle-orm";
 
+import { formatTagLabel } from "@/lib/format";
 import type { LobbyView } from "@/lib/rooms/session-view";
 import type { RoomRole, RoomSessionEndReason, RoomSessionStatus } from "@/lib/rooms/types";
 import type { Db } from "@/server/db";
@@ -50,7 +51,8 @@ export async function listSessionTags(db: Pick<Db, "select">): Promise<SessionTa
     .innerJoin(problems, and(eq(problems.id, problemTags.problemId), eq(problems.published, true)))
     .groupBy(tags.slug, tags.name)
     .orderBy(asc(tags.name));
-  return rows;
+  // Sentence case like the catalog and problem page ("Hash table").
+  return rows.map((r) => ({ ...r, name: formatTagLabel(r.name) }));
 }
 
 /**
