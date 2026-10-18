@@ -1,7 +1,9 @@
 # LemmaYard — conventions for agents
 
-Read `PLAN.md` in full before starting any milestone. It is the source of truth;
-do only what the current milestone's acceptance criteria require.
+Read `PLAN.md` in full before starting any milestone or feature. It is the
+source of truth (with the specs in `docs/specs/`); do only what the current
+task's acceptance criteria require. `README.md` describes the architecture,
+the problem format and the language contract.
 
 @AGENTS.md
 
@@ -12,24 +14,23 @@ pnpm run setup                # install + compose up + sandbox:build + db:seed
                               # (`pnpm setup` without `run` is pnpm's built-in!)
 pnpm install
 docker compose up -d --wait   # Postgres 16 on localhost:5433
+pnpm sandbox:build            # after any change in sandbox/ (Docker tests use the images)
 pnpm db:seed                  # migrate + import problems/
 pnpm dev                      # PORT from .env (default 3000)
 pnpm worker                   # judge worker on the host; `pnpm dev:all` = web + worker
-pnpm problems:verify          # all solutions × both languages must be accepted
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
-pnpm test:integration         # needs Postgres; own DB leetcopy_test_<worktree>
+pnpm test:integration         # needs Postgres (+ Docker); own DB leetcopy_test_<worktree>
 pnpm test:e2e                 # build + own DB leetcopy_e2e_<worktree> + web + worker (Docker)
 pnpm test:e2e:judge-off       # JUDGE_ENABLED=0 suite; E2E_SKIP_BUILD=1 reuses .next
+pnpm test:e2e:guide           # guide specs only, no worker
+pnpm problems:verify          # all solutions × both languages must be accepted
 pnpm problems:import [--prune]  # problems/ only; see note below
-pnpm sandbox:build            # after any change in sandbox/ (Docker tests use the images)
+pnpm db:generate && pnpm db:export-sql  # after a schema change: migration + docs/supabase/schema.sql
 ```
 
 `--prune` unpublishes every published problem not in `--dir` (pruned problems
 keep their `number`). Never run it with `--dir` pointing anywhere but
 `problems/` against the dev DB: it would unpublish the catalog.
-
-Scripts for later milestones are stubs that exit non-zero with
-`not implemented yet (Mx)`; replace the stub when you implement it.
 Run `pnpm problems:verify` after changing anything in `problems/`.
 
 ## Structure
@@ -39,7 +40,10 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
   `src/lib` shared code, `src/server` server-only code (`env.ts` = Zod env).
 - `drizzle/` migrations, `problems/<slug>/` problem files, `sandbox/` images
   and harnesses, `worker/` judge worker, `scripts/` CLI scripts,
-  `tests/{unit,integration,e2e,helpers}`.
+  `src/content/learn/` guide lessons, `docs/` deploy guide, specs, generated
+  Supabase SQL. Tests: `tests/{unit,integration,e2e,e2e-judge-off}`, shared
+  code in `tests/helpers` (Vitest) and `tests/e2e-support` (Playwright harness;
+  e2e specs reach the DB only through `e2eDatabaseUrl()`).
 - DB: Drizzle + `pg`, schema `src/server/db/schema.ts`, client `getDb()` in
   `src/server/db/index.ts`. Value types/validator: `src/lib/types`; problem
   file schemas: `src/lib/problems`; starter templates: `src/lib/templates`.
@@ -90,6 +94,7 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
   there and to `.env.example`.
 - Next.js is newer than most training data: check `node_modules/next/dist/docs/`
   before using an API.
-- Git: one branch per milestone, `feature/<m#-name>` (e.g. `feature/m1-db`).
-  No direct commits to `main` after the scaffold commit. Never merge or push
-  without the owner's explicit go-ahead.
+- Git: one branch per unit of work, `feature/<name>` (milestones
+  `feature/<m#-name>`) or `fix/<name>`, merged into `integration` after review.
+  `main` and `integration` receive merges only, never direct commits. Never
+  merge into `main` or push without the owner's explicit go-ahead.
