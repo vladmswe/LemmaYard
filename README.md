@@ -525,5 +525,6 @@ production judge, guide lessons 6–15 and the post-MVP features in
 Design rules: [DESIGN.md](DESIGN.md); contributor and agent conventions:
 [CLAUDE.md](CLAUDE.md); all docs: [docs/README.md](docs/README.md).
 
-**License.** Not yet chosen; the owner will add one. Until then, all rights
-are reserved.
+**License.** [MIT](LICENSE). Problem statements and lesson texts in this
+repository are original; the course material that inspired the guide is not
+included.

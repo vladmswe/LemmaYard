@@ -2,6 +2,7 @@
   "name": "lemmayard",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "node scripts/next.mjs dev",
     "build": "node scripts/next.mjs build",
