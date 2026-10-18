@@ -1,31 +1,24 @@
-import { existsSync } from "node:fs";
-
 import { defineConfig, devices } from "@playwright/test";
 
-// "Judge disabled" e2e (tests/e2e-judge-off): its own server with
-// JUDGE_ENABLED=0 on PORT + 1, so it never shares a server with the main
-// suite (which needs the judge on). Serves the existing production build:
-//   pnpm build && pnpm exec playwright test -c playwright.judge-off.config.ts
-if (existsSync(".env")) process.loadEnvFile(".env");
-const PORT = Number(process.env.PORT ?? 3000) + 1;
-const baseURL = `http://localhost:${PORT}`;
+import { e2eSettings, exportToTestEnv, loadDotEnv } from "./tests/e2e-support/env";
+
+// `pnpm test:e2e:judge-off` (tests/e2e-judge-off): the same harness as
+// playwright.config.ts with JUDGE_ENABLED=0 and no worker, its own database
+// leetcopy_e2e_<worktree>_off and port E2E_PORT + 1, so it never shares a
+// server with the main suite. E2E_SKIP_BUILD=1 reuses the last build.
+loadDotEnv();
+const e2e = e2eSettings("judge-off");
+exportToTestEnv(e2e);
 
 export default defineConfig({
   testDir: "tests/e2e-judge-off",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
+  workers: Number(process.env.E2E_WORKERS || 2),
   outputDir: "node_modules/.cache/playwright-results-judge-off",
   reporter: [["list"]],
-  use: { baseURL, trace: "retain-on-failure" },
+  globalSetup: "./tests/e2e-support/global-setup-judge-off.ts",
+  use: { baseURL: e2e.baseURL, trace: "retain-on-failure" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: `node scripts/next.mjs start --port ${PORT}`,
-    url: baseURL,
-    // AUTH_URL must match this origin, or every POST (register) is a 403.
-    // AUTH_RATE_LIMITS=0: specs register users from one address (see playwright.config.ts).
-    env: { JUDGE_ENABLED: "0", PORT: String(PORT), AUTH_URL: baseURL, AUTH_RATE_LIMITS: "0" },
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
 });

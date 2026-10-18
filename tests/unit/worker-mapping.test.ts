@@ -3,7 +3,16 @@
 import { DrizzleQueryError } from "drizzle-orm/errors";
 import { describe, expect, it } from "vitest";
 
-import { buildCreateArgs, buildSandboxPayload, sandboxCommand } from "../../worker/docker-executor";
+import { parseEnv } from "@/server/env";
+
+import {
+  buildCreateArgs,
+  buildSandboxPayload,
+  defaultSandboxNamespace,
+  dockerConfigFromEnv,
+  namespaceFilterArgs,
+  sandboxCommand,
+} from "../../worker/docker-executor";
 import { safeErrorMessage } from "../../worker/loop";
 import { sanitizeValue, TOO_DEEP } from "../../worker/judge";
 import { toFinalFields } from "../../worker/queue";
@@ -125,10 +134,34 @@ describe("sandbox stdin payload", () => {
 });
 
 describe("worker container labels", () => {
-  it("adds extra labels after the sandbox label, before the image", () => {
-    const args = buildCreateArgs("img:tag", 256, sandboxCommand("python", 256), ["lemmayard.worker=w1"]);
+  it("adds the namespace and extra labels after the sandbox label, before the image", () => {
+    const args = buildCreateArgs("img:tag", 256, sandboxCommand("python", 256), "ns1", ["lemmayard.worker=w1"]);
     const joined = args.join(" ");
-    expect(joined).toContain("--label lemmayard.sandbox=1 --label lemmayard.worker=w1");
+    expect(joined).toContain("--label lemmayard.sandbox=1 --label lemmayard.ns=ns1 --label lemmayard.worker=w1");
     expect(args.indexOf("img:tag")).toBeGreaterThan(args.indexOf("lemmayard.worker=w1"));
+  });
+});
+
+describe("sandbox namespace", () => {
+  it("defaults to the checkout directory name plus a hash of its path", () => {
+    const a = defaultSandboxNamespace("/work/My Checkout");
+    expect(a).toMatch(/^my-checkout-[0-9a-f]{8}$/);
+    expect(defaultSandboxNamespace("/work/My Checkout")).toBe(a);
+    // Same directory name in another place (another worktree root) → another namespace.
+    expect(defaultSandboxNamespace("/other/My Checkout")).not.toBe(a);
+  });
+
+  it("SANDBOX_NAMESPACE wins over the default and is validated", () => {
+    const env = parseEnv({ DATABASE_URL: "postgres://u:p@localhost:5433/db", AUTH_SECRET: "x".repeat(32), SANDBOX_NAMESPACE: "run-1" });
+    expect(dockerConfigFromEnv(env).namespace).toBe("run-1");
+    const unset = parseEnv({ DATABASE_URL: "postgres://u:p@localhost:5433/db", AUTH_SECRET: "x".repeat(32) });
+    expect(dockerConfigFromEnv(unset).namespace).toBe(defaultSandboxNamespace());
+    expect(() =>
+      parseEnv({ DATABASE_URL: "postgres://u:p@localhost:5433/db", AUTH_SECRET: "x".repeat(32), SANDBOX_NAMESPACE: "a b" }),
+    ).toThrow(/SANDBOX_NAMESPACE/);
+  });
+
+  it("cleanup filters on both the sandbox and the namespace label", () => {
+    expect(namespaceFilterArgs("ns1")).toEqual(["--filter", "label=lemmayard.sandbox=1", "--filter", "label=lemmayard.ns=ns1"]);
   });
 });

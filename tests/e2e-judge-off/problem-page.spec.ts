@@ -1,7 +1,7 @@
 // Problem page with the judge disabled (JUDGE_ENABLED=0, the Vercel default):
 // Run / Submit are disabled with a visible reason, shortcuts only announce
 // it, no request reaches the run/submit API, and editing + drafts still work.
-// Server: playwright.judge-off.config.ts (needs `pnpm build` first).
+// Server: the e2e harness via playwright.judge-off.config.ts (pnpm test:e2e:judge-off).
 import { randomUUID } from "node:crypto";
 
 import { expect, test, type Page } from "@playwright/test";

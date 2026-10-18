@@ -8,6 +8,8 @@ import pg from "pg";
 import { LESSONS, publishedLessons } from "@/content/learn";
 import { publishedGlossary } from "@/content/learn/glossary";
 
+import { e2eDatabaseUrl } from "../../e2e-support/db";
+
 import {
   collectConsoleErrors,
   expectAxeClean,
@@ -140,7 +142,7 @@ test.describe("AC-G-1-3 header link", () => {
   test.describe("signed in", () => {
     const username = `g1_${randomBytes(4).toString("hex")}`;
     test.afterAll(async () => {
-      const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+      const client = new pg.Client({ connectionString: e2eDatabaseUrl() });
       await client.connect();
       try {
         await client.query("DELETE FROM users WHERE username = $1", [username]);

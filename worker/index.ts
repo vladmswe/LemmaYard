@@ -34,7 +34,7 @@ async function main(): Promise<number> {
 
   try {
     const { removed } = await prepareSandbox(dockerConfig);
-    log({ level: "info", msg: "sandbox ready", workerId, removedOrphans: removed });
+    log({ level: "info", msg: "sandbox ready", workerId, namespace: dockerConfig.namespace, removedOrphans: removed });
   } catch (error) {
     if (error instanceof SandboxSetupError) {
       console.error(`worker: ${error.message}`);

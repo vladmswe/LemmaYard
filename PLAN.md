@@ -139,11 +139,11 @@ Python: `class Solution:` + метод с `List[...]` аннотациями (с
 
 ### Протокол запуска (без bind-mount)
 Worker использует `execFile` (никогда shell). Жизненный цикл:
-1. `docker create -i --label lemmayard.sandbox=1 --pull never --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --cpus 1 --memory <M>m --memory-swap <M>m --user 65534:65534 --log-driver none --tmpfs /tmp:rw,size=16m,noexec <image>`, **без `-e`** (env воркера не попадает в контейнер).
+1. `docker create -i --label lemmayard.sandbox=1 --label lemmayard.ns=<namespace> --pull never --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --cpus 1 --memory <M>m --memory-swap <M>m --user 65534:65534 --log-driver none --tmpfs /tmp:rw,size=16m,noexec <image>`, **без `-e`** (env воркера не попадает в контейнер).
 2. `docker start -a -i <id>`; worker пишет в stdin один JSON: `{ language, code, signature, tests: [{input}], timeLimitMs, nonce }`. **expected в контейнер не передаётся.**
 3. Harness читает stdin, компилирует код в памяти (`compile()` / `new vm.Script`), прогоняет тесты по очереди, **после каждого теста** пишет в реальный stdout кадр `\n@@<nonce>@@<json>\n` с `{index, status:"ok"|"error"|"timeout", actual?, timeMs, error?}`. Пользовательский `print`/`console.log` перехватывается (подмена `sys.stdout` / vm `console`) и копится в `stdout` с лимитом 64 KB (`[truncated]`).
 4. Worker читает stdout/stderr с жёстким лимитом 1 МБ (превышение → kill контейнера), парсит только кадры с верным nonce.
-5. После выхода: `docker inspect` (ExitCode, OOMKilled), затем `docker rm -f` в `finally`. При старте worker удаляет «осиротевшие» контейнеры с label `lemmayard.sandbox=1` и проверяет наличие обоих образов (`docker image inspect`), иначе падает с понятным сообщением.
+5. После выхода: `docker inspect` (ExitCode, OOMKilled), затем `docker rm -f` в `finally`. При старте worker удаляет «осиротевшие» контейнеры с label `lemmayard.sandbox=1` **своего namespace** (`lemmayard.ns=<SANDBOX_NAMESPACE>`, по умолчанию имя каталога checkout + хеш пути; контейнеры других worktree и контейнеры без ns-label не трогает) и проверяет наличие обоих образов (`docker image inspect`), иначе падает с понятным сообщением.
 
 Детали harness:
 - Python: `Solution()` → `getattr(sol, name)`; на каждый тест deep copy входа; `float`-параметры приводятся к `float`; per-test таймаут через `signal.setitimer` с исключением-наследником `BaseException`; результат через `json.dumps(allow_nan=False)`; несериализуемое / NaN / Inf → `error` "return value not JSON-serializable".
@@ -256,7 +256,7 @@ Rejected-запросы **не создают** строк в БД.
   - `os.getuid() != 0`; `CapEff` в `/proc/self/status` равен 0; `/var/run/docker.sock` не существует;
   - `/proc/1/environ` и окружение процесса не содержат `DATABASE_URL`, `AUTH_SECRET`, `POSTGRES_PASSWORD` и путей проекта.
 - **AC-M4-7** `pnpm problems:verify` прогоняет `solution.py` и `solution.js` каждой задачи через реальный executor на **всех** тестах: все задачи × 2 языка → `accepted`; при расхождении — ненулевой код и список. Это гейт качества seed-данных.
-- **AC-M4-8** После прогона `docker ps -a --filter label=lemmayard.sandbox=1 -q` пуст; контейнер удаляется в `finally`; при старте worker чистит осиротевшие и валидирует наличие образов (тест: отсутствует образ → понятная ошибка при старте).
+- **AC-M4-8** После прогона `docker ps -a --filter label=lemmayard.sandbox=1 -q` пуст (в тестах — с фильтром по своему `lemmayard.ns`); контейнер удаляется в `finally`; при старте worker чистит осиротевшие и валидирует наличие образов (тест: отсутствует образ → понятная ошибка при старте).
 - **AC-M4-9** `execFile` с массивом аргументов везде (grep-проверка отсутствия `exec(`/shell-строк в `worker/`), env не пробрасывается в контейнер.
 
 ### M3 — Каталог и страница задачи (после M2)

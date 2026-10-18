@@ -8,7 +8,7 @@ import { getEnv } from "@/server/env";
 import {
   createDockerExecutor,
   dockerConfigFromEnv,
-  SANDBOX_LABEL,
+  namespaceFilterArgs,
 } from "../../worker/docker-executor";
 import type { ExecJob, ExecResult, Language } from "../../worker/types";
 
@@ -66,8 +66,9 @@ export function probeJob(language: Language, code: string, memoryMb = 128): Exec
   };
 }
 
+/** Sandbox containers of this checkout's namespace (other worktrees' are ignored). */
 export function sandboxContainers(): string[] {
-  return execFileSync("docker", ["ps", "-a", "--filter", `label=${SANDBOX_LABEL}`, "-q"], {
+  return execFileSync("docker", ["ps", "-a", ...namespaceFilterArgs(config().namespace), "-q"], {
     encoding: "utf8",
   })
     .split("\n")

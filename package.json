@@ -12,7 +12,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.mts",
-    "test:e2e": "node scripts/not-implemented.mjs test:e2e M7",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:judge-off": "playwright test -c playwright.judge-off.config.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:export-sql": "tsx scripts/export-supabase-sql.ts",
@@ -21,7 +23,7 @@
     "problems:verify": "tsx scripts/verify-problems.ts",
     "sandbox:build": "tsx scripts/sandbox-build.ts",
     "setup": "pnpm install && docker compose up -d --wait && pnpm sandbox:build && pnpm db:seed",
-    "test:e2e:guide": "playwright test tests/e2e/guide"
+    "test:e2e:guide": "E2E_JUDGE=0 playwright test tests/e2e/guide"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

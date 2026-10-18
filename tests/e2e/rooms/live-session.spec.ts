@@ -1,22 +1,20 @@
 // Rooms R4 e2e (docs/specs/rooms.md AC-S-UI-1..4, AC-S-A11Y-1): two browser
 // contexts. The owner creates a room and a 2-problem, 30-minute session; a
 // friend joins through the invite link and the lobby; the owner starts; both
-// see the live screen and the running timer; the friend submits from the
-// problem page (judged by the test-only stub through the worker's finalize(),
-// no Docker needed); the owner sees the toast on a problem page and the
-// scoreboard + Activity line on the session screen within a few seconds; the
-// owner ends the session and both see the finished state. Axe scans the whole
-// page (header included) in both themes. Needs no worker running against the
-// same database (the stub claims the queued row itself).
-// Users are *@example.test (delete them from a dev DB with
-// `delete from users where email like '%@example.test'`).
+// see the live screen and the running timer; the friend submits the problem's
+// reference solution from the problem page (judged by the real worker the e2e
+// harness starts, so this spec is in the @judge project); the owner sees the
+// toast on a problem page and the scoreboard + Activity line on the session
+// screen within a few seconds; the owner ends the session and both see the
+// finished state. Axe scans the whole page (header included) in both themes.
+// Users are *@example.test in the throwaway e2e database.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
-import { stubJudge } from "../../helpers/stub-judge";
+import { JUDGE_TAG, requireJudge } from "../../e2e-support/judge";
+import { pasteCode, referenceSolution, selectLanguage } from "../../e2e-support/workspace";
 
 const PASSWORD = "correct-horse-battery";
-const DB = process.env.DATABASE_URL!;
 
 async function register(context: BrowserContext, baseURL: string, username: string) {
   const res = await context.request.post("/api/auth/register", {
@@ -34,7 +32,11 @@ async function expectNoSeriousAxe(page: Page) {
   expect(bad.map((v) => `${v.id}: ${v.nodes.map((n) => `${n.target.join(" ")} ${n.failureSummary ?? ""}`).join(" | ")}`)).toEqual([]);
 }
 
-async function submitAndJudge(page: Page, status: "accepted" | "wrong_answer") {
+/** Submits the reference solution of the open problem; the real worker judges it. */
+async function submitReferenceSolution(page: Page) {
+  const slug = new URL(page.url()).pathname.split("/").pop()!;
+  await selectLanguage(page, "python");
+  await pasteCode(page, referenceSolution(slug, "python"));
   const [res] = await Promise.all([
     page.waitForResponse((r) => r.url().endsWith("/submit") && r.request().method() === "POST"),
     page.getByTestId("submit-button").click(),
@@ -43,10 +45,12 @@ async function submitAndJudge(page: Page, status: "accepted" | "wrong_answer") {
   const body = (await res.json()) as { id: string };
   // The request carried the session (Submit only).
   expect(JSON.parse(res.request().postData() ?? "{}").roomSessionId).toBeTruthy();
-  await stubJudge(DB, body.id, status);
+  return body.id;
 }
 
-test("two friends: lobby → live → solve → toast and scoreboard → finished", async ({ browser, baseURL }) => {
+requireJudge();
+
+test("two friends: lobby → live → solve → toast and scoreboard → finished", { tag: JUDGE_TAG }, async ({ browser, baseURL }) => {
   test.setTimeout(180_000);
   const suffix = Date.now().toString(36).slice(-6);
   const ownerName = `own_${suffix}`;
@@ -151,8 +155,8 @@ test("two friends: lobby → live → solve → toast and scoreboard → finishe
   expect(JSON.parse(run.postData() ?? "{}").roomSessionId).toBeUndefined();
   await pf.unroute("**/run");
 
-  await submitAndJudge(pf, "accepted");
-  await expect(pf.locator('[data-testid="console-result"][data-status="accepted"]')).toBeVisible({ timeout: 10_000 });
+  await submitReferenceSolution(pf);
+  await expect(pf.locator('[data-testid="console-result"][data-status="accepted"]')).toBeVisible({ timeout: 60_000 });
   await expect(pf.getByTestId("session-submit-note")).toContainText("This submission counts for the session");
   // Within a few seconds the owner gets the toast (other people's events only).
   await expect(po.getByText(`${friendName} solved Problem 1`)).toBeVisible({ timeout: 6000 });
