@@ -15,8 +15,11 @@ import { forcedTheme } from "../../../src/lib/theme-config";
 
 const THEMES = (forcedTheme ? [forcedTheme] : ["light", "dark"]) as ("light" | "dark")[];
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const created: string[] = [];
+// With fullyParallel a worker may run afterAll and later get more tests of
+// this file: the pool and the seeded user are (re)created lazily.
+let poolRef: Pool | null = null;
+const db = () => (poolRef ??= new Pool({ connectionString: process.env.DATABASE_URL }));
+let created: string[] = [];
 let state: { username: string; storage: Awaited<ReturnType<ReturnType<Page["context"]>["storageState"]>>; wa: string } | null = null;
 
 async function expectAxeClean(page: Page) {
@@ -42,7 +45,7 @@ async function insert(userId: string, slug: string, status: string, minutesAgo: 
   };
   const cols = Object.keys(row);
   const values = Object.values(row).map((v) => (v && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v));
-  const { rows } = await pool.query<{ id: string }>(
+  const { rows } = await db().query<{ id: string }>(
     `insert into submissions (problem_id, ${cols.join(", ")})
      select p.id, ${cols.map((_, i) => `$${i + 2}`).join(", ")} from problems p where p.slug = $1 and p.published
      returning id`,
@@ -71,7 +74,7 @@ async function seeded(browser: Browser) {
     username,
   );
   expect(status).toBe(201);
-  const { rows } = await pool.query<{ id: string }>("select id from users where username = $1", [username]);
+  const { rows } = await db().query<{ id: string }>("select id from users where username = $1", [username]);
   const id = rows[0].id;
   created.push(id);
   const wa = await insert(id, "two-sum", "wrong_answer", 30, {
@@ -85,8 +88,11 @@ async function seeded(browser: Browser) {
 }
 
 test.afterAll(async () => {
-  if (created.length) await pool.query("delete from users where id = any($1::uuid[])", [created]);
-  await pool.end();
+  if (created.length) await db().query("delete from users where id = any($1::uuid[])", [created]);
+  await poolRef?.end();
+  poolRef = null;
+  created = [];
+  state = null;
 });
 
 /** Reduced motion, every scroll reveal shown, then back to the top. */
@@ -111,6 +117,8 @@ const PAGES: { name: string; path: (s: { username: string; wa: string }) => stri
 ];
 
 test.describe("product pages", () => {
+  // The first test of each worker also registers and seeds its user.
+  test.describe.configure({ timeout: 60_000 });
   const cases = THEMES.flatMap((theme) => [390, 1440].flatMap((width) => PAGES.map((p) => ({ theme, width, p }))));
   for (const { theme, width, p } of cases) {
     test(`${p.name} at ${width}px (${theme}): axe clean, no horizontal scroll, forced theme, final motion states`, async ({ browser }) => {
