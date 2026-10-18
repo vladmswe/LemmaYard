@@ -25,8 +25,8 @@ export function PlayerSwitch({
       data-player-switch={name}
       onClick={() => onChange(!checked)}
       className={cn(
-        "inline-flex min-h-11 min-w-11 items-center gap-2 rounded-lg border border-border px-3 text-sm",
-        "outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+        "inline-flex min-h-11 min-w-11 items-center gap-2 rounded-full border border-border-strong px-3.5 text-sm",
+        "transition-colors duration-(--d-1) hover:border-foreground-secondary",
       )}
     >
       <span>{label}</span>
@@ -34,7 +34,7 @@ export function PlayerSwitch({
         aria-hidden="true"
         className={cn(
           "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 transition-colors",
-          checked ? "border-primary bg-primary" : "border-muted-foreground bg-transparent",
+          checked ? "border-primary bg-primary" : "border-input bg-transparent",
         )}
       >
         <span

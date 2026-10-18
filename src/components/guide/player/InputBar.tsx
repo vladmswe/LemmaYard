@@ -44,7 +44,7 @@ export function InputBar({
           onApply();
         }}
       >
-        <label htmlFor={fieldId} className="text-sm font-medium">
+        <label htmlFor={fieldId} className="text-sm font-semibold">
           {label}
         </label>
         <div className="flex gap-2">
@@ -69,7 +69,7 @@ export function InputBar({
           {help}
         </p>
         {error !== null && (
-          <p id={errorId} className="text-sm font-medium text-destructive" data-player-input-error="">
+          <p id={errorId} className="text-sm font-medium text-danger" data-player-input-error="">
             {error}
           </p>
         )}
@@ -81,7 +81,7 @@ export function InputBar({
               key={p.id}
               type="button"
               variant="secondary"
-              className="min-h-11 px-3"
+              className="h-auto min-h-11 min-w-11 max-w-full px-3.5 py-2 whitespace-normal"
               data-preset={p.id}
               onClick={() => onPreset(p.id)}
             >

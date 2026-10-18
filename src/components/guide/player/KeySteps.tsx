@@ -17,12 +17,15 @@ const noop = () => {};
 export function KeySteps<S>({
   frames,
   Renderer,
+  current,
   open,
   onToggle,
   onSeek,
 }: {
   frames: readonly Frame<S>[];
   Renderer: ComponentType<RendererProps<S>>;
+  /** Index of the frame on screen: key steps up to it are drawn as passed squares. */
+  current: number;
   open: boolean;
   onToggle: (open: boolean) => void;
   onSeek: (index: number) => void;
@@ -38,8 +41,13 @@ export function KeySteps<S>({
       onToggle={(e) => onToggle((e.currentTarget as HTMLDetailsElement).open)}
       data-player-keysteps=""
     >
-      <summary className="flex min-h-11 cursor-pointer items-center rounded-lg px-1 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+      <summary className="guide-player-summary">
         Key steps ({keys.length})
+        <span aria-hidden="true" className="test-squares ml-1">
+          {keys.map((i) => (
+            <i key={i} data-state={i <= current ? "pass" : "pending"} />
+          ))}
+        </span>
       </summary>
       <ol className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-2">
         {keys.map((i) => {
@@ -49,10 +57,11 @@ export function KeySteps<S>({
               <button
                 type="button"
                 onClick={() => onSeek(i)}
-                className="flex h-full w-full flex-col items-start gap-1 rounded-lg border border-border p-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="guide-keystep"
                 data-keystep={i + 1}
+                data-seen={i <= current || undefined}
               >
-                <span className="viz-figure-bg block w-full overflow-hidden rounded-md" aria-hidden="true">
+                <span className="viz-figure-bg block w-full overflow-hidden rounded-[10px] border border-border" aria-hidden="true">
                   <VizFrameContext.Provider value={HIDDEN}>
                     <Renderer
                       frame={f}
@@ -65,7 +74,7 @@ export function KeySteps<S>({
                     />
                   </VizFrameContext.Provider>
                 </span>
-                <span className="font-medium">Step {i + 1}</span>
+                <span className="guide-keystep-no">Step {i + 1}</span>
                 <span className="text-muted-foreground">{f.narration}</span>
               </button>
             </li>
