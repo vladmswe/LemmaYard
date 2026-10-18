@@ -44,7 +44,7 @@ export default async function ProblemsPage({ searchParams }: PageProps<"/problem
         title="Problems"
         subtitle={
           <span className="tabular-nums">
-            {total} {total === 1 ? "problem" : "problems"} · Python 3 and JavaScript · every one with examples,
+            {total} {total === 1 ? "problem" : "problems"} · Python 3 and JavaScript, Java on selected problems · every one with examples,
             constraints and hidden tests
           </span>
         }

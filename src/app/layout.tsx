@@ -10,7 +10,7 @@ import { fontDisplay, fontMono, fontSans } from "./fonts";
 import "./globals.css";
 
 const DESCRIPTION =
-  "LemmaYard is a practice platform for algorithms and data structures: problems, an in-browser editor, a sandboxed judge in Python and JavaScript, and guided learning.";
+  "LemmaYard is a practice platform for algorithms and data structures: problems, an in-browser editor, a sandboxed judge in Python, JavaScript and Java, and guided learning.";
 
 // Icons come from the file conventions next to this layout (favicon.ico,
 // icon.svg, apple-icon.png). Pages set their own title/description; the

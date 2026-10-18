@@ -11,6 +11,7 @@ import { ProblemSubmissions } from "@/components/submissions/problem-submissions
 import { SubmissionsSkeleton } from "@/components/submissions/submissions-skeleton";
 import { getCurrentUser } from "@/server/auth/session";
 import { judgeEnabled } from "@/server/judge";
+import { languageList } from "@/lib/workspace/languages";
 import { getProblemPageData } from "@/server/problem-page";
 import { getPollingConfig } from "@/server/submissions/config";
 
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: PageProps<"/problems/[slug]">
   const topics = problem.tags.map((t) => t.name).join(", ");
   return {
     title: `${problem.number}. ${problem.title} · LemmaYard`,
-    description: `${problem.title}: a${problem.difficulty === "easy" ? "n" : ""} ${problem.difficulty} problem${topics ? ` on ${topics}` : ""}. Solve it in Python or JavaScript and let the sandboxed judge check every test.`,
+    description: `${problem.title}: a${problem.difficulty === "easy" ? "n" : ""} ${problem.difficulty} problem${topics ? ` on ${topics}` : ""}. Solve it in ${languageList(problem.languages, "or")} and let the sandboxed judge check every test.`,
   };
 }
 
@@ -52,6 +53,8 @@ export default async function ProblemPage({ params, searchParams }: PageProps<"/
         <SolveWorkspace
           slug={problem.slug}
           signature={problem.signature}
+          languages={problem.languages}
+          wideInts={problem.wideInts}
           samples={problem.samples}
           signedIn={problem.signedIn}
           pollingConfig={getPollingConfig()}

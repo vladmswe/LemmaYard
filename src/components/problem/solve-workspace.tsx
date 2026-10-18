@@ -63,6 +63,10 @@ const DRAFT_DEBOUNCE_MS = 500;
 export type SolveWorkspaceProps = {
   slug: string;
   signature: Signature;
+  /** Languages the problem offers (`problems.languages`); others are not selectable. */
+  languages: readonly Language[];
+  /** `problems.wide_ints`: int positions the Java template declares `long`. */
+  wideInts: readonly string[];
   samples: { input: Record<string, unknown>; expected: unknown }[];
   signedIn: boolean;
   pollingConfig: PollingConfig;
@@ -81,6 +85,8 @@ export type SolveWorkspaceProps = {
 export function SolveWorkspace({
   slug,
   signature,
+  languages,
+  wideInts,
   samples,
   signedIn,
   pollingConfig,
@@ -97,8 +103,9 @@ export function SolveWorkspace({
     () => ({
       python: generateTemplate(signature, "python"),
       javascript: generateTemplate(signature, "javascript"),
+      java: generateTemplate(signature, "java", { wideInts }),
     }),
-    [signature],
+    [signature, wideInts],
   );
   // Lazy init reads localStorage on the client. Nothing state-dependent is
   // rendered during SSR / hydration (the workspace shows a static fallback
@@ -109,6 +116,7 @@ export function SolveWorkspace({
       templates,
       Object.fromEntries(LANGUAGES.map((l) => [l, loadDraft(local, slug, l)])),
       loadLanguage(local, slug),
+      languages,
     );
   });
   const language = buffers.language;
@@ -367,6 +375,7 @@ export function SolveWorkspace({
           toolbar={
             <EditorToolbar
               language={language}
+              languages={languages}
               onLanguageChange={onLanguageChange}
               onReset={onReset}
               showRunSubmit={desktop !== false}

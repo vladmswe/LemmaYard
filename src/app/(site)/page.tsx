@@ -30,7 +30,7 @@ import "@/components/landing/landing.css";
 
 const STEPS = [
   { title: "Pick a problem", body: "Filter by difficulty or topic and choose one that fits today." },
-  { title: "Write your solution", body: "A real editor with a starter template in Python or JavaScript." },
+  { title: "Write your solution", body: "A real editor with a starter template in Python, JavaScript or Java." },
   { title: "Run the samples", body: "See every case, the expected output, what you returned and your prints." },
   { title: "Submit", body: "The judge runs every hidden test and returns a verdict with runtime and memory." },
 ];
@@ -83,7 +83,7 @@ export default async function Home() {
       n: <CountUp value={lessons} />,
       t: `guide ${lessons === 1 ? "lesson" : "lessons"} with step-through diagrams`,
     },
-    { n: <CountUp value={LANGUAGE_COUNT} />, t: "languages: Python 3 and JavaScript" },
+    { n: <CountUp value={LANGUAGE_COUNT} />, t: "languages: Python 3, JavaScript and Java" },
   ] as (LedgerCell | false | null)[]).filter((c): c is LedgerCell => Boolean(c));
 
   return (
@@ -103,7 +103,7 @@ export default async function Home() {
               <Qed snap delayMs={1600} />
             </h1>
             <Reveal as="p" index={1} className="lead mb-10 max-w-[38ch]">
-              Read a clear problem, write Python or JavaScript in the browser, and let a sandboxed
+              Read a clear problem, write Python, JavaScript or Java in the browser, and let a sandboxed
               judge check your reasoning, test by test.
             </Reveal>
             <Reveal index={2} className="flex flex-wrap gap-3">
@@ -133,7 +133,7 @@ export default async function Home() {
               )}
               <li className="inline-flex items-center gap-2">
                 <CodeIcon aria-hidden className="size-4 text-primary" />
-                Python 3 &amp; JavaScript
+                Python 3, JavaScript &amp; Java
               </li>
               <li className="inline-flex items-center gap-2">
                 <ShieldCheckIcon aria-hidden className="size-4 text-primary" />

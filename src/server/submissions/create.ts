@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { JUDGE_DISABLED_API_MESSAGE } from "@/lib/judge-availability";
 import { signatureSchema } from "@/lib/problems/schema";
 import type { Language, SubmissionKind } from "@/lib/submission-dto";
+import { LANGUAGE_LABELS } from "@/lib/workspace/languages";
 import { getCurrentUser } from "@/server/auth/session";
 import { getDb, type Db } from "@/server/db";
 import { problems, submissions } from "@/server/db/schema";
@@ -158,11 +159,18 @@ export async function createSubmission(
   // (5) Published problem; then custom input against its signature (needs the problem).
   const db = getDb();
   const [problem] = await db
-    .select({ id: problems.id, signature: problems.signature })
+    .select({ id: problems.id, signature: problems.signature, languages: problems.languages })
     .from(problems)
     .where(and(eq(problems.slug, slug), eq(problems.published, true)))
     .limit(1);
   if (!problem) return jsonError(404, "Problem not found");
+
+  // (5a) The language must be one the problem offers (it has a verified
+  // reference solution in that language: `problems.languages`).
+  if (!problem.languages.includes(data.language)) {
+    const message = `${LANGUAGE_LABELS[data.language]} is not available for this problem yet`;
+    return jsonError(400, message, { language: message });
+  }
 
   const customInput = data.customInput ?? null;
   if (customInput !== null) {

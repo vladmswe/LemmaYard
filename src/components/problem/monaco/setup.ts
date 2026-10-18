@@ -4,7 +4,7 @@
 // - The editor is bundled from node_modules (`loader.config({ monaco })`), so
 //   @monaco-editor/react never fetches its default CDN copy.
 // - Tree-shaken entry points (monaco-editor >= 0.56): the core editor, the
-//   editor features, and only the Python and JavaScript Monarch grammars. No
+//   editor features, and only the Python, JavaScript and Java Monarch grammars. No
 //   TypeScript/JSON/CSS/HTML language services, so no language workers.
 // - The one worker Monaco needs (editor.worker: word suggestions, links,
 //   diff) is built by the bundler from `new Worker(new URL(...))`, which both
@@ -12,6 +12,7 @@
 import { loader } from "@monaco-editor/react";
 import * as monaco from "monaco-editor/editor";
 import "monaco-editor/features/register.all";
+import "monaco-editor/languages/definitions/java/register";
 import "monaco-editor/languages/definitions/javascript/register";
 import "monaco-editor/languages/definitions/python/register";
 

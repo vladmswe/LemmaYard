@@ -3,8 +3,19 @@
 // serializer (src/server/submissions/serialize.ts) and the UI: pure TS, no
 // server imports, safe for client components.
 
-export const LANGUAGES = ["python", "javascript"] as const;
+export const LANGUAGES = ["python", "javascript", "java"] as const;
 export type Language = (typeof LANGUAGES)[number];
+
+/**
+ * Languages every problem supports (their reference solutions are required);
+ * the others only where `problems.languages` lists them.
+ */
+export const BASE_LANGUAGES: readonly Language[] = ["python", "javascript"];
+
+/** Type guard for values read from storage, URLs or the database. */
+export function isLanguage(value: unknown): value is Language {
+  return typeof value === "string" && (LANGUAGES as readonly string[]).includes(value);
+}
 
 export type SubmissionKind = "run" | "submit";
 

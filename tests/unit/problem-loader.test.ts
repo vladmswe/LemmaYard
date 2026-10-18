@@ -3,7 +3,13 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { loadProblems, ProblemValidationError } from "@/server/problems/importer";
+import {
+  languagesInDir,
+  loadProblems,
+  problemRow,
+  ProblemValidationError,
+  SOLUTION_FILES,
+} from "@/server/problems/importer";
 
 const FIXTURES = path.join(process.cwd(), "tests/fixtures");
 
@@ -28,6 +34,31 @@ describe("loadProblems", () => {
     expect(loaded.find((p) => p.meta.slug === "fixture-evens")?.meta.limits).toEqual({
       timeMs: 2000,
       memoryMb: 256,
+    });
+  });
+
+  it("derives the supported languages from the reference solutions present", async () => {
+    const loaded = await loadProblems(path.join(FIXTURES, "problems"));
+    const languages = Object.fromEntries(loaded.map((p) => [p.meta.slug, p.languages]));
+    expect(languages).toEqual({
+      "fixture-average": ["python", "javascript"],
+      // Only this fixture has a solution.java.
+      "fixture-evens": ["python", "javascript", "java"],
+      "fixture-join-words": ["python", "javascript"],
+    });
+    expect(languagesInDir(path.join(FIXTURES, "problems/fixture-evens"))).toEqual(["python", "javascript", "java"]);
+    expect(SOLUTION_FILES).toEqual({ python: "solution.py", javascript: "solution.js", java: "solution.java" });
+  });
+
+  it("derives the wide int positions from the tests", async () => {
+    const loaded = await loadProblems(path.join(FIXTURES, "problems"));
+    const wide = Object.fromEntries(loaded.map((p) => [p.meta.slug, p.wideInts]));
+    // fixture-evens has a test with ±9007199254740990 in and out.
+    expect(wide).toEqual({ "fixture-average": [], "fixture-evens": ["nums", "return"], "fixture-join-words": [] });
+    const evens = loaded.find((p) => p.meta.slug === "fixture-evens")!;
+    expect(problemRow(evens)).toMatchObject({
+      languages: ["python", "javascript", "java"],
+      wideInts: ["nums", "return"],
     });
   });
 

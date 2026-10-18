@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   findUnsafeNumberLiterals,
   formatType,
+  isIntBased,
   parseType,
+  RETURN_POSITION,
   validateInput,
   validateValue,
+  wideIntPositions,
 } from "@/lib/types";
 
 const t = (s: string) => {
@@ -150,5 +153,47 @@ describe("findUnsafeNumberLiterals", () => {
   it("accepts safe values: strings, small fractions, exact integers like 1.0", () => {
     const text = '{"s": "99999999999999999999", "k\\"99999999999999999999": 1.5, "a": 1.0, "b": 2.5e1, "c": -0.0, "d": 4503599627370495.5, "e": 1e-6, "f": 9007199254740991}';
     expect(findUnsafeNumberLiterals(text)).toEqual([]);
+  });
+});
+
+describe("wideIntPositions (Java int vs long)", () => {
+  const signature = {
+    name: "f",
+    params: [
+      { name: "x", type: "int" },
+      { name: "nums", type: "int[]" },
+      { name: "grid", type: "int[][]" },
+      { name: "ratio", type: "float" },
+      { name: "s", type: "string" },
+    ],
+    returns: "int[]",
+  };
+  const input = (over: Record<string, unknown> = {}) => ({ x: 0, nums: [], grid: [], ratio: 0, s: "", ...over });
+
+  it("is empty when every int fits in 32 bits (the bounds included)", () => {
+    const tests = [
+      { input: input({ x: 2 ** 31 - 1, nums: [-(2 ** 31)], grid: [[1, 2]] }), expected: [2 ** 31 - 1] },
+    ];
+    expect(wideIntPositions(signature, tests)).toEqual([]);
+  });
+
+  it("names each int position with a value outside 32 bits, in signature order, return last", () => {
+    expect(wideIntPositions(signature, [{ input: input({ grid: [[0], [2 ** 31]] }), expected: [-(2 ** 31) - 1] }])).toEqual([
+      "grid",
+      RETURN_POSITION,
+    ]);
+    expect(
+      wideIntPositions(signature, [
+        { input: input(), expected: [] },
+        { input: input({ x: -(2 ** 40), nums: [9007199254740991] }), expected: [] },
+      ]),
+    ).toEqual(["x", "nums"]);
+  });
+
+  it("ignores non-int positions (floats are doubles anyway) and tests without expected", () => {
+    expect(wideIntPositions(signature, [{ input: input({ ratio: 1e12, s: "99999999999" }) }])).toEqual([]);
+    expect(isIntBased("int[][]")).toBe(true);
+    expect(isIntBased("float[]")).toBe(false);
+    expect(isIntBased("nope")).toBe(false);
   });
 });

@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Kbd, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { LANGUAGES, type Language } from "@/lib/submission-dto";
+import type { Language } from "@/lib/submission-dto";
 import { LANGUAGE_LABELS } from "@/lib/workspace/languages";
 import { isApplePlatform, shortcutKeys } from "@/lib/workspace/shortcuts";
 
@@ -138,6 +138,8 @@ export function RunSubmitButtons({
 
 export type EditorToolbarProps = RunSubmitProps & {
   language: Language;
+  /** The languages this problem offers (`problems.languages`), in display order. */
+  languages: readonly Language[];
   onLanguageChange: (language: Language) => void;
   onReset: () => void;
   /** Hide Run / Submit here (mobile: they live in the bottom action bar). */
@@ -146,6 +148,7 @@ export type EditorToolbarProps = RunSubmitProps & {
 
 export function EditorToolbar({
   language,
+  languages,
   onLanguageChange,
   onReset,
   showRunSubmit,
@@ -159,13 +162,13 @@ export function EditorToolbar({
         onValueChange={(value) => {
           if (value) onLanguageChange(value as Language);
         }}
-        items={LANGUAGES.map((l) => ({ value: l, label: LANGUAGE_LABELS[l] }))}
+        items={languages.map((l) => ({ value: l, label: LANGUAGE_LABELS[l] }))}
       >
         <SelectTrigger size="sm" aria-label="Language" data-testid="language-select" className="w-auto min-w-32 font-semibold">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {LANGUAGES.map((l) => (
+          {languages.map((l) => (
             <SelectItem key={l} value={l} data-testid={`language-option-${l}`}>
               {LANGUAGE_LABELS[l]}
             </SelectItem>

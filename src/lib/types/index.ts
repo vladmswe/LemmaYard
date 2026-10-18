@@ -124,6 +124,47 @@ export function validateInput(input: unknown, signature: SignatureLike): ValueIs
   return issues;
 }
 
+/** The key of the return value in `wideIntPositions` ("return" is never a valid parameter name). */
+export const RETURN_POSITION = "return";
+
+const INT32_MIN = -(2 ** 31);
+const INT32_MAX = 2 ** 31 - 1;
+
+/** True when `value` holds an integer outside the 32-bit range (searched through arrays). */
+function hasWideInt(value: unknown, depth = 0): boolean {
+  if (typeof value === "number") return Number.isInteger(value) && (value < INT32_MIN || value > INT32_MAX);
+  if (Array.isArray(value) && depth < MAX_ARRAY_DEPTH) return value.some((v) => hasWideInt(v, depth + 1));
+  return false;
+}
+
+/** True for `int`, `int[]`, `int[][]`. */
+export function isIntBased(source: string): boolean {
+  let type = parseType(source);
+  while (type?.kind === "array") type = type.of;
+  return type?.kind === "scalar" && type.name === "int";
+}
+
+/**
+ * Signature positions whose `int` values do not fit in 32 bits in any test:
+ * parameter names (from inputs) and `RETURN_POSITION` (from expected values).
+ * Statically typed languages declare those positions 64-bit (Java `long`);
+ * every other `int` position uses the 32-bit type. Order: parameters in
+ * signature order, then the return value.
+ */
+export function wideIntPositions(
+  signature: SignatureLike,
+  tests: readonly { input: Record<string, unknown>; expected?: unknown }[],
+): string[] {
+  const out: string[] = [];
+  for (const param of signature.params) {
+    if (isIntBased(param.type) && tests.some((t) => hasWideInt(t.input[param.name]))) out.push(param.name);
+  }
+  if (isIntBased(signature.returns) && tests.some((t) => hasWideInt(t.expected))) {
+    out.push(RETURN_POSITION);
+  }
+  return out;
+}
+
 export type UnsafeNumberLiteral = {
   literal: string;
   line: number;

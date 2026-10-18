@@ -16,9 +16,23 @@ const signature = {
 const templates = {
   python: generateTemplate(signature, "python"),
   javascript: generateTemplate(signature, "javascript"),
+  java: generateTemplate(signature, "java"),
 };
 
 describe("initBuffers", () => {
+  it("restores a remembered Java draft and language when the problem offers Java", () => {
+    const s = initBuffers(templates, { java: "class Solution {}" }, "java", ["python", "javascript", "java"]);
+    expect(s.language).toBe("java");
+    expect(currentCode(s)).toBe("class Solution {}");
+  });
+
+  it("falls back to Python when the remembered language is not offered by the problem", () => {
+    const s = initBuffers(templates, { java: "class Solution {}" }, "java", ["python", "javascript"]);
+    expect(s.language).toBe("python");
+    // The Java draft is kept for when the problem gets a Java solution.
+    expect(s.buffers.java).toBe("class Solution {}");
+  });
+
   it("starts from templates and Python", () => {
     const s = initBuffers(templates, {}, null);
     expect(s.language).toBe("python");

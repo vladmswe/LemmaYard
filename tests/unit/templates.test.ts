@@ -54,11 +54,11 @@ const cases: Record<string, SignatureLike> = {
   },
 };
 
-const extensions: Record<TemplateLanguage, string> = { python: "py", javascript: "js" };
+const extensions: Record<TemplateLanguage, string> = { python: "py", javascript: "js", java: "java" };
 
 describe("generateTemplate (golden files in tests/unit/__golden__)", () => {
   for (const [caseName, signature] of Object.entries(cases)) {
-    for (const language of ["python", "javascript"] as const) {
+    for (const language of ["python", "javascript", "java"] as const) {
       it(`${caseName} / ${language}`, async () => {
         const golden = `__golden__/${caseName}.${extensions[language]}`;
         // A missing golden file must fail, not be written silently.
@@ -72,5 +72,42 @@ describe("generateTemplate (golden files in tests/unit/__golden__)", () => {
     expect(() =>
       generateTemplate({ name: "f", params: [{ name: "x", type: "long" }], returns: "int" }, "python"),
     ).toThrow(/unknown type "long"/);
+    expect(() =>
+      generateTemplate({ name: "f", params: [{ name: "x", type: "long" }], returns: "int" }, "java"),
+    ).toThrow(/unknown type "long"/);
+  });
+});
+
+describe("Java template: int vs long", () => {
+  const signature: SignatureLike = {
+    name: "combine",
+    params: [
+      { name: "x", type: "int" },
+      { name: "nums", type: "int[]" },
+      { name: "grid", type: "int[][]" },
+      { name: "ratio", type: "float" },
+    ],
+    returns: "int[]",
+  };
+
+  it("uses int everywhere without wide positions", () => {
+    expect(generateTemplate(signature, "java")).toContain(
+      "public int[] combine(int x, int[] nums, int[][] grid, double ratio) {",
+    );
+  });
+
+  it("declares wide positions long, including arrays and the return", () => {
+    const code = generateTemplate(signature, "java", { wideInts: ["nums", "grid", "return"] });
+    expect(code).toContain("public long[] combine(int x, long[] nums, long[][] grid, double ratio) {");
+  });
+
+  it("ignores wide hints for non-int positions and for other languages", () => {
+    expect(generateTemplate(signature, "java", { wideInts: ["ratio"] })).toContain("double ratio");
+    expect(generateTemplate(signature, "python", { wideInts: ["x"] })).toBe(generateTemplate(signature, "python"));
+  });
+
+  it("imports java.util and declares class Solution", () => {
+    const code = generateTemplate(signature, "java");
+    expect(code.startsWith("import java.util.*;\n\nclass Solution {\n")).toBe(true);
   });
 });

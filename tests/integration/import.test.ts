@@ -76,8 +76,13 @@ describe("importProblems", () => {
       timeLimitMs: 2000,
       memoryLimitMb: 256,
       published: true,
+      // It has a solution.java; its last test holds values beyond 32 bits.
+      languages: ["python", "javascript", "java"],
+      wideInts: ["nums", "return"],
     });
     expect(evens.descriptionMd).toContain("even numbers");
+    const [noJava] = await db.select().from(problems).where(eq(problems.slug, "fixture-average"));
+    expect(noJava).toMatchObject({ languages: ["python", "javascript"], wideInts: [] });
 
     const cases = await db
       .select()
@@ -129,10 +134,14 @@ describe("importProblems", () => {
     tests.push({ input: { nums: [8] }, expected: [8] });
     await writeFile(testsFile, JSON.stringify(tests));
 
+    // Removing the Java solution withdraws Java on re-import.
+    await rm(path.join(dir, "fixture-evens/solution.java"));
+
     await importDir(dir);
     const db = getTestDb();
     const [evens] = await db.select().from(problems).where(eq(problems.slug, "fixture-evens"));
     expect(evens.title).toBe("Renamed");
+    expect(evens.languages).toEqual(["python", "javascript"]);
     expect(await db.$count(testCases, eq(testCases.problemId, evens.id))).toBe(6);
     const linked = await db
       .select({ slug: tags.slug })
