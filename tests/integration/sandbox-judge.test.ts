@@ -158,6 +158,14 @@ const programs: Record<Language, Programs> = {
     staticInit: javaEvens("        return nums;", '    static final int BAD = Integer.parseInt("not a number");\n'),
     packageDecl: `package app;\n\nclass Solution {\n    public long[] evens(long[] nums) { return nums; }\n}\n`,
     seesRunner: javaEvens('        Class.forName("Harness");\n        return nums;', "", " throws Exception"),
+    // A non-daemon thread from a static initializer must not keep the JVM alive.
+    lingeringThread: `class Solution {\n    static {\n        new Thread(() -> {\n            try { Thread.sleep(600_000); } catch (InterruptedException e) { }\n        }).start();\n    }\n    public long[] odds(long[] nums) { return nums; }\n}\n`,
+    threadException: javaEvens(
+      '        Thread t = new Thread(() -> { throw new IllegalStateException("from a thread"); });\n        t.start();\n        t.join();\n' +
+        JAVA_FILTER,
+      "",
+      " throws Exception",
+    ),
   },
 };
 
@@ -400,6 +408,19 @@ describe.each(["python", "javascript", "java"] as const)("DockerExecutor (%s)", 
       const r = await run(await evensJob(language, p.packageDecl));
       expect(r.status).toBe("compile_error");
       expect(r.error).toMatch(/remove the package declaration/);
+    });
+
+    it("a lingering non-daemon thread does not delay the result", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.lingeringThread));
+      expect(r.status).toBe("runtime_error");
+      expect(r.error).toBe("function evens not found");
+      expect(r.elapsedMs).toBeLessThan(effective + 3000 + startup);
+    });
+
+    it("an uncaught exception in a thread started by the solution goes to the captured output", { timeout: T }, async () => {
+      const r = await run(await evensJob(language, p.threadException));
+      expect(r.status).toBe("accepted");
+      expect(r.stdout).toMatch(/^Exception in thread "Thread-\d+" java\.lang\.IllegalStateException: from a thread\n\tat Solution\./);
     });
 
     it("user code cannot load the runner's classes", { timeout: T }, async () => {

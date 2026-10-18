@@ -709,10 +709,35 @@ public final class Harness {
         return buf.toString(StandardCharsets.UTF_8);
     }
 
+    /**
+     * Every way out ends the JVM with halt(): user code may have started
+     * non-daemon threads or shutdown hooks, and none of them may delay the
+     * exit. A crash of the runner itself (e.g. out of memory outside a test)
+     * writes "runner: <class>" to stderr; exit code 3 means out of memory
+     * (worker/judge.ts maps it to Memory Limit).
+     */
+    public static void main(String[] argv) {
+        int code = 0;
+        try {
+            run();
+        } catch (Throwable error) {
+            code = error instanceof OutOfMemoryError ? 3 : 1;
+            try {
+                FileOutputStream err = new FileOutputStream(FileDescriptor.err);
+                err.write(("runner: " + error.getClass().getName() + "\n").getBytes(StandardCharsets.UTF_8));
+            } catch (IOException | RuntimeException ignored) {
+                // nothing left to do
+            }
+        }
+        // The image build's training run (-Druntime.training=true) must exit
+        // normally so the JVM writes its AOT cache.
+        if (code == 0 && Boolean.getBoolean("runtime.training")) System.exit(0);
+        Runtime.getRuntime().halt(code);
+    }
+
     @SuppressWarnings("unchecked")
-    public static void main(String[] argv) throws Exception {
+    static void run() throws Exception {
         final FileOutputStream realOut = new FileOutputStream(FileDescriptor.out);
-        final FileOutputStream realErr = new FileOutputStream(FileDescriptor.err);
         String line = readLine(new FileInputStream(FileDescriptor.in));
         Map<String, Object> payload = (Map<String, Object>) JsonReader.parse(line);
         line = null;
@@ -923,28 +948,17 @@ public final class Harness {
         }
 
         emit.accept(new StringBuilder("\"kind\":\"done\""));
-        realOut.flush();
-        realErr.flush();
-        // The image build's training run (-Druntime.training=true) must exit
-        // normally so the JVM writes its AOT cache.
-        if (Boolean.getBoolean("runtime.training")) System.exit(0);
-        // Skip shutdown hooks and user threads.
-        Runtime.getRuntime().halt(0);
     }
 
     static {
-        // A crash outside a test (e.g. out of memory in the runner itself) must
-        // reach the host as a signal it can map to a verdict.
+        // Threads started by the solution: an uncaught exception goes to the
+        // captured output (System.err), in the same cleaned form as test errors.
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
-            if (!"main".equals(thread.getName())) return;
             try {
-                FileOutputStream err = new FileOutputStream(FileDescriptor.err);
-                err.write(("runner: " + error.getClass().getName() + "\n").getBytes(StandardCharsets.UTF_8));
-                err.flush();
-            } catch (IOException ignored) {
+                System.err.println("Exception in thread \"" + thread.getName() + "\" " + formatError(error));
+            } catch (Throwable ignored) {
                 // nothing left to do
             }
-            Runtime.getRuntime().halt(error instanceof OutOfMemoryError ? 3 : 1);
         });
     }
 }

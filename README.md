@@ -1,8 +1,8 @@
 # LemmaYard
 
 LemmaYard is a coding-practice platform for algorithms and data structures.
-You read an original problem, write Python or JavaScript in an in-browser
-editor and a sandboxed judge checks it test by test. Friends can solve timed
+You read an original problem, write Python, JavaScript or Java in an
+in-browser editor and a sandboxed judge checks it test by test. Friends can solve timed
 sets of problems together in private rooms, and a data-structures guide
 explains each structure with step-by-step interactive visualizations. It is a
 Next.js app with Postgres and a small judge worker that runs every submission
@@ -14,9 +14,10 @@ in a locked-down Docker container.
 
 - **Solve problems.** 20 original problems (11 easy, 6 medium, 3 hard) with
   search, difficulty/tag/status filters and acceptance rates.
-- **Write and run code** in Monaco (bundled locally, no CDN) in Python 3 or
-  JavaScript (Node 22). Run checks the sample tests or your own input; Submit
-  runs every test and stops at the first failure.
+- **Write and run code** in Monaco (bundled locally, no CDN) in Python 3,
+  JavaScript (Node 22) or Java 25. Java is offered on every problem that has a
+  verified Java reference solution. Run checks the sample tests or your own
+  input; Submit runs every test and stops at the first failure.
 - **Get exact verdicts:** Accepted, Wrong Answer (with input, expected and
   your output), Time Limit, Memory Limit, Runtime Error, Compile Error.
 - **Track progress:** submission history with the code of every submit, and a
@@ -68,7 +69,7 @@ From a clean clone:
 cp .env.example .env          # works as is locally; for a real secret: openssl rand -base64 32
 pnpm install
 docker compose up -d --wait   # Postgres 16 on localhost:5433
-pnpm sandbox:build            # builds the Python and Node sandbox images
+pnpm sandbox:build            # builds the Python, Node and Java sandbox images
 pnpm db:seed                  # applies migrations and imports problems/
 pnpm dev:all                  # web on http://localhost:3000 + the judge worker
 ```
@@ -95,7 +96,7 @@ flowchart LR
   B["Browser"] -- "pages, JSON API" --> W["Next.js web app<br/>pages + route handlers"]
   W -- "Drizzle / pg" --> DB[("Postgres<br/>submissions = queue")]
   K["Judge worker<br/>pnpm worker, on the host"] -- "claim queued,<br/>write verdict" --> DB
-  K -- "docker create, start -a -i<br/>stdin: inputs only" --> S["Sandbox container<br/>harness.py / harness.js"]
+  K -- "docker create, start -a -i<br/>stdin: inputs only" --> S["Sandbox container<br/>harness.py / harness.js / Harness.java"]
   S -- "stdout frames<br/>@@nonce@@json" --> K
   B -. "polls GET /api/submissions/:id<br/>and room state" .-> W
 ```
@@ -118,7 +119,7 @@ only while the row is still `running`. A sweep marks stale `running` rows as
 `internal_error` (never requeued) and deletes Run rows older than 24 h.
 
 **Sandbox protocol** (`worker/docker-executor.ts`, `worker/protocol.ts`,
-`sandbox/harness.{py,js}`):
+`sandbox/harness.{py,js}`, `sandbox/Harness.java`):
 
 1. One fresh container per job: `--network none --read-only --cap-drop ALL
    --security-opt no-new-privileges --pids-limit 64 --cpus 1`, memory and swap
@@ -128,14 +129,15 @@ only while the row is still `running`. A sweep marks stale `running` rows as
 2. The worker writes **one JSON line** to stdin: `{language, code, signature,
    tests: [{input}], timeLimitMs, stopOnError, nonce}`. Expected outputs never
    enter the container.
-3. The harness compiles the code in memory, runs each test with a per-test
-   timeout and writes frames `@@<nonce>@@<json>` to the real stdout: `test`
+3. The harness compiles the code in memory (Java: `javax.tools` inside the
+   JVM, no files written), runs each test with a per-test timeout and writes
+   frames `@@<nonce>@@<json>` to the real stdout: `test`
    (`index`, `status: ok|error|timeout`, `actual`, `timeMs`, captured
    `stdout`, `memoryKb`), `compile_error`, `fatal` and `done`. User prints are
    captured (64 KB cap); lines without the nonce prefix are ignored.
-4. The worker enforces a wall clock (`3 s + min(tests × limit, WALL_CAP_MS)`)
-   and a 1 MB output cap, then reads `ExitCode`/`OOMKilled` and removes the
-   container.
+4. The worker enforces a wall clock (`3 s + min(tests × limit, WALL_CAP_MS)`,
+   plus 5 s for Java's JVM start-up and compile) and a 1 MB output cap, then
+   reads `ExitCode`/`OOMKilled` and removes the container.
 5. **The verdict is decided on the host** (`worker/judge.ts`): wall clock or
    timeout frame → Time Limit; OOM or Node heap abort → Memory Limit; else the
    frames are compared with the expected values by one TypeScript comparator
@@ -186,8 +188,8 @@ src/lib/            shared code: value types, templates, problem schemas, rooms 
 src/server/         server-only: env.ts (Zod env), db/ (Drizzle schema + client), auth/, submissions/, rooms/
 src/content/learn/  guide lessons (MDX, metadata, quizzes, code samples)
 worker/             judge worker: queue, loop, Docker executor, protocol, judge
-sandbox/            Dockerfile.python, Dockerfile.node, harness.py, harness.js
-problems/<slug>/    problem files (meta.json, description.md, tests.json, solution.py, solution.js)
+sandbox/            Dockerfile.{python,node,java}, harness.py, harness.js, Harness.java (+ java-train.json)
+problems/<slug>/    problem files (meta.json, description.md, tests.json, solution.py, solution.js, optional solution.java)
 drizzle/            SQL migrations
 scripts/            CLI scripts (migrate, import, verify, sandbox build, SQL export)
 tests/              unit/, integration/, e2e/, e2e-judge-off/, e2e-support/, helpers/, fixtures/
@@ -217,8 +219,8 @@ docs/               deploy guide, specs, generated Supabase SQL, images
 | `pnpm problems:export-sql` | Regenerates `docs/supabase/problems.sql` (the problem catalog as one idempotent SQL script) from `problems/`; `--check` exits 1 when it is stale. |
 | `pnpm db:seed` | `db:migrate` + `problems:import`. |
 | `pnpm problems:import` | Validates and upserts `problems/` (`--dir <path>`, `--prune`). |
-| `pnpm problems:verify` | Runs every reference solution in the real sandbox; must all be Accepted (`--dir`, `--only <slug>`, `--concurrency <n>`). |
-| `pnpm sandbox:build` | Builds and checks both sandbox images; rerun after any change in `sandbox/`. |
+| `pnpm problems:verify` | Runs every reference solution present (Python, JavaScript, and Java where `solution.java` exists) in the real sandbox; must all be Accepted (`--dir`, `--only <slug>`, `--concurrency <n>`). |
+| `pnpm sandbox:build` | Builds and checks the Python, Node and Java sandbox images (`pnpm sandbox:build java` builds one); rerun after any change in `sandbox/`. |
 | `pnpm run setup` | `install` + `docker compose up -d --wait` + `sandbox:build` + `db:seed`. |
 
 `problems:import` validates every problem first and writes nothing if one is
@@ -244,13 +246,14 @@ production table is in [docs/DEPLOY.md, section 3](docs/DEPLOY.md#3-vercel-envir
 | `JUDGE_ENABLED` | on, off on Vercel | `0` disables Run, Submit and room session start. |
 | `TEST_DATABASE_URL` | compose Postgres | Server for the integration and e2e databases. |
 | `WORKER_CONCURRENCY`, `WORKER_POLL_MS` | 2, 500 | Worker slots and poll interval. |
-| `SANDBOX_IMAGE_PYTHON`, `SANDBOX_IMAGE_NODE` | `lemmayard-sandbox-*:latest` | Sandbox image tags. |
-| `LANG_TIME_MULT_PY`, `LANG_TIME_MULT_JS` | 2, 1 | Per-language multiplier of a problem's time limit. |
+| `SANDBOX_IMAGE_PYTHON`, `SANDBOX_IMAGE_NODE`, `SANDBOX_IMAGE_JAVA` | `lemmayard-sandbox-*:latest` | Sandbox image tags. |
+| `LANG_TIME_MULT_PY`, `LANG_TIME_MULT_JS`, `LANG_TIME_MULT_JAVA` | 2, 1, 2 | Per-language multiplier of a problem's time limit (Java: JVM start-up and compile are not counted, JIT warm-up is). |
 | `RUN_RATE_PER_MIN`, `SUBMIT_RATE_PER_MIN`, `MAX_ACTIVE_PER_USER` | 10, 5, 2 | Per-user judge limits. |
 
 ## How to add a problem
 
-A problem is a directory `problems/<slug>/` with five files. Schemas:
+A problem is a directory `problems/<slug>/` with five files, plus an optional
+`solution.java`. Schemas:
 `src/lib/problems/schema.ts`. A complete minimal example, `problems/running-sum/`:
 
 `meta.json`
@@ -326,10 +329,28 @@ var runningSum = function (nums) {
 };
 ```
 
+`solution.java` (optional; without it the problem does not offer Java). A
+`class Solution` with the method; `int` is `int` unless a test value of that
+parameter (or of the return value) needs more than 32 bits, then `long`: the
+starter template shows the exact types.
+
+```java
+import java.util.*;
+
+class Solution {
+    public int[] runningSum(int[] nums) {
+        int[] out = new int[nums.length];
+        int total = 0;
+        for (int i = 0; i < nums.length; i++) out[i] = total += nums[i];
+        return out;
+    }
+}
+```
+
 Then:
 
 ```bash
-pnpm problems:verify --only running-sum   # both reference solutions must be Accepted
+pnpm problems:verify --only running-sum   # every reference solution must be Accepted
 pnpm problems:import                      # validate and upsert into DATABASE_URL
 ```
 
@@ -346,66 +367,110 @@ Rules worth knowing:
   `problems:verify` warns when it is outside the usual band of the difficulty
   (easy 1000–1450, medium 1450–1850, hard 1850–2400). The import updates only
   the author rating; the drift learned from rated sessions is kept.
-- Names must be valid identifiers in both languages and must not be reserved
-  words or common builtins (`src/lib/problems/identifiers.ts`).
+- Names must be valid identifiers in Python, JavaScript and Java and must not
+  be reserved words or common builtins (`src/lib/problems/identifiers.ts`).
+- The languages a problem offers are derived from the reference solutions
+  present (`problems.languages`, written by the import); Run/Submit in any
+  other language answers 400 "Java is not available for this problem yet".
 - `number` and `slug` must be unique. Write your own statement; do not copy
   one from another site.
 - Starter code in the editor is generated from `signature`
-  (`src/lib/templates`), so there is nothing else to write.
+  (`src/lib/templates`), so there is nothing else to write. For Java the
+  import also records which `int` positions need `long` (`problems.wide_ints`,
+  derived from tests.json).
 
 ## How to add a language
 
-Python and JavaScript are the only languages today; this is the contract a new
-one has to meet (PLAN.md §5 has the full protocol).
+Python, JavaScript and Java are supported; Java was added last, so the Java
+files are a complete example of every step (PLAN.md §5 has the protocol).
 
-1. **Sandbox image.** Add `sandbox/Dockerfile.<lang>`: a base pinned by tag and
-   digest, the runner copied read-only to `/sandbox/harness.<ext>`,
-   `USER 65534:65534`, `WORKDIR /tmp`, nothing written at run time (the root
-   filesystem is read-only), under 200 MB unpacked. Add it to
-   `scripts/sandbox-build.ts`, which checks user, size and the harness path.
-2. **Harness.** `/sandbox/harness.<ext>` must:
+1. **Sandbox image.** Add `sandbox/Dockerfile.<lang>`: bases pinned by tag and
+   digest, the runner copied read-only into `/sandbox/`, `USER 65534:65534`,
+   `WORKDIR /tmp`, nothing written at run time (the root filesystem is
+   read-only), under 200 MB unpacked (Java: a `jlink` runtime with only
+   `java.base` + `jdk.compiler` on alpine, about 106 MB). Allow the files in
+   `sandbox/.dockerignore` and add the image to `scripts/sandbox-build.ts`,
+   which checks user, size and the runner files.
+2. **Harness.** The runner must:
    - read one JSON line from stdin: `{language, code, signature, tests:
      [{input}], timeLimitMs, stopOnError, nonce}`;
    - compile `code` in memory; on failure write one `compile_error` frame;
-   - for each test, deep-copy the input, call the function named
-     `signature.name` with the parameters in order, enforce `timeLimitMs`, and
-     write a `test` frame `{index, status: "ok"|"error"|"timeout", actual?,
-     error?, memory?, timeMs, stdout, memoryKb}`; with `stopOnError`, stop
-     after the first `error`/`timeout`;
+   - for each test, build the arguments from the input, call the function
+     named `signature.name` with the parameters in order, enforce
+     `timeLimitMs`, and write a `test` frame `{index, status:
+     "ok"|"error"|"timeout", actual?, error?, memory?, timeMs, stdout,
+     memoryKb}`; with `stopOnError`, stop after the first `error`/`timeout`;
    - write every frame as `\n@@<nonce>@@<json>\n` to the real stdout, finish
      with `done`, and use `fatal` for a crash outside a test;
    - capture user output (64 KB, then `[truncated]`), keep `error` under 8 KB
-     and strip harness/host paths from tracebacks;
+     and strip runner/host paths from tracebacks;
    - return JSON values only (reject NaN/Infinity and ints outside
      ±(2^53 − 1)); report peak RSS as `memoryKb`.
 
    Frames are validated by `frameSchema` in `worker/protocol.ts`; the harness
    never sees expected values and never decides the verdict.
 3. **Executor.** In `worker/docker-executor.ts`: the image in
-   `DockerExecutorConfig`/`dockerConfigFromEnv`, `imageFor()`,
-   `sandboxCommand()` (the runner command), the time multiplier in
-   `effectiveTimeLimitMs()` and the image check in `prepareSandbox()`. Add
-   `SANDBOX_IMAGE_<LANG>` and `LANG_TIME_MULT_<LANG>` to `src/server/env.ts` and
-   `.env.example`. If the runtime has its own out-of-memory signal (like
-   Node's heap abort), map it in `worker/judge.ts`.
-4. **Language list.** `languageEnum` in `src/server/db/schema.ts` (an additive
-   migration: `pnpm db:generate`, then `pnpm db:export-sql`), `LANGUAGES` in
+   `DockerExecutorConfig`/`dockerConfigFromEnv`/`imageFor()`/`sandboxImages()`,
+   `sandboxCommand()` (the runner command, e.g. `javaFlags()`), the time
+   multiplier in `effectiveTimeLimitMs()` and, if the runtime starts slowly,
+   `startupAllowanceMs()`. Add `SANDBOX_IMAGE_<LANG>` and `LANG_TIME_MULT_<LANG>`
+   to `src/server/env.ts` and `.env.example`. If the runtime has its own
+   out-of-memory signal (Node's heap abort, the Java runner's exit code 3),
+   map it in `worker/judge.ts`.
+4. **Language list.** `languageEnum` in `src/server/db/schema.ts` (a migration:
+   `pnpm db:generate`, then `pnpm db:export-sql`), `LANGUAGES` in
    `src/lib/submission-dto.ts` and the message in
    `src/server/submissions/validate.ts`.
 5. **Editor and templates.** A template generator in `src/lib/templates` with
    golden files in `tests/unit/__golden__`; label, Monaco id and file name in
-   `src/lib/workspace/languages.ts`; the Monaco language registration in
-   `src/components/problem/monaco/setup.ts`; drafts in
-   `src/lib/workspace/buffers.ts`; the language's reserved words in
+   `src/lib/workspace/languages.ts`; the Monaco grammar import in
+   `src/components/problem/monaco/setup.ts`; the tab size in
+   `src/lib/monaco-themes.ts`; drafts in `src/lib/workspace/buffers.ts`;
+   `SolveWorkspace` templates; the language's reserved words in
    `src/lib/problems/identifiers.ts`.
-6. **Problems.** Add the file to `REQUIRED_FILES` in
-   `src/server/problems/importer.ts` and to the language list in
-   `scripts/verify-problems.ts`, then write `solution.<ext>` for every problem.
+6. **Problems.** Add the file name to `SOLUTION_FILES` in
+   `src/server/problems/importer.ts` (optional per problem: a problem offers
+   the language only when the file is present), write `solution.<ext>` for
+   the problems, then `pnpm problems:verify`, `pnpm problems:import` and
+   `pnpm problems:export-sql`.
 7. **Tests.** Add the language to the `describe.each` lists in
    `tests/integration/sandbox-judge.test.ts` and
-   `tests/integration/worker-storage.test.ts` and to
-   `tests/unit/templates.test.ts`; run `pnpm sandbox:build`,
-   `pnpm test:integration` and `pnpm problems:verify`.
+   `tests/integration/worker-storage.test.ts`, probes to
+   `tests/integration/sandbox-security.test.ts`, the golden files to
+   `tests/unit/templates.test.ts`, the image to `tests/e2e-support/harness.ts`
+   and a case to `tests/e2e/flows/solve.spec.ts`; run `pnpm sandbox:build`,
+   `pnpm test:integration`, `pnpm problems:verify` and `pnpm test:e2e`.
+
+### Java specifics
+
+- **Types.** The starter template maps `int` → `int` (or `long` for positions
+  in `problems.wide_ints`, whose test values need more than 32 bits),
+  `float` → `double`, `bool` → `boolean`, `string` → `String`, `T[]` → Java
+  arrays. The harness converts by reflection to whatever the method declares:
+  `long` for `int`, `List<Integer>`/`List<List<Long>>` for arrays, `char[]` for
+  a string, boxed types. An `int` parameter that receives a value outside 32
+  bits fails that test with "… does not fit in a Java int; declare it as
+  long". Return values may be arrays, any `Iterable`, boxed or primitive
+  numbers; integers outside ±(2^53 − 1) and NaN/Infinity are runtime errors.
+- **Compile errors** are the existing `compile_error` verdict, with javac-style
+  text (`Solution.java:5: error: ';' expected`, the source line and a caret).
+  `java.util.*`, `java.util.function.*` and `java.util.stream.*` are imported
+  implicitly on line 1 (line numbers unchanged); a `package` declaration is
+  rejected.
+- **Time.** A test's time covers creating `Solution` and the call, not JVM
+  start-up or compiling (about 1–1.5 s of CPU with the image's AOT cache),
+  which get a separate 5 s wall-clock allowance. The limit is
+  `LANG_TIME_MULT_JAVA` (2) × the problem's limit because the first calls run
+  before the JIT warms up. A timeout ends the JVM (threads cannot be killed).
+- **Memory.** `-Xmx` is half the problem's limit (direct buffers share it), the
+  rest is for the JVM itself (about 55–70 MB resident at rest, included in
+  `memory_kb`) and the solution thread's stack (limit / 8, 8–64 MB, so deep
+  recursion works). Serial GC; `OutOfMemoryError` → Memory Limit, a cgroup OOM
+  kill → Memory Limit, `StackOverflowError` → Runtime Error.
+- **Isolation inside the JVM.** User classes are loaded by their own class
+  loader whose parent is the platform loader, so the runner's classes are not
+  visible to them; the container is the security boundary, as for the other
+  languages.
 
 ## Testing
 
@@ -413,10 +478,10 @@ one has to meet (PLAN.md §5 has the full protocol).
 | --- | --- | --- | --- |
 | `pnpm test` | unit tests: types, templates, comparators, schemas, protocol, rooms domain, guide traces and code samples | Node, `python3` ≥ 3.10 | ~10 s |
 | `pnpm test:integration` | API, auth, queue, worker, importer, rooms, RLS; Docker sandbox and security suites | Postgres; Docker + `pnpm sandbox:build` for `sandbox-*`, `worker-*`, `submissions-docker` | ~2 min |
-| `pnpm test:e2e` | full browser flows incl. judged ones: sign up → Two Sum in Python and JavaScript → Accepted → profile; Wrong Answer; history; rooms live session; guide; CSP | Postgres, Docker, sandbox images | ~3–3.5 min |
+| `pnpm test:e2e` | full browser flows incl. judged ones: sign up → Two Sum in Python, JavaScript and Java → Accepted → profile; Wrong Answer; history; rooms live session; guide; CSP | Postgres, Docker, sandbox images | ~3–3.5 min |
 | `pnpm test:e2e:judge-off` | the problem page with `JUDGE_ENABLED=0` | Postgres | ~20 s |
 | `pnpm test:e2e:guide` | guide pages without the worker | Postgres | ~2.5 min |
-| `pnpm problems:verify` | every reference solution in both languages | Docker + images | ~1 min |
+| `pnpm problems:verify` | every reference solution in each language it has | Docker + images | ~1.5 min |
 
 - **Integration tests** create (if missing) and migrate their own database
   `leetcopy_test_<suffix>` on the `TEST_DATABASE_URL` server; the suffix is
@@ -509,7 +574,10 @@ environment variables, region, `/api/health` and troubleshooting.
   frame nonce only stops naive forging; it is harmless that code can find it,
   because verdicts are computed on the host.
 - `memory_kb` includes the interpreter baseline (about 10 MB for Python,
-  40 MB for Node).
+  40 MB for Node, 55–70 MB for the JVM).
+- Java: `System.exit` / `Runtime.halt` in user code end the run as a Runtime
+  Error ("program exited unexpectedly"); there is no SecurityManager to stop
+  it. Java is offered only on problems with a `solution.java`.
 - Register answers 409 for a taken email, which reveals that the email has an
   account (rate-limited).
 - Login/register and room join/rotate limits are in memory **per server

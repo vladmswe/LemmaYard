@@ -7,7 +7,7 @@ import path from "node:path";
 
 import { expect, type Page } from "@playwright/test";
 
-export type Language = "python" | "javascript";
+export type Language = "python" | "javascript" | "java";
 
 export const EDITOR_LINES = '[data-testid="code-editor"] .view-lines';
 
@@ -69,7 +69,13 @@ export async function pasteCode(page: Page, code: string, marker?: string): Prom
   await expect.poll(() => editorText(page)).toContain(expected);
 }
 
+const SOLUTION_FILES: Record<Language, string> = {
+  python: "solution.py",
+  javascript: "solution.js",
+  java: "solution.java",
+};
+
 /** The reference solution shipped with a problem (problems/<slug>/solution.*). */
 export function referenceSolution(slug: string, language: Language): string {
-  return readFileSync(path.join(process.cwd(), "problems", slug, language === "python" ? "solution.py" : "solution.js"), "utf8");
+  return readFileSync(path.join(process.cwd(), "problems", slug, SOLUTION_FILES[language]), "utf8");
 }

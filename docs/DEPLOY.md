@@ -254,7 +254,8 @@ database:
    least 32 characters (the worker does not use it, but the env schema
    requires it).
 3. Run `pnpm worker` under a process manager (systemd, pm2, ...). At start it
-   checks Docker and both images and logs `worker started`.
+   checks Docker and the three sandbox images (Python, Node, Java) and logs
+   `worker started`.
 4. On Vercel set `JUDGE_ENABLED=1` and redeploy; `/api/health` then reports
    `"judge":"enabled"`.
 

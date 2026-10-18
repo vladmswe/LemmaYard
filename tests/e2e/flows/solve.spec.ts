@@ -23,11 +23,13 @@ test.describe("solve Two Sum", { tag: JUDGE_TAG }, () => {
   const cases: { language: Language; marker: string }[] = [
     { language: "python", marker: "def twoSum" },
     { language: "javascript", marker: "var twoSum = function" },
+    { language: "java", marker: "public int[] twoSum(int[] nums, int target)" },
   ];
+  const prefixes: Record<Language, string> = { python: "fpy", javascript: "fjs", java: "fjv" };
 
   for (const { language, marker } of cases) {
     test(`${language}: register → Run → Submit → Accepted → solved on the profile`, async ({ page }) => {
-      const username = uniqueUsername(language === "python" ? "fpy" : "fjs");
+      const username = uniqueUsername(prefixes[language]);
       await registerViaUi(page, username);
 
       await openProblem(page, "two-sum");

@@ -74,7 +74,7 @@ async function modifier(page: Page): Promise<"Meta" | "Control"> {
   return (await page.evaluate(() => /Mac/.test(navigator.userAgent))) ? "Meta" : "Control";
 }
 
-async function selectLanguage(page: Page, language: "python" | "javascript") {
+async function selectLanguage(page: Page, language: "python" | "javascript" | "java") {
   await page.getByTestId("language-select").click();
   await page.getByTestId(`language-option-${language}`).click();
   await expect(page.getByTestId(`language-option-${language}`)).toBeHidden();
@@ -87,7 +87,7 @@ function editorText(page: Page) {
 }
 
 test.describe("workspace without the judge", () => {
-  test("Monaco loads from this origin only, with Python and JavaScript highlighting", async ({ page }) => {
+  test("Monaco loads from this origin only, with Python, JavaScript and Java highlighting", async ({ page }) => {
     const foreign: string[] = [];
     page.on("request", (r) => {
       const url = new URL(r.url());
@@ -103,6 +103,12 @@ test.describe("workspace without the judge", () => {
 
     await selectLanguage(page, "javascript");
     await expect.poll(() => editorText(page)).toContain("var twoSum = function(nums, target)");
+    await expect.poll(tokenColors).toBeGreaterThanOrEqual(3);
+
+    // Java: starter code from the signature and Monarch highlighting.
+    await selectLanguage(page, "java");
+    await expect.poll(() => editorText(page)).toContain("public int[] twoSum(int[] nums, int target) {");
+    await expect.poll(() => editorText(page)).toContain("import java.util.*;");
     await expect.poll(tokenColors).toBeGreaterThanOrEqual(3);
     expect(foreign).toEqual([]);
   });
