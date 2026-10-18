@@ -2,7 +2,6 @@ import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 
-import { QedLoader } from "@/components/brand/qed-loader"
 
 // DESIGN.md §12 (v2 "Proof"): pills. Hover darkens (120 ms), a trailing
 // `data-arrow` icon nudges 3px, press scales to 0.97 (transform only, off
@@ -68,9 +67,24 @@ function buttonVariants(
 
 type ButtonProps = ButtonPrimitive.Props &
   VariantProps<typeof buttonVariantsRaw> & {
-    /** Shows the ∎ loader in place of the leading icon (label kept, no width jump) and disables the button. */
+    /** Shows a ring spinner in place of the leading icon (label kept, no width jump) and disables the button. */
     loading?: boolean
   }
+
+/**
+ * Small ring spinner for in-button loading (a recognisable "busy" glyph at 14 px;
+ * the ∎ loader stays for page-level and result loading). Under reduced motion the
+ * global rule stops the rotation and the open ring remains as a static glyph.
+ */
+function ButtonSpinner() {
+  return (
+    <span
+      aria-hidden
+      data-loader
+      className="inline-block size-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+    />
+  )
+}
 
 function Button({
   className,
@@ -96,7 +110,7 @@ function Button({
       }
       {...props}
     >
-      {loading && <QedLoader className="size-3.5" />}
+      {loading && <ButtonSpinner />}
       {children}
     </ButtonPrimitive>
   )
