@@ -42,8 +42,13 @@ export function ActivityFeed({ lines, className }: { lines: FeedLine[]; classNam
             const k = KIND[line.kind];
             const Icon = k.icon;
             return (
-              <li key={line.id} className="flex gap-3 border-b py-2.5 text-sm last:border-b-0">
-                <Icon aria-hidden className={cn("mt-0.5 size-4 shrink-0", k.className)} />
+              <li key={line.id} className="flex gap-3 border-b py-3 text-sm/5 last:border-b-0">
+                {line.kind === "solved" ? (
+                  // Accepted in feeds: the ∎ (DESIGN.md §5).
+                  <span aria-hidden className="mt-1 ml-0.5 size-2.5 shrink-0 bg-success" />
+                ) : (
+                  <Icon aria-hidden className={cn("mt-0.5 size-4 shrink-0", k.className)} />
+                )}
                 <span className="min-w-0 flex-1">
                   {line.clock && (
                     <span className="mr-2 font-mono text-xs text-muted-foreground tabular-nums">{line.clock}</span>

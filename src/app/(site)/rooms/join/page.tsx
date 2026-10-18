@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic";
 export default async function JoinRoomPage() {
   const user = await getCurrentUser();
   return (
-    <section className="relative flex flex-1 flex-col justify-center overflow-hidden bg-surface-sunken px-4 py-12 sm:py-16">
-      <div aria-hidden className="graph-paper graph-paper-center opacity-40" />
+    <section className="relative flex flex-1 flex-col justify-center overflow-hidden px-4 py-12 sm:py-16">
+      <div aria-hidden className="grid-paper [mask-image:radial-gradient(50%_60%_at_50%_45%,#000_30%,transparent_80%)]" />
       <Reveal className="relative mx-auto flex w-full justify-center">
         <JoinRoom signedIn={Boolean(user)} />
       </Reveal>

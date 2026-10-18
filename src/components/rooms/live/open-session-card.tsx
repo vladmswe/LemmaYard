@@ -4,9 +4,10 @@
 // Lobby "Session open · 4 problems · 90 min · 2 joined" + Open lobby; Live:
 // countdown + Open session; none: New session. Rendered into R2's
 // <RoomOpenSessionRegion> slot.
-import { CalendarPlusIcon, ClockIcon, RadioIcon } from "lucide-react";
+import { CalendarPlusIcon, ClockIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { cn } from "cn";
 
 import { buttonVariants } from "@/components/ui/button";
 import { clockOffset } from "@/lib/rooms/live-clock";
@@ -20,7 +21,7 @@ import { NewSessionButton } from "./new-session-button";
 export function OpenSessionCard({ roomId, session }: { roomId: string; session: OpenSessionSummary | null }) {
   if (!session) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-card px-5 py-4 shadow-xs" data-testid="open-session-card">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card px-6 py-5 shadow-sm" data-testid="open-session-card">
         <div className="flex items-start gap-3">
           <CalendarPlusIcon aria-hidden className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
           <div>
@@ -38,18 +39,21 @@ export function OpenSessionCard({ roomId, session }: { roomId: string; session: 
   const live = session.status === "live";
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-blue-200 bg-info-bg px-5 py-4 shadow-xs dark:border-blue-800"
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-4 px-6 py-5",
+        live ? "on-night grain rounded-2xl" : "rounded-xl border border-info/40 bg-info-bg shadow-sm",
+      )}
       data-testid="open-session-card"
     >
       <div className="flex min-w-0 items-start gap-3">
         {live ? (
-          <RadioIcon aria-hidden className="mt-0.5 size-5 shrink-0 text-info" />
+          <span aria-hidden className="mt-2 live-dot shrink-0 text-live" />
         ) : (
           <ClockIcon aria-hidden className="mt-0.5 size-5 shrink-0 text-info" />
         )}
         <div className="min-w-0">
           <h2 className="font-semibold">{live ? "Live now" : "Session open"}</h2>
-          <p className="mt-0.5 text-sm text-foreground-secondary">
+          <p className={cn("mt-0.5 text-sm", live ? "text-on-night-2" : "text-foreground-secondary")}>
             {session.problemCount} problem{session.problemCount === 1 ? "" : "s"} · {session.durationMin} min ·{" "}
             {session.participants} joined
             {session.joined ? " · you're in" : ""}
@@ -67,7 +71,7 @@ export function OpenSessionCard({ roomId, session }: { roomId: string; session: 
         {live && (
           <CardCountdown endsAt={session.endsAt} serverNow={session.serverNow} />
         )}
-        <Link href={href} className={buttonVariants()} data-testid="open-session-link">
+        <Link href={href} className={buttonVariants({ variant: live ? "invert" : "default" })} data-testid="open-session-link">
           {live ? "Open session" : "Open lobby"}
         </Link>
       </div>

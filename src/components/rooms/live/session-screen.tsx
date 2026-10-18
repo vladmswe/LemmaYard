@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "cn";
 
+import { Qed } from "@/components/brand/qed";
 import { EmptyState } from "@/components/empty-state";
 import { useMediaQuery } from "@/components/problem/use-media-query";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -193,12 +194,24 @@ export function SessionScreen({ data, judgeEnabled }: { data: SessionPageData; j
   );
 
   // --- Head band ------------------------------------------------------------
+  // Live: the night hero with the giant timer (DESIGN.md §13.10). Lobby,
+  // finished and cancelled: a quiet paper head.
   const dateIso = startedAt ?? data.session.createdAt;
+  const isLive = status === "live";
   const head = (
-    <div className="border-b bg-surface-sunken">
-      <div className="container-page flex flex-col gap-4 py-6 lg:flex-row lg:items-end lg:justify-between">
+    <div
+      className={cn(
+        "relative overflow-hidden border-b",
+        isLive ? "room-hero on-night grain border-night-line" : "bg-background",
+      )}
+    >
+      <div
+        aria-hidden
+        className="grid-paper [mask-image:radial-gradient(70%_100%_at_85%_20%,#000_25%,transparent_80%)]"
+      />
+      <div className="container-page relative flex flex-col gap-6 py-8 min-[961px]:py-10 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <Breadcrumb className="mb-2.5">
+          <Breadcrumb className="mb-4">
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink render={<Link href="/rooms" />}>Rooms</BreadcrumbLink>
@@ -215,38 +228,53 @@ export function SessionScreen({ data, judgeEnabled }: { data: SessionPageData; j
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-heading text-3xl/[2.375rem] font-semibold tracking-[-0.015em] sm:text-4xl/11">
-              Session · <LocalTime iso={dateIso} options={DAY} />
-            </h1>
-            <SessionStatusBadge status={status} />
-          </div>
+          <SessionStatusBadge status={status} className="mb-4" />
+          <h1 className={cn("break-words", isLive ? "display-1 max-w-[16ch]" : "display-2")}>
+            {isLive ? (
+              <>
+                {data.room.name}
+                <Qed />
+              </>
+            ) : (
+              <>
+                Session · <LocalTime iso={dateIso} options={DAY} />
+              </>
+            )}
+          </h1>
           <HeadMeta data={data} status={status} participants={snapshot?.participants.length ?? 0} />
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {status === "live" && (
+        <div className="flex flex-col items-start gap-4 lg:items-end">
+          {isLive && (
             <div className="hidden lg:block">
               <Countdown
                 endsAt={live.endsAt}
                 offsetMs={live.offsetMs}
+                size="hero"
+                totalMs={(snapshot?.session.durationMin ?? data.session.durationMin) * 60_000}
                 onExpire={live.refresh}
                 onMilestone={onMilestone}
               />
             </div>
           )}
-          {(status === "live" || status === "lobby") && <NotificationSettings />}
-          {status === "live" && !live.viewer.isParticipant && (
-            <Button loading={joining} onClick={joinLive} data-testid="join-live">
-              <UserPlusIcon aria-hidden />
-              Join session
-            </Button>
-          )}
-          {status === "live" && canManage && (
-            <Button variant="secondary" onClick={() => setEndOpen(true)} data-testid="end-session">
-              <FlagIcon aria-hidden />
-              End session
-            </Button>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            {(isLive || status === "lobby") && (
+              <NotificationSettings
+                className={isLive ? "text-on-night hover:bg-white/10 hover:text-on-night" : undefined}
+              />
+            )}
+            {isLive && !live.viewer.isParticipant && (
+              <Button variant="invert" loading={joining} onClick={joinLive} data-testid="join-live">
+                <UserPlusIcon aria-hidden />
+                Join session
+              </Button>
+            )}
+            {isLive && canManage && (
+              <Button variant="night" onClick={() => setEndOpen(true)} data-testid="end-session">
+                <FlagIcon aria-hidden />
+                End session
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -256,7 +284,7 @@ export function SessionScreen({ data, judgeEnabled }: { data: SessionPageData; j
     <>
       {head}
       {status === "live" && (
-        <div className="sticky top-[67px] z-30 flex h-12 items-center justify-between border-b bg-card px-4 shadow-xs lg:hidden">
+        <div className="sticky top-[60px] z-30 min-[961px]:top-[68px] flex h-12 items-center justify-between border-b bg-card px-4 shadow-xs lg:hidden">
           <Countdown
             endsAt={live.endsAt}
             offsetMs={live.offsetMs}
@@ -361,7 +389,7 @@ function HeadMeta({
     const end = s.endedAt ?? s.endsAt;
     text = `Finished · ${formatLocal(s.startedAt, DAY_CLOCK, client)}${end ? `–${formatLocal(end, CLOCK, client)}` : ""} · ${people}`;
   } else if (status === "live") {
-    text = `${data.room.name} · ${s.problemCount} problems · ${s.durationMin} minutes · ${people}`;
+    text = `Session · ${formatLocal(s.startedAt ?? s.createdAt, DAY, client)} · ${s.problemCount} problems · ${s.durationMin} minutes · ${people}`;
   } else if (status === "lobby") {
     const planned = s.plannedFor ? ` · Planned for ${formatLocal(s.plannedFor, DAY_CLOCK, client)}` : "";
     text = `Lobby · ${data.room.name}${planned}`;
@@ -369,7 +397,10 @@ function HeadMeta({
     text = data.room.name;
   }
   return (
-    <p className="mt-2 text-muted-foreground" suppressHydrationWarning>
+    <p
+      className={cn("mt-4 text-[1.0625rem]", status === "live" ? "text-on-night-2" : "text-muted-foreground")}
+      suppressHydrationWarning
+    >
       {text}
     </p>
   );
@@ -410,6 +441,16 @@ function ConnectionNotice({ connection, sessionPath }: { connection: string; ses
   return null;
 }
 
+/** "Only verdicts are shared" (DESIGN.md §13.10): what the room can see of each other. */
+function RoomRules() {
+  return (
+    <p className="rounded-xl border bg-surface-sunken px-5 py-4 text-sm/6 text-foreground-secondary">
+      <strong className="font-semibold text-foreground">Room rules.</strong> Only results are shared while the session
+      runs: who solved what, when and after how many tries. No code, verdict types or test data.
+    </p>
+  );
+}
+
 function PendingLine({ pending, finished }: { pending: number; finished: boolean }) {
   const text = pendingJudgingText(pending);
   if (!text) return null;
@@ -445,7 +486,7 @@ function LiveBody({
   const large = useMediaQuery(LARGE);
   const problems = (
     <section aria-labelledby="live-problems" className="flex flex-col gap-3">
-      <h2 id="live-problems" className="text-xl/7 font-semibold">
+      <h2 id="live-problems" className="sr-only">
         Problems
       </h2>
       {!isParticipant && (
@@ -463,22 +504,36 @@ function LiveBody({
   );
   const board = (
     <section aria-labelledby="scoreboard" id="scoreboard-section" className="flex scroll-mt-32 flex-col gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="scoreboard" className="text-xl/7 font-semibold">
-          Scoreboard
-        </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+        <div className="flex items-baseline gap-3">
+          <h2 id="scoreboard" className="font-display text-[2rem]/none">
+            Scoreboard
+          </h2>
+          <span aria-hidden className="eyebrow">
+            Updates live
+          </span>
+        </div>
         {large !== false && <PendingLine pending={pending} finished={false} />}
       </div>
       <Scoreboard snapshot={snapshot} viewerId={data.viewerId} />
     </section>
   );
   const activity = (
-    <section aria-labelledby="activity" className="flex flex-col gap-2 rounded-lg border bg-card p-4 shadow-xs">
-      <h2 id="activity" className="text-[1.0625rem]/6 font-semibold">
-        Activity
-      </h2>
-      <ActivityFeed lines={feed} />
-    </section>
+    <div className="flex flex-col gap-4">
+      <section aria-labelledby="activity" className="flex flex-col gap-2 rounded-xl border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <span aria-hidden className="inline-flex h-6 items-center gap-1.5 rounded-full bg-live-bg px-2.5 text-xs font-semibold text-live">
+            <span className="live-dot" />
+            Live
+          </span>
+          <h2 id="activity" className="text-[1.0625rem]/6 font-semibold">
+            Activity
+          </h2>
+        </div>
+        <ActivityFeed lines={feed} />
+      </section>
+      <RoomRules />
+    </div>
   );
 
   if (large === false) {
@@ -512,8 +567,8 @@ function LiveBody({
     );
   }
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="flex min-w-0 flex-col gap-8">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
+      <div className="flex min-w-0 flex-col gap-10">
         {problems}
         {board}
       </div>
@@ -531,20 +586,20 @@ function FinishedBody({
   sessionId,
 }: BodyProps & { pending: number; roomId: string; sessionId: string }) {
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
       <div className="flex min-w-0 flex-col gap-6">
         <PendingLine pending={pending} finished />
         <section aria-labelledby="final-standings" className="flex flex-col gap-3">
-          <h2 id="final-standings" className="text-xl/7 font-semibold">
+          <h2 id="final-standings" className="font-display text-[2rem]/none">
             Final standings
           </h2>
           <Scoreboard snapshot={snapshot} viewerId={data.viewerId} final caption="Final standings" />
         </section>
         <section aria-labelledby="per-problem" className="flex flex-col gap-3">
-          <h2 id="per-problem" className="text-xl/7 font-semibold">
+          <h2 id="per-problem" className="font-display text-[2rem]/none">
             Problems
           </h2>
-          <ul className="flex flex-col divide-y rounded-lg border bg-card shadow-xs">
+          <ul className="flex flex-col divide-y rounded-xl border bg-card shadow-sm">
             {snapshot.problems.map((p) => (
               <li key={p.position} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-4 py-3 text-sm">
                 <span className="font-semibold">{problemLabel(p.position)}</span>
@@ -573,7 +628,7 @@ function FinishedBody({
       </div>
       <section
         aria-labelledby="activity"
-        className={cn("flex flex-col gap-2 self-start rounded-lg border bg-card p-4 shadow-xs")}
+        className={cn("flex flex-col gap-2 self-start rounded-xl border bg-card p-5 shadow-sm")}
       >
         <h2 id="activity" className="text-[1.0625rem]/6 font-semibold">
           Activity

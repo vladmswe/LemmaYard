@@ -6,7 +6,7 @@
 // tab is open (v1); notices are de-duplicated by id across reconnects, and a
 // burst (reconnect, long background) collapses into "N updates while you were
 // away". Toasts are not shown into a hidden tab: they wait for it to return.
-import { CircleCheckIcon, CircleDashedIcon, FlagIcon, InfoIcon, PlayIcon, TimerIcon, UserPlusIcon } from "lucide-react";
+import { CircleDashedIcon, FlagIcon, InfoIcon, PlayIcon, TimerIcon, UserPlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -66,7 +66,12 @@ export function useNotificationPrefs(): NotificationPrefs {
 // --- Announcer --------------------------------------------------------------
 
 const ICONS: Record<Notice["kind"], ReactNode> = {
-  solved: <CircleCheckIcon aria-hidden className="size-4 text-success" />,
+  // Accepted toasts carry the ∎ tile (DESIGN.md §13.10).
+  solved: (
+    <span aria-hidden className="grid size-6 place-items-center rounded-md bg-success-bg">
+      <span className="size-2.5 bg-success" />
+    </span>
+  ),
   attempt: <CircleDashedIcon aria-hidden className="size-4 text-muted-foreground" />,
   joined: <UserPlusIcon aria-hidden className="size-4 text-info" />,
   started: <PlayIcon aria-hidden className="size-4 text-info" />,

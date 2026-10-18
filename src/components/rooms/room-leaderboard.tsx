@@ -40,7 +40,7 @@ export function RoomLeaderboardPanel({
           <LeaderboardRangeSelect roomId={roomId} range={range} />
         </div>
         {sessions === 0 ? (
-          <div className="rounded-lg border bg-card shadow-xs">
+          <div className="rounded-xl border bg-card shadow-sm">
             <EmptyState icon={TrophyIcon} title="No finished sessions in this period">
               {range === "all"
                 ? "Once your room finishes a session, members are ranked here by problems solved."

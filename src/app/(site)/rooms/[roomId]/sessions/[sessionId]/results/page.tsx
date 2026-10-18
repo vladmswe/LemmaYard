@@ -59,7 +59,7 @@ export default async function SessionResultsPage({
       <>
         <PageHead crumbs={[{ label: "Rooms", href: "/rooms" }, roomCrumb, { label: "Cancelled session" }]} title="Cancelled session" />
         <div className="container-page py-8">
-          <div className="rounded-lg border bg-card shadow-xs">
+          <div>
             <EmptyState
               icon={BanIcon}
               title="This session was cancelled"
@@ -90,6 +90,7 @@ export default async function SessionResultsPage({
           </>
         }
         subtitle={`Finished · ${plural(results.participants.length, "participant")} · ${plural(results.problems.length, "problem")}`}
+        qed
       />
       <div className="container-page flex flex-col gap-8 py-8">
         {session.pendingJudging > 0 && (

@@ -1,0 +1,72 @@
+/*
+ * Rooms, design v2 "Proof" (DESIGN.md §13.10): the live screen's night hero,
+ * the giant mono timer and its time-remaining track, the scoreboard flash.
+ * Tokens only, except the night-safe warning amber (the night block is dark
+ * in both themes, so it takes the dark theme's warning, like the footer's
+ * night tokens).
+ */
+
+/* Night hero: breadcrumb and quiet text on night. */
+.room-hero [data-slot="breadcrumb-list"],
+.room-hero [data-slot="breadcrumb-separator"] {
+  color: var(--on-night-2);
+}
+.room-hero [data-slot="breadcrumb-list"] a:hover,
+.room-hero [data-slot="breadcrumb-page"] {
+  color: var(--on-night);
+}
+.on-night .room-warn,
+.on-night .room-timer[data-warning] {
+  color: #e8b04e;
+}
+
+/* Timer: the colon blinks only in the last 5 minutes (none under reduced motion). */
+.room-timer-colon {
+  display: inline-block;
+  margin-inline: 0.06em;
+  opacity: 0.55;
+}
+.room-timer[data-blink] .room-timer-colon {
+  animation: room-colon-blink 1s steps(1) infinite;
+}
+@keyframes room-colon-blink {
+  50% {
+    opacity: 0.12;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-timer[data-blink] .room-timer-colon {
+    animation: none !important;
+  }
+}
+
+/* Time remaining: a 3px track, filled part in sky. */
+.room-timer-track {
+  position: relative;
+  display: block;
+  width: min(100%, 22rem);
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--night-line);
+}
+.room-timer-track > i {
+  position: absolute;
+  inset: 0;
+  background: var(--sky);
+  transform-origin: right;
+  transition: transform 1s linear;
+}
+.room-timer-track > i[data-warning] {
+  background: #e8b04e;
+}
+
+/* A new Accepted cell flashes its row once (1.6s; static under reduced motion). */
+.room-flash {
+  animation: room-flash 1.6s var(--ease-out) both;
+}
+@keyframes room-flash {
+  from {
+    background-color: var(--success-bg);
+  }
+}

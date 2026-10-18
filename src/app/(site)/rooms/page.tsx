@@ -1,4 +1,3 @@
-import { UsersIcon } from "lucide-react";
 import type { Metadata } from "next";
 
 import { EmptyState } from "@/components/empty-state";
@@ -20,14 +19,16 @@ export default async function RoomsPage() {
   return (
     <>
       <PageHead
+        size="d1"
+        qed
         crumbs={[{ label: "Home", href: "/" }, { label: "Rooms" }]}
         title="Rooms"
-        subtitle="Private rooms for solving problems with friends."
+        subtitle="Private rooms for solving problems with friends, in timed sessions with a live scoreboard."
         actions={rooms.length > 0 ? <CreateRoomDialog /> : undefined}
       />
-      <div className="container-page py-8">
+      <div className="container-page py-10 min-[961px]:py-14">
         {rooms.length === 0 ? (
-          <EmptyState icon={UsersIcon} title="No rooms yet" action={<CreateRoomDialog />}>
+          <EmptyState title="No rooms yet" given="friends" want="a weekly session" action={<CreateRoomDialog />}>
             Create a room and send the invite link to your friends. Got an invite? Open the link you received.
           </EmptyState>
         ) : (
