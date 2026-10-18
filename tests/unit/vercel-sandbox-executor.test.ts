@@ -4,7 +4,7 @@
 // created and always stopped, frames with the nonce, the Submit stop, the
 // wall clock, the output cap and platform failures. The launcher + harness
 // inside a real Linux sandbox are covered by
-// tests/integration/vercel-sandbox-docker.test.ts.
+// tests/integration/sandbox-vercel-executor.test.ts.
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createParams } from "../../worker/vercel-sandbox-client";

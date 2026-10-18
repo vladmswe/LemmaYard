@@ -2,7 +2,8 @@
 # that need only Postgres.
 #
 # Not covered yet (follow-ups):
-# - Docker sandbox suites (tests/integration/sandbox-*.test.ts,
+# - Docker sandbox suites (tests/integration/sandbox-*.test.ts: name every
+#   suite that needs the sandbox images `sandbox-*` so this job skips it,
 #   worker-docker, worker-storage, submissions-docker) and `pnpm problems:verify`:
 #   they need `pnpm sandbox:build` and a Docker daemon on the runner.
 # - Playwright e2e (`pnpm test:e2e`, AC-M7-1): wired once the e2e harness

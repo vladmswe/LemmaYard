@@ -182,7 +182,7 @@ nonce}`), `@@<nonce>@@{frame}` lines on stdout (`compile_error`, `fatal`,
    Vercel images once pushed.
 8. **Tests**: add the language to `tests/integration/sandbox-judge.test.ts`
    (verdict matrix, error cleanliness) and
-   `tests/integration/vercel-sandbox-docker.test.ts` (launcher + memory
+   `tests/integration/sandbox-vercel-executor.test.ts` (launcher + memory
    verdict), plus the harness security cases (no network, read-only, forged
    frames) in `sandbox-security.test.ts`.
 
@@ -198,7 +198,7 @@ rest is the JavaScript path.
   clock, unconfirmed kill, output cap, heap abort, exit codes, platform
   failures, VM always stopped) and the exact SDK options (`deny-all`,
   1 vCPU, no env, not persistent).
-- `tests/integration/vercel-sandbox-docker.test.ts`: the executor with the
+- `tests/integration/sandbox-vercel-executor.test.ts`: the executor with the
   real launchers and harness in Docker containers of the sandbox images
   standing in for the microVM (1 GB container, so memory verdicts come from
   the launchers).
