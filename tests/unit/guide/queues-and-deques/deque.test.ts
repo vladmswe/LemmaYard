@@ -15,6 +15,7 @@ import { runDequeRef } from "@/lib/guide/traces/deque/reference";
 import { ringValues, type RingResult, type RingState } from "@/lib/guide/traces/queue";
 
 import { checkRenderer } from "../complexity-basics/render-check";
+import { coverageSample } from "../helpers/coverage";
 
 import { dequeBoundaryArb, dequeInputArb } from "./arbitraries";
 
@@ -75,25 +76,31 @@ describe("deque.ring (S2: reference agreement and ring invariant)", () => {
   });
 
   it("threshold scripts reach the backward wrap, both grows and both empty pops", () => {
-    const seen = new Set<string>();
-    fc.assert(
-      fc.property(dequeBoundaryArb, (input) => {
-        agrees(input);
+    const ALL = ["deque.popBack.empty", "deque.popFront.empty", "deque.pushBack.full", "deque.pushFront.full", "front wrap"];
+    const reached = (inputs: readonly DequeInput[]) => {
+      const seen = new Set<string>();
+      for (const input of inputs) {
         for (const f of model.generate(input).frames) {
           if (f.phase === "Step head back (wraps)") seen.add("front wrap");
           if (f.line === "deque.pushFront.full" || f.line === "deque.pushBack.full") seen.add(f.line);
           if (f.line === "deque.popFront.empty" || f.line === "deque.popBack.empty") seen.add(f.line);
         }
-      }),
-      { numRuns: numRuns(200) },
-    );
-    expect([...seen].sort()).toEqual([
-      "deque.popBack.empty",
-      "deque.popFront.empty",
-      "deque.pushBack.full",
-      "deque.pushFront.full",
-      "front wrap",
-    ]);
+      }
+      return [...seen].sort();
+    };
+    // Fixed scripts: 9 pushFront (wraps from slot 0, grows), then popFront past empty;
+    // 9 pushBack (grows), then popBack past empty.
+    const nine = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const pops = (kind: "popFront" | "popBack"): DequeOp[] => Array.from({ length: 10 }, () => ({ kind }));
+    const examples: DequeInput[] = [
+      { ops: [...front(nine), ...pops("popFront")] },
+      { ops: [...back(nine), ...pops("popBack")] },
+    ];
+    expect(reached(examples)).toEqual(ALL);
+    // The arbitrary itself reaches all five: checked on a fixed-seed sample, so it cannot flake.
+    expect(reached(coverageSample(dequeBoundaryArb))).toEqual(ALL);
+    // Agreement: the fixed scripts first, then fresh random threshold scripts.
+    fc.assert(fc.property(dequeBoundaryArb, agrees), { numRuns: numRuns(200), examples: examples.map((e) => [e]) });
   });
 });
 

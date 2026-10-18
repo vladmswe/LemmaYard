@@ -25,6 +25,7 @@ import {
 import { runQueueRef } from "@/lib/guide/traces/queue/reference";
 
 import { checkRenderer } from "../complexity-basics/render-check";
+import { coverageSample } from "../helpers/coverage";
 
 import { queueBoundaryArb, queueInputArb } from "./arbitraries";
 
@@ -97,20 +98,30 @@ describe("queue.ring (S2: reference agreement and ring invariant)", () => {
   });
 
   it("threshold scripts reach full, grow, wrap and empty", () => {
-    const seen = new Set<string>();
-    fc.assert(
-      fc.property(queueBoundaryArb, (input) => {
-        agrees(input);
+    const ALL = ["empty", "grow", "head wraps", "wrap"];
+    const reached = (inputs: readonly QueueInput[]) => {
+      const seen = new Set<string>();
+      for (const input of inputs) {
         for (const f of model.generate(input).frames) {
           if (f.line === "queue.grow.done") seen.add("grow");
           if (f.line === "queue.dequeue.empty" || f.line === "queue.peek.empty") seen.add("empty");
           if (f.phase === "Write at tail (wraps)") seen.add("wrap");
           if (f.line === "queue.dequeue.read" && f.state.head === 0 && f.state.size > 0) seen.add("head wraps");
         }
-      }),
-      { numRuns: numRuns(200) },
-    );
-    expect([...seen].sort()).toEqual(["empty", "grow", "head wraps", "wrap"]);
+      }
+      return [...seen].sort();
+    };
+    // Fixed scripts: 5 in, 5 out, 9 in (tail wraps, the full ring grows); 8 in, 7 out, 1 in, 3 out
+    // (head wraps past slot 7, then a dequeue on empty).
+    const examples: QueueInput[] = [
+      { ops: [...enq(range(1, 5)), ...deq(5), ...enq(range(11, 19))] },
+      { ops: [...enq(range(1, 8)), ...deq(7), ...enq([9]), ...deq(3)] },
+    ];
+    expect(reached(examples)).toEqual(ALL);
+    // The arbitrary itself reaches all four: checked on a fixed-seed sample, so it cannot flake.
+    expect(reached(coverageSample(queueBoundaryArb))).toEqual(ALL);
+    // Agreement: the fixed scripts first, then fresh random threshold scripts.
+    fc.assert(fc.property(queueBoundaryArb, agrees), { numRuns: numRuns(200), examples: examples.map((e) => [e]) });
   });
 });
 
