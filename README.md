@@ -185,7 +185,7 @@ src/components/     UI (ui/ = shadcn on Base UI; problem/, rooms/, guide/, ...)
 src/lib/            shared code: value types, templates, problem schemas, rooms domain, guide contracts
 src/server/         server-only: env.ts (Zod env), db/ (Drizzle schema + client), auth/, submissions/, rooms/
 src/content/learn/  guide lessons (MDX, metadata, quizzes, code samples)
-worker/             judge worker: queue, loop, Docker executor, protocol, judge
+worker/             judge worker: queue, loop + drain, Docker and Vercel Sandbox executors, protocol, judge
 sandbox/            Dockerfile.python, Dockerfile.node, harness.py, harness.js
 problems/<slug>/    problem files (meta.json, description.md, tests.json, solution.py, solution.js)
 drizzle/            SQL migrations
@@ -240,7 +240,8 @@ production table is in [docs/DEPLOY.md, section 3](docs/DEPLOY.md#3-vercel-envir
 | `AUTH_SECRET` | placeholder | JWT key, at least 32 characters; placeholders are rejected in production. |
 | `AUTH_URL` | `http://localhost:3000` | Exact origin the browser uses; mutating requests from another origin get 403. |
 | `PORT` | 3000 | Web port for `dev` / `start`. |
-| `JUDGE_ENABLED` | on, off on Vercel | `0` disables Run, Submit and room session start. |
+| `JUDGE_ENABLED` | on, off on Vercel with `docker` | `0` disables Run, Submit and room session start. |
+| `JUDGE_EXECUTOR` | `docker` | `docker` = `pnpm worker`; `vercel-sandbox` = the web app judges in Vercel Sandbox (production). |
 | `TEST_DATABASE_URL` | compose Postgres | Server for the integration and e2e databases. |
 | `WORKER_CONCURRENCY`, `WORKER_POLL_MS` | 2, 500 | Worker slots and poll interval. |
 | `SANDBOX_IMAGE_PYTHON`, `SANDBOX_IMAGE_NODE` | `lemmayard-sandbox-*:latest` | Sandbox image tags. |
@@ -488,16 +489,20 @@ Supabase Postgres (pooler URLs, TLS, migrating from your machine or pasting
 [`docs/supabase/schema.sql`](docs/supabase/schema.sql) into the SQL Editor),
 environment variables, region, `/api/health` and troubleshooting.
 
-- **Without a judge (the Vercel default):** `JUDGE_ENABLED` unset on Vercel
-  means judge-disabled mode. Everything except code execution works: catalog,
+- **Without a judge (the Vercel default):** `JUDGE_EXECUTOR` and
+  `JUDGE_ENABLED` unset on Vercel mean judge-disabled mode. Everything except code execution works: catalog,
   problem pages and the editor (drafts are kept), accounts, history, profiles,
   the guide, rooms and their lobbies. Run, Submit and room session start are
   disabled in the UI and the API answers `503 {"code":"judge_disabled"}`
   without creating rows. `/api/health` reports `"judge":"disabled"`.
-- **With a judge:** run `pnpm worker` on a host with Docker and the sandbox
-  images, pointed at the same database (`DATABASE_URL`), and set
-  `JUDGE_ENABLED=1` on the web deployment. A Vercel Sandbox executor behind
-  the same `Executor` interface (`worker/types.ts`) is the planned alternative.
+- **With a judge on Vercel:** set `JUDGE_EXECUTOR=vercel-sandbox`. The API
+  routes then judge queued submissions themselves (`after()` → `drainQueue`)
+  in Vercel Sandbox microVMs with all network egress denied, through the same
+  `Executor` interface (`worker/vercel-sandbox-executor.ts`), queue and
+  `finalize()`. Decision and design: [docs/specs/judge-prod.md](docs/specs/judge-prod.md).
+- **With a worker host:** run `pnpm worker` on a host with Docker and the
+  sandbox images, pointed at the same database (`DATABASE_URL`), and set
+  `JUDGE_ENABLED=1` on the web deployment.
 
 ## Accepted MVP properties and known limitations
 

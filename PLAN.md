@@ -26,7 +26,8 @@ Pet-проект, запускается локально (docker-compose для
   - Security hardening (WP-3): security headers + CSP, rate limit на login/register, отказ от placeholder-`AUTH_SECRET` в продакшене.
   - Tech debt (WP-7): CI, мелкие исправления.
   - Переименование в LemmaYard (пакет, образы `lemmayard-sandbox-*`, cookie `lemmayard_session`, label `lemmayard.sandbox`).
-- **Осталось:** судья в продакшене (`VercelSandboxExecutor` или worker на VPS, см. §13 и `docs/DEPLOY.md` §7); уроки гайда 6–15; фичи F1–F5 (`docs/specs/features-f1-f5.md`); QA/perf follow-ups (AC-M7-5, проверка консоли в flows, AC-M7-7 целиком); выбор LICENSE (владелец); CSP с nonce без `'unsafe-inline'`; rate limits в БД (между инстансами).
+  - Судья в продакшене (`feature/judge-prod`, спека `docs/specs/judge-prod.md`): `VercelSandboxExecutor` за интерфейсом `Executor`, `JUDGE_EXECUTOR=vercel-sandbox`; веб сам разбирает очередь через `after()` (`drainQueue`, те же claim/finalize/sweep). Настройка владельцем — `docs/DEPLOY.md` §7; на реальном Vercel ещё не проверено.
+- **Осталось:** проверка судьи на реальном Vercel (чек-лист `docs/DEPLOY.md` §7); уроки гайда 6–15; фичи F1–F5 (`docs/specs/features-f1-f5.md`); QA/perf follow-ups (AC-M7-5, проверка консоли в flows, AC-M7-7 целиком); выбор LICENSE (владелец); CSP с nonce без `'unsafe-inline'`; rate limits в БД (между инстансами).
 - Схема: кроме M1 добавлены `0002_enable_rls` (деплой), `0003_rooms` (Rooms) и `0004_rooms_v2` (Rooms v2) — по исключению для фич (см. `CLAUDE.md`).
 
 ---
@@ -347,4 +348,5 @@ Rejected-запросы **не создают** строк в БД.
 - Проблема: worker на хосте с Docker не запускается на Vercel/Supabase. Варианты (решает оркестратор в деплой-фазе): (a) `VercelSandboxExecutor` за интерфейсом `Executor` (Vercel Sandbox = изолированные microVM) + запуск проверки из Vercel Functions/Cron/Queues вместо долгоживущего worker; (b) отдельный маленький VPS только под worker+Docker. Рекомендация: (a), если Vercel Sandbox покрывает наши лимиты (память, время, нет сети, Python 3 и Node); иначе (b).
 - Секреты только через env Vercel; `AUTH_SECRET` новый; `AUTH_URL` = боевой домен; проверка Origin уже завязана на нём.
 - Переименование в коде сделано (LemmaYard: package.json, образы `lemmayard-sandbox-*`, cookie `lemmayard_session`, label `lemmayard.sandbox`, README, UI). Осталось: переименовать репозиторий/папку, LICENSE; деплой, домен и любые внешние действия — только после явного ОК Влада.
-- Готово к деплою веба без судьи: `docs/DEPLOY.md` (Supabase pooler/TLS, RLS, `/api/health`), `JUDGE_ENABLED` выключает Run/Submit на Vercel. Продакшен-судья (вариант (a) или (b)) ещё не сделан.
+- Готово к деплою веба без судьи: `docs/DEPLOY.md` (Supabase pooler/TLS, RLS, `/api/health`), `JUDGE_ENABLED` выключает Run/Submit на Vercel.
+- Решение (2026-10-18): вариант (a), `docs/specs/judge-prod.md` (сравнение с VPS и hosted-судьями). Включается `JUDGE_EXECUTOR=vercel-sandbox`; локально и в CI по-прежнему Docker.

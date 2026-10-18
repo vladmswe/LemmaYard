@@ -56,7 +56,9 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
   reads its body with `readJsonBody()` (`src/server/http/request.ts`).
   Redirect targets from `?next=` go through `safeRedirectPath()`.
 - Judge: executor contract `worker/types.ts`, comparator + verdicts
-  `worker/judge.ts`, Docker runner `worker/docker-executor.ts`, harnesses
+  `worker/judge.ts`, Docker runner `worker/docker-executor.ts`, production
+  runner `worker/vercel-sandbox-executor.ts` (`JUDGE_EXECUTOR=vercel-sandbox`,
+  drained in-app by `src/server/judge-runner.ts`, `docs/specs/judge-prod.md`), harnesses
   `sandbox/harness.{py,js}`. Queue SQL and job/result mapping
   `worker/queue.ts`, slots + sweep `worker/loop.ts`, process `worker/index.ts`.
   Finalize only `WHERE status='running'`; never requeue; worker logs never
@@ -84,7 +86,8 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
   working; theme-aware client code reads `useAppliedTheme()`).
 - DB schema changes only in M1. Later milestones must not change the schema.
   Exception: each feature spec (F-features, Rooms) adds one additive migration.
-- User code runs only inside the Docker sandbox, always, including in tests.
+- User code runs only inside the sandbox (Docker; in production a Vercel
+  Sandbox microVM), always, including in tests.
   Authored guide code samples in `src/content/learn/**/code/` are trusted repo code and may run on the host in unit tests; the Docker-only rule applies to untrusted user submissions.
 - Zod validation on every boundary (env, request bodies, problem files, worker
   input/output). SQL only through Drizzle.

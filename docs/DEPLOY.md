@@ -10,7 +10,7 @@ What runs where:
 | --- | --- | --- |
 | Web app (Next.js pages + API routes) | Vercel Functions | Reads/writes Postgres through the Supabase transaction pooler. |
 | Database | Supabase Postgres | Migrations and the problem import are run from your machine. |
-| Judge worker (`pnpm worker`) | **Not deployed** | Needs Docker; see "What does not work yet". |
+| Judge (Run / Submit) | Vercel Sandbox microVMs, started by the API routes | Off until you set `JUDGE_EXECUTOR=vercel-sandbox` (section 7). `pnpm worker` (Docker) is not deployed. |
 
 ## 1. Supabase: which connection strings to copy
 
@@ -76,7 +76,9 @@ the `AUTH_URL` note):
 | `DATABASE_SSL` | no | `no-verify` | `disable`, `require` or `no-verify`; see section 4. |
 | `DATABASE_SSL_CA` | no | `-----BEGIN CERTIFICATE-----\n...` | PEM CA for verified TLS; see section 4. |
 | `DATABASE_POOL_MAX` | no | `1` | Connections per function instance. Default 1 on Vercel (detected from Vercel's `VERCEL` system variable), 10 elsewhere. |
-| `JUDGE_ENABLED` | no | `1` | Code execution (Run, Submit, room session start). Unset: **off on Vercel**, on everywhere else. Leave it unset on Vercel while no worker is deployed (section 7); set `1` only once a judge serves this database, `0` to switch it off anywhere. Only `0` and `1` are accepted. |
+| `JUDGE_EXECUTOR` | no | `vercel-sandbox` | Who runs user code. `docker` (default) = a `pnpm worker` process with Docker; `vercel-sandbox` = the app judges in Vercel Sandbox microVMs (section 7). |
+| `JUDGE_ENABLED` | no | `0` | Code execution (Run, Submit, room session start). Unset: on, **except on Vercel with `JUDGE_EXECUTOR` unset/`docker`** (no worker there). `0` switches it off anywhere, `1` forces it on (only with a judge that serves this database). Only `0` and `1` are accepted. |
+| `VERCEL_SANDBOX_IMAGE_PYTHON`, `VERCEL_SANDBOX_IMAGE_NODE` | no | `vercel/sandbox/python:3.14`, `vercel/sandbox/node:22` | Sandbox images for `JUDGE_EXECUTOR=vercel-sandbox`. Leave unset (the defaults). |
 
 Do **not** set `DATABASE_URL_DIRECT` on Vercel; the web app never uses it.
 Do not set `NODE_ENV` or `PORT` either; Vercel manages them. Do not set
@@ -185,8 +187,9 @@ notices for these tables are expected and intended (deny by default). The
 ## 6. Check the deployment
 
 1. `https://<production domain>/api/health` must answer
-   `200 {"ok":true,"db":"up","judge":"disabled"}` (`judge` is the configured
-   `JUDGE_ENABLED` mode, not a probe of a worker; it never changes the status).
+   `200 {"ok":true,"db":"up","judge":"disabled"}` (`"enabled"` once section 7
+   is done; `judge` is the configured mode, not a probe of the judge; it never
+   changes the status).
    `503 {"ok":false,"db":"down",...}` means the app cannot reach or query the
    database; the reason is only in the logs (step 3), never in the response.
 2. Open `/`: it shows the problem count and the "Start with these" table. If
@@ -210,19 +213,72 @@ notices for these tables are expected and intended (deny by default). The
    "Security"); for stronger protection, add a Vercel Firewall rate-limit rule
    for `/api/auth/*`.
 
-## 7. What does not work yet in production
+## 7. The judge in production (Vercel Sandbox)
 
-**Run and Submit need the judge worker**, which runs user code in Docker
-containers on a long-lived host. Vercel has no Docker, so the app runs in
-"judge disabled" mode there by default (`JUDGE_ENABLED` unset + Vercel's
-`VERCEL` variable): Run and Submit are disabled on the problem page with a
-note, the API answers `503 {"code":"judge_disabled"}` without queuing
-anything, and room sessions can be set up but not started. Pages, accounts,
-profiles, the guide and room lobbies work. The plan (PLAN.md §13) is a Vercel Sandbox executor behind the
-existing `Executor` interface (isolated microVMs, started from Vercel
-Functions), or alternatively a small VPS running only the worker.
+Until you turn it on, the app runs in "judge disabled" mode on Vercel
+(`JUDGE_EXECUTOR` unset + Vercel's `VERCEL` variable): Run and Submit are
+disabled on the problem page with a note, the API answers
+`503 {"code":"judge_disabled"}` without queuing anything, and room sessions
+can be set up but not started. Everything else works.
 
-### Enabling a judge with a worker host (not yet tried in production)
+With `JUDGE_EXECUTOR=vercel-sandbox` the web app judges by itself: after a Run
+or Submit is queued, the same function starts a fresh **Vercel Sandbox**
+microVM (no network, discarded after the job), runs the code there and writes
+the verdict. No server, Docker or worker to run. Why this and not a VPS:
+[`docs/specs/judge-prod.md`](specs/judge-prod.md).
+
+### Turn it on (about 5 minutes)
+
+1. Vercel → your project → **Settings → Security → Secure backend access with
+   OIDC Federation**: it must be **enabled** (it is by default for new
+   projects; keep issuer mode **Team**). This is how the app authenticates to
+   Vercel Sandbox: no token or API key to create or paste.
+2. Vercel → project → **Settings → Environment Variables** → Add, environment
+   **Production** (and Preview if you test there):
+   - `JUDGE_EXECUTOR` = `vercel-sandbox`
+   - Leave `JUDGE_ENABLED`, `VERCEL_SANDBOX_IMAGE_PYTHON` and
+     `VERCEL_SANDBOX_IMAGE_NODE` **unset** (if you set `JUDGE_ENABLED=0`
+     earlier, delete it).
+3. **Redeploy** (Deployments → ⋯ on the latest → Redeploy).
+4. Check: `https://<production domain>/api/health` reports `"judge":"enabled"`.
+   Log in, open Two Sum, click **Run**, then **Submit** a correct solution in
+   Python and in JavaScript: both must end as Accepted within a few seconds
+   (the first run after a deploy can take a little longer).
+5. Optional: Vercel → team **Settings → Billing / Usage → Sandbox** shows the
+   sandbox creations; each Run or Submit is one.
+
+To switch the judge off again: set `JUDGE_ENABLED=0` (or remove
+`JUDGE_EXECUTOR`) and redeploy.
+
+### Limits and costs
+
+- **Hobby** includes 5,000 sandbox creations, 5 h of active CPU and 420 GB-h
+  of memory per month, at most 10 sandboxes at once. One Run or Submit = one
+  creation (1 vCPU / 2 GB for a few seconds, billed per started minute), so
+  about 5,000 judgements a month are free. When the allowance is used up,
+  Vercel pauses sandbox creation until the next cycle (no charge): Runs and
+  Submits then end as **Internal error** with a "sandbox" reason.
+- **Pro**: about $0.0008 per judgement, inside the $20 monthly credit for this
+  project's size. Set a Spend Management limit if you want a hard cap.
+- Per-user limits (`MAX_ACTIVE_PER_USER`, `RUN_RATE_PER_MIN`,
+  `SUBMIT_RATE_PER_MIN`) apply as before.
+- `DATABASE_POOL_MAX` (default 1 on Vercel) also serves the judging that runs
+  after a response; if pages feel slow while many people submit, set it to `2`
+  or `3`.
+
+### If something goes wrong
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| Every Run/Submit ends as Internal error, logs show `"msg":"judged"` with `"reason":"internal error: sandbox: ..."` mentioning authentication / OIDC / 401 / 403 | OIDC federation disabled for the project | Step 1, then redeploy. |
+| Same, reason mentions quota, limit or 429 | Hobby allowance used up or more than 10 sandboxes at once | Wait for the next cycle, or upgrade to Pro. |
+| Submissions stay "queued" and the UI says "Judge is unavailable" | `JUDGE_EXECUTOR` not set for this environment, or not redeployed | Step 2–3; `/api/health` must say `"judge":"enabled"`. |
+| Internal error "worker crashed or timed out" | The function was stopped mid-run (deploy, platform restart); the row is closed after `STALE_RUNNING_MIN` minutes | Submit again. |
+
+Logs (Vercel → Logs) contain one JSON line per judgement (`"msg":"judged"`,
+submission id, verdict, counts, duration); never code or program output.
+
+### Alternative: a worker host with Docker (not tried in production)
 
 The worker is the same process as locally; it only needs Docker and the
 database:
@@ -237,8 +293,8 @@ database:
    requires it).
 3. Run `pnpm worker` under a process manager (systemd, pm2, ...). At start it
    checks Docker and both images and logs `worker started`.
-4. On Vercel set `JUDGE_ENABLED=1` and redeploy; `/api/health` then reports
-   `"judge":"enabled"`.
+4. On Vercel leave `JUDGE_EXECUTOR` unset (`docker`), set `JUDGE_ENABLED=1`
+   and redeploy; `/api/health` then reports `"judge":"enabled"`.
 
 Every Run and Submit then waits in `submissions` until the worker claims it.
 If the worker stops, the UI reports "Judge is unavailable, try again later"
