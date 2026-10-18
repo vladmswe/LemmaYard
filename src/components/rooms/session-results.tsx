@@ -190,7 +190,8 @@ export function FinalScoreboard({ results, rows }: { results: FinishedResults; r
           nameExtra={(r) => (byUser.get(r.userId)?.isMember === false ? <span className="text-sm text-muted-foreground">(left)</span> : null)}
           cellExtra={(r, cell) => {
             const p = byUser.get(r.userId);
-            return p ? <SolutionLink results={results} participant={p} cell={cell} /> : null;
+            // A self-reported LeetCode solve has no code here.
+            return p && !cell.selfReported ? <SolutionLink results={results} participant={p} cell={cell} /> : null;
           }}
           ratings={ratingMap(results)}
           problemRatings={problemRatingMap(results)}

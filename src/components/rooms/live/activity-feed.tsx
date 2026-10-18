@@ -13,6 +13,7 @@ import {
   CircleXIcon,
   FlagIcon,
   PlayIcon,
+  Undo2Icon,
   UserPlusIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -24,6 +25,8 @@ import type { FeedLine } from "@/lib/rooms/notifications";
 
 const KIND: Record<FeedLine["kind"], { icon: LucideIcon; className: string }> = {
   solved: { icon: CircleCheckIcon, className: "text-success" },
+  self: { icon: CircleCheckIcon, className: "text-success" },
+  undone: { icon: Undo2Icon, className: "text-muted-foreground" },
   attempt: { icon: CircleXIcon, className: "text-danger" },
   judging: { icon: CircleDashedIcon, className: "text-info" },
   joined: { icon: UserPlusIcon, className: "text-info" },

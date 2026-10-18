@@ -118,7 +118,8 @@ export type FeedLine = {
   id: string;
   /** Event time (ISO), shown as the session clock or local time. */
   at: string;
-  kind: "solved" | "attempt" | "joined" | "started" | "ended" | "cancelled" | "judging";
+  /** `self` = a self-reported LeetCode solve (no ∎: nothing was proven); `undone` = it was taken back. */
+  kind: "solved" | "self" | "undone" | "attempt" | "joined" | "started" | "ended" | "cancelled" | "judging";
   text: string;
   /** Session clock ("23:41") for events during the live window. */
   clock: string | null;
@@ -143,7 +144,7 @@ export function feedLine(event: RoomEvent, ctx: Pick<NoticeContext, "titles">, s
       const extra = p.firstSolver ? " (first)" : p.wrongBefore > 0 ? ` after ${p.wrongBefore} wrong` : "";
       return {
         ...base,
-        kind: "solved",
+        kind: p.selfReported ? "self" : "solved",
         clock: formatScoreTime(p.solveSeconds),
         text: p.selfReported
           ? `${event.actor.username} marked ${name(p.position)} solved (self-reported)${p.firstSolver ? " (first)" : ""}`
@@ -153,7 +154,7 @@ export function feedLine(event: RoomEvent, ctx: Pick<NoticeContext, "titles">, s
     case "solve_undone":
       return {
         ...base,
-        kind: "attempt",
+        kind: "undone",
         text: `${event.actor.username} undid their self-reported solve of ${name(event.payload.position)}`,
       };
     case "attempt_failed":

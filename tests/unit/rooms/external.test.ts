@@ -205,7 +205,7 @@ describe("self-reported cells and feed", () => {
 
   it("feed and toast copy say self-reported; undo is a feed line only", () => {
     expect(feedLine(solved, ctx, "2026-10-24T18:00:00.000Z")).toMatchObject({
-      kind: "solved",
+      kind: "self",
       text: "bob marked Problem 2 · Two Sum solved (self-reported) (first)",
     });
     expect(eventNotice(solved, ctx, true)?.title).toBe("bob marked Problem 2 · Two Sum solved (self-reported)");
