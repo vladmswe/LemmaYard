@@ -14,8 +14,10 @@ import { MIGRATIONS_DIR } from "@/server/db/migrate";
 import { testDbName, testDbUrl } from "../helpers/db";
 import { withDatabase } from "../helpers/test-db-name";
 
+// All migrations run, so the list includes later room tables (0005: room_external_problems).
 const ROOM_TABLES = [
   "room_events",
+  "room_external_problems",
   "room_members",
   "room_session_participants",
   "room_session_problems",

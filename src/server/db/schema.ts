@@ -5,6 +5,8 @@
 // Migration 0003 (Rooms, docs/specs/rooms.md) is the first feature migration.
 // Migration 0004 (Rooms v2, docs/specs/rooms-v2.md §8, owner decision D2:
 // ratings are PER ROOM, stored on room_members) adds columns only.
+// Migration 0005 (docs/specs/rooms-external-problems.md §1): the room's
+// LeetCode list and external (LeetCode) session slots.
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -336,6 +338,41 @@ export const rooms = pgTable(
   ],
 ).enableRLS();
 
+/**
+ * A room's LeetCode list (rooms-external-problems §1.1). Only the slug is
+ * stored; the link is built on render. Owner-entered title, difficulty and
+ * rating (display only). Nothing here comes from leetcode.com.
+ */
+export const roomExternalProblems = pgTable(
+  "room_external_problems",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => rooms.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    difficulty: difficultyEnum("difficulty"),
+    rating: smallint("rating"),
+    addedBy: uuid("added_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("room_external_problems_room_slug").on(t.roomId, t.slug),
+    index("room_external_problems_room_idx").on(t.roomId, t.createdAt),
+    check(
+      "room_external_problems_slug",
+      sql`char_length(${t.slug}) BETWEEN 1 AND 100 AND ${t.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`,
+    ),
+    check(
+      "room_external_problems_title",
+      sql`char_length(${t.title}) BETWEEN 1 AND 100 AND ${t.title} !~ '[[:cntrl:]]'`,
+    ),
+    check("room_external_problems_rating", sql`${t.rating} IS NULL OR ${t.rating} BETWEEN 0 AND 4000`),
+  ],
+).enableRLS();
+
 export const roomMembers = pgTable(
   "room_members",
   {
@@ -454,21 +491,48 @@ export const roomSessionProblems = pgTable(
       .references(() => roomSessions.id, { onDelete: "cascade" }),
     position: smallint("position").notNull(),
     // RESTRICT: problems are unpublished, never deleted; history must keep them.
-    problemId: uuid("problem_id")
-      .notNull()
-      .references(() => problems.id, { onDelete: "restrict" }),
-    /** Snapshot at pick time (calibration). */
-    difficulty: difficultyEnum("difficulty").notNull(),
+    // Null for a LeetCode slot (rooms-external-problems §1.2).
+    problemId: uuid("problem_id").references(() => problems.id, { onDelete: "restrict" }),
+    /** Snapshot at pick time (calibration). Null only for a LeetCode slot without one. */
+    difficulty: difficultyEnum("difficulty"),
     pinned: boolean("pinned").notNull().default(false),
     /** Rooms v2: effective problem rating at session start, and its change when ratings were applied. */
     ratingAtStart: smallint("rating_at_start"),
     ratingDelta: smallint("rating_delta"),
+    /**
+     * LeetCode slot (rooms-external-problems §1.2): a snapshot of the bank
+     * entry (or of a pasted link) taken when the slot was filled. The bank
+     * reference only links back; removing the entry keeps the snapshot.
+     */
+    externalProblemId: uuid("external_problem_id").references(() => roomExternalProblems.id, {
+      onDelete: "set null",
+    }),
+    externalSlug: text("external_slug"),
+    externalTitle: text("external_title"),
+    externalRating: smallint("external_rating"),
   },
   (t) => [
     primaryKey({ columns: [t.sessionId, t.position] }),
     unique("room_session_problems_unique_problem").on(t.sessionId, t.problemId),
     check("room_session_problems_position", sql`${t.position} BETWEEN 1 AND 8`),
     index("room_session_problems_problem_idx").on(t.problemId),
+    uniqueIndex("room_session_problems_unique_external")
+      .on(t.sessionId, t.externalSlug)
+      .where(sql`${t.externalSlug} IS NOT NULL`),
+    index("room_session_problems_external_idx")
+      .on(t.externalProblemId)
+      .where(sql`${t.externalProblemId} IS NOT NULL`),
+    // Exactly one kind: our problem (with a difficulty, no external fields) or a LeetCode snapshot.
+    check(
+      "room_session_problems_kind",
+      sql`(${t.problemId} IS NOT NULL AND ${t.difficulty} IS NOT NULL AND ${t.externalSlug} IS NULL
+          AND ${t.externalTitle} IS NULL AND ${t.externalRating} IS NULL AND ${t.externalProblemId} IS NULL)
+        OR (${t.problemId} IS NULL AND ${t.externalSlug} IS NOT NULL AND ${t.externalTitle} IS NOT NULL
+          AND char_length(${t.externalSlug}) BETWEEN 1 AND 100 AND ${t.externalSlug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+          AND char_length(${t.externalTitle}) BETWEEN 1 AND 100 AND ${t.externalTitle} !~ '[[:cntrl:]]'
+          AND (${t.externalRating} IS NULL OR ${t.externalRating} BETWEEN 0 AND 4000)
+          AND ${t.ratingAtStart} IS NULL AND ${t.ratingDelta} IS NULL AND NOT ${t.pinned})`,
+    ),
   ],
 ).enableRLS();
 
@@ -571,10 +635,11 @@ export const roomEvents = pgTable(
   (t) => [
     // Replay by cursor (Q6).
     index("room_events_session_id_idx").on(t.sessionId, t.id),
-    // One solve event per (session, user, position), even if outcome code runs twice.
+    // One judged solve event per (session, user, position), even if outcome code runs twice.
+    // Self-reported LeetCode solves can be undone and marked again (rooms-external-problems §5).
     uniqueIndex("room_events_one_solve")
       .on(t.sessionId, t.actorUserId, sql`(${t.payload} ->> 'position')`)
-      .where(sql`${t.type} = 'problem_solved'`),
+      .where(sql`${t.type} = 'problem_solved' AND (${t.payload} ->> 'selfReported') IS NULL`),
     check("room_events_payload_size", sql`octet_length(${t.payload}::text) <= 2048`),
     // Without a numeric position the one-solve index could not deduplicate.
     check(

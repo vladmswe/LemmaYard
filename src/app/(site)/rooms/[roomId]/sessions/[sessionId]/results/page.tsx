@@ -21,6 +21,7 @@ import {
 } from "@/components/rooms/session-results";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
+import { SELF_REPORTED_NOTE } from "@/lib/rooms/external";
 import { plural, sessionResultsHref, sessionScreenHref } from "@/lib/rooms/history";
 import { formatShortDate } from "@/lib/format";
 import { getCurrentUser, requireUser } from "@/server/auth/session";
@@ -104,6 +105,9 @@ export default async function SessionResultsPage({
           <>
             <LocalTime iso={session.startedAt} />–<LocalTime iso={session.endedAt} /> · {plural(n, "problem")} ·{" "}
             {session.durationMin} min · {plural(results.participants.length, "participant")}
+            {results.problems.some((p) => p.external) && (
+              <span data-testid="results-self-reported"> · {SELF_REPORTED_NOTE.toLowerCase()}</span>
+            )}
           </>
         }
         qed

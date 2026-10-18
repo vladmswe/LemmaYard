@@ -36,6 +36,13 @@
       "when": 1792324757996,
       "tag": "0004_rooms_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792340260175,
+      "tag": "0005_rooms_external_problems",
+      "breakpoints": true
     }
   ]
 }

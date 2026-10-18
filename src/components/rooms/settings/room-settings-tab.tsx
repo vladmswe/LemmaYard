@@ -3,15 +3,26 @@
 // owner edits, members read), plus the viewer's own starting rating. Mounted
 // in the `defaults` region of the V2-3 Settings tab (room-settings-tab.tsx),
 // which keeps sharing, members, invite link and the danger zone.
+import type { BankEntry } from "@/lib/rooms/external";
 import type { RoomDetail } from "@/server/rooms/queries";
 import type { SessionTag } from "@/server/rooms/session-page";
 
+import { LeetCodeBankCard } from "./leetcode-bank-card";
 import { MyRatingCard } from "./my-rating-card";
 import { PresetsCard } from "./presets-card";
 import { RoomProfileCard } from "./room-profile-card";
 import { ScheduleCard } from "./schedule-card";
 
-export function RoomDefaultsCards({ detail, tags }: { detail: RoomDetail; tags: SessionTag[] }) {
+export function RoomDefaultsCards({
+  detail,
+  tags,
+  bank,
+}: {
+  detail: RoomDetail;
+  tags: SessionTag[];
+  /** The room's LeetCode list (rooms-external-problems). */
+  bank: BankEntry[];
+}) {
   const { room, viewer } = detail;
   const isOwner = viewer.role === "owner";
   return (
@@ -31,6 +42,7 @@ export function RoomDefaultsCards({ detail, tags }: { detail: RoomDetail; tags: 
           canEdit={isOwner}
           tags={tags}
         />
+        <LeetCodeBankCard roomId={room.id} entries={bank} canEdit={isOwner} />
         <ScheduleCard
           // Re-mount after a save so the form starts from the stored schedule.
           key={JSON.stringify(room.schedule)}

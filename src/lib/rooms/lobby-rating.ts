@@ -182,7 +182,14 @@ export function emptyPositions(lobby: Pick<LobbyView, "problemCount" | "slots">)
 
 /** Why Start is disabled, in plain words (null = it can start, as far as slots go). */
 export function startBlockedReason(lobby: Pick<LobbyView, "problemCount" | "slots" | "mode" | "settings">): string | null {
-  const missing = emptyPositions(lobby).length;
+  const empty = emptyPositions(lobby);
+  // LeetCode slots are the last `external` positions (rooms-external-problems §1.2).
+  const drawn = lobby.problemCount - (lobby.settings.external ?? 0);
+  const missingExternal = empty.filter((p) => p > drawn).length;
+  const missing = empty.length - missingExternal;
+  if (missingExternal > 0 && missing === 0) {
+    return `Pick ${missingExternal} LeetCode problem${missingExternal === 1 ? "" : "s"} to start.`;
+  }
   if (missing > 0) {
     return lobbyMode(lobby) === "manual"
       ? `Pick ${missing} more problem${missing === 1 ? "" : "s"} with Pin to start.`

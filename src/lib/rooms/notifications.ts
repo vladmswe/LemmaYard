@@ -57,7 +57,9 @@ export function eventNotice(event: RoomEvent, ctx: NoticeContext, live: boolean)
       return {
         id: event.id,
         kind: "solved",
-        title: `${event.actor.username} solved ${problemText(ctx, event.payload.position)}`,
+        title: event.payload.selfReported
+          ? `${event.actor.username} marked ${problemText(ctx, event.payload.position)} solved (self-reported)`
+          : `${event.actor.username} solved ${problemText(ctx, event.payload.position)}`,
         description: solvedDescription(event.payload),
         action: { label: "Scoreboard", href: ctx.links.scoreboard },
       };
@@ -143,9 +145,17 @@ export function feedLine(event: RoomEvent, ctx: Pick<NoticeContext, "titles">, s
         ...base,
         kind: "solved",
         clock: formatScoreTime(p.solveSeconds),
-        text: `${event.actor.username} solved ${name(p.position)}${extra}`,
+        text: p.selfReported
+          ? `${event.actor.username} marked ${name(p.position)} solved (self-reported)${p.firstSolver ? " (first)" : ""}`
+          : `${event.actor.username} solved ${name(p.position)}${extra}`,
       };
     }
+    case "solve_undone":
+      return {
+        ...base,
+        kind: "attempt",
+        text: `${event.actor.username} undid their self-reported solve of ${name(event.payload.position)}`,
+      };
     case "attempt_failed":
       return { ...base, kind: "attempt", text: attemptFailedText(event.actor.username, event.payload.position) };
     case "participant_joined":

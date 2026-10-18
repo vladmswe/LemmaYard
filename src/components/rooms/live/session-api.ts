@@ -1,6 +1,7 @@
 // Client calls of the session routes (docs/specs/rooms.md §7.2). Unlike the
 // generic `postJson`, failures keep the whole body: draw errors carry `code`
 // and `counts` (§2.6) that the lobby renders inline.
+import type { BankView, SessionExternalBody } from "@/lib/rooms/external";
 import type { LobbyView } from "@/lib/rooms/session-view";
 import type { Mix } from "@/lib/rooms/types";
 
@@ -72,6 +73,18 @@ export const sessionApi = {
     call<{ slug: string; title: string; difficulty: "easy" | "medium" | "hard"; tags: string[] }[]>(
       "GET",
       `${base(roomId, sessionId)}/problem-search?q=${encodeURIComponent(q)}`,
+    ),
+  /** LeetCode slots (rooms-external-problems §3): add from the room list / a link, or remove. */
+  external: (roomId: string, sessionId: string, body: SessionExternalBody) =>
+    call<LobbyResponse>("POST", `${base(roomId, sessionId)}/external`, body),
+  /** The room's LeetCode list (members). */
+  bank: (roomId: string) => call<BankView>("GET", `/api/rooms/${encodeURIComponent(roomId)}/external-problems`),
+  /** Self-reported LeetCode solve of the viewer (live). */
+  selfReport: (roomId: string, sessionId: string, position: number, solved: boolean) =>
+    call<{ position: number; solved: boolean; solveSeconds: number | null }>(
+      "POST",
+      `${base(roomId, sessionId)}/slots/${position}/self-report`,
+      { solved },
     ),
   join: (roomId: string, sessionId: string) => call<{ joined: true }>("POST", `${base(roomId, sessionId)}/join`),
   leave: (roomId: string, sessionId: string) => call<{ joined: false }>("POST", `${base(roomId, sessionId)}/leave`),

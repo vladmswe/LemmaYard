@@ -37,8 +37,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { PendingCell, RoomEvent } from "@/lib/rooms/events";
 import { milestoneMessage } from "@/lib/rooms/live-clock";
+import { SELF_REPORTED_NOTE } from "@/lib/rooms/external";
 import {
   chips,
+  hasExternalProblems,
   pendingJudgingText,
   resultsHref,
   scoreboardRows,
@@ -65,6 +67,7 @@ import { CLOCK, DAY, DAY_CLOCK, formatLocal, LocalTime, useIsClient } from "./lo
 import { NewSessionButton } from "./new-session-button";
 import { NotificationSettings, NotificationSwitches } from "./notification-settings";
 import { ProblemList } from "./problem-list";
+import { ExternalProblemsCard } from "./self-report";
 import { sessionApi } from "./session-api";
 import { SessionStatusBadge } from "./session-status";
 import { useAnnouncer } from "./use-notifications";
@@ -331,6 +334,7 @@ export function SessionScreen({ data, judgeEnabled }: { data: SessionPageData; j
             judging={judgingLines}
             isParticipant={live.viewer.isParticipant}
             pendingCells={live.pending}
+            refresh={live.refresh}
           />
         )}
         {status === "finished" && snapshot && (
@@ -510,10 +514,12 @@ function LiveBody({
   judging,
   isParticipant,
   pendingCells,
-}: BodyProps & { judging: FeedLine[]; isParticipant: boolean }) {
+  refresh,
+}: BodyProps & { judging: FeedLine[]; isParticipant: boolean; refresh: () => void }) {
   const large = useMediaQuery(LARGE);
   const { rows, myChips } = useMatrix({ data, snapshot, pendingCells });
   const sessionId = data.session.id;
+  const selfReported = hasExternalProblems(snapshot.problems);
   const matrix = (mobileLegend: boolean) => (
     <ScoreMatrix
       problems={snapshot.problems}
@@ -541,7 +547,7 @@ function LiveBody({
       </div>
       {large !== false && watching}
       {matrix(mobileLegend)}
-      <MatrixLegend className="mt-1" />
+      <MatrixLegend className="mt-1" selfReported={selfReported} />
     </section>
   );
   const activity = (
@@ -595,10 +601,12 @@ function LiveBody({
           {watching}
           <ProblemList
             snapshot={snapshot}
+            roomId={data.room.id}
             sessionId={sessionId}
             viewerId={data.viewerId}
             isParticipant={isParticipant}
             pending={pendingCells}
+            onSelfReport={refresh}
           />
         </TabsContent>
         <TabsContent value="scoreboard" keepMounted>
@@ -613,6 +621,14 @@ function LiveBody({
   }
   return (
     <div className="flex flex-col gap-8">
+      <ExternalProblemsCard
+        snapshot={snapshot}
+        roomId={data.room.id}
+        sessionId={sessionId}
+        viewerId={data.viewerId}
+        isParticipant={isParticipant}
+        onChanged={refresh}
+      />
       {board(true)}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
         {activity}
@@ -646,7 +662,12 @@ function FinishedBody({
           final
           caption="Final standings: who solved which problem and when"
         />
-        <MatrixLegend className="mt-1" />
+        <MatrixLegend className="mt-1" selfReported={hasExternalProblems(snapshot.problems)} />
+        {hasExternalProblems(snapshot.problems) && (
+          <p className="text-sm text-muted-foreground" data-testid="self-reported-note">
+            {SELF_REPORTED_NOTE}.
+          </p>
+        )}
       </section>
       <div className="flex flex-wrap gap-3">
         {/* No prefetch: the results page is a separate, heavier route. */}

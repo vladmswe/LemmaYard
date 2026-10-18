@@ -14,6 +14,8 @@ export const ROOM_EVENT_TYPES = [
   "attempt_failed",
   "session_ended",
   "session_cancelled",
+  // rooms-external-problems §5: a participant took back a self-reported LeetCode solve.
+  "solve_undone",
 ] as const;
 export type RoomEventType = (typeof ROOM_EVENT_TYPES)[number];
 
@@ -37,10 +39,13 @@ export const roomEventPayloadSchemas = {
     wrongBefore: z.number().int().min(0),
     firstSolver: z.boolean(),
     solvedCount: z.number().int().min(1).max(8),
+    /** A LeetCode slot marked solved by the participant (honor system, not judged). */
+    selfReported: z.literal(true).optional(),
   }),
   attempt_failed: z.strictObject({ position, attempts: z.number().int().min(1) }),
   session_ended: z.strictObject({ endedAt: isoTime, reason: z.enum(["time", "host"]) }),
   session_cancelled: z.strictObject({}),
+  solve_undone: z.strictObject({ position, solvedCount: z.number().int().min(0).max(8) }),
 } as const satisfies Record<RoomEventType, z.ZodType>;
 
 export type RoomEventPayload<T extends RoomEventType> = z.infer<(typeof roomEventPayloadSchemas)[T]>;
@@ -50,6 +55,7 @@ export const ACTOR_EVENT_TYPES: ReadonlySet<RoomEventType> = new Set([
   "participant_joined",
   "problem_solved",
   "attempt_failed",
+  "solve_undone",
 ]);
 
 export type Actor = { userId: string; username: string };
@@ -63,7 +69,8 @@ export type RoomEvent =
   | (Base<"problem_solved"> & { actor: Actor; payload: RoomEventPayload<"problem_solved"> })
   | (Base<"attempt_failed"> & { actor: Actor; payload: RoomEventPayload<"attempt_failed"> })
   | (Base<"session_ended"> & { payload: RoomEventPayload<"session_ended"> })
-  | Base<"session_cancelled">;
+  | Base<"session_cancelled">
+  | (Base<"solve_undone"> & { actor: Actor; payload: RoomEventPayload<"solve_undone"> });
 
 /** What the server appends (`appendRoomEvent`); validated before insert. */
 export type NewRoomEvent = {
@@ -125,6 +132,8 @@ export function toRoomEvent(row: RoomEventRow): RoomEvent | null {
       return { id, type: row.type, at, payload: parsed.data as RoomEventPayload<"session_ended"> };
     case "session_cancelled":
       return { id, type: row.type, at };
+    case "solve_undone":
+      return { id, type: row.type, at, actor: actor!, payload: parsed.data as RoomEventPayload<"solve_undone"> };
   }
 }
 
@@ -178,13 +187,19 @@ export type SessionSnapshot = {
     durationMin: number;
     problemCount: number;
   };
-  /** `slug`/`title` omitted in the lobby for non-hosts. */
+  /**
+   * `slug`/`title` omitted in the lobby for non-hosts. A LeetCode slot
+   * (rooms-external-problems) has no `slug` (it is not our problem) and an
+   * `external` object; its slug and rating are omitted while titles are hidden.
+   */
   problems: {
     position: number;
     slug?: string;
     title?: string;
-    difficulty: (typeof DIFFICULTIES)[number];
+    /** Null only for a LeetCode slot without a difficulty. */
+    difficulty: (typeof DIFFICULTIES)[number] | null;
     tags: string[];
+    external?: { slug?: string; rating?: number | null };
   }[];
   participants: {
     userId: string;

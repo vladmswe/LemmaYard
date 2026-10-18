@@ -8,7 +8,7 @@
 // finalize paths already hold it) and claims the session with
 // `UPDATE … SET rated_at WHERE rated_at IS NULL`, so it happens exactly once.
 // Member rows, then problem rows, are updated in ascending id order.
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import {
   BAND_DEFAULT_RATING,
@@ -195,13 +195,16 @@ export async function applySessionRatings(tx: Tx, sessionId: string): Promise<Ap
       rated: roomSessions.rated,
       ratedAt: roomSessions.ratedAt,
       overdue: sql<boolean>`(${roomSessions.endedAt} + make_interval(mins => ${RATING_PENDING_GRACE_MIN}) <= clock_timestamp())`,
+      // Only LeetCode slots (self-reported): nothing to rate (start already marks such sessions unrated).
+      judged: sql<boolean>`EXISTS (SELECT 1 FROM room_session_problems sp
+        WHERE sp.session_id = ${roomSessions.id} AND sp.problem_id IS NOT NULL)`,
     })
     .from(roomSessions)
     .where(eq(roomSessions.id, sessionId))
     .limit(1);
   if (!s) return { applied: false, reason: "no_session" };
   if (s.status !== "finished") return { applied: false, reason: "not_finished" };
-  if (!s.rated) return { applied: false, reason: "unrated" };
+  if (!s.rated || !s.judged) return { applied: false, reason: "unrated" };
   if (s.ratedAt !== null) return { applied: false, reason: "already_applied" };
   if (!s.overdue) {
     const [{ pending }] = await tx
@@ -235,8 +238,9 @@ export async function applySessionRatings(tx: Tx, sessionId: string): Promise<Ap
     })
     .from(roomSessionProblems)
     .innerJoin(problems, eq(problems.id, roomSessionProblems.problemId))
-    .where(eq(roomSessionProblems.sessionId, sessionId))
-    .orderBy(asc(roomSessionProblems.position));
+    .where(and(eq(roomSessionProblems.sessionId, sessionId), isNotNull(roomSessionProblems.problemId)))
+    .orderBy(asc(roomSessionProblems.position))
+    .then((rows) => rows.map((r) => ({ ...r, problemId: r.problemId! })));
   const participantRows = await tx
     .select({ userId: roomSessionParticipants.userId, ratingAtStart: roomSessionParticipants.ratingAtStart })
     .from(roomSessionParticipants)
@@ -256,12 +260,14 @@ export async function applySessionRatings(tx: Tx, sessionId: string): Promise<Ap
     })
     .from(roomSessionResults)
     .where(eq(roomSessionResults.sessionId, sessionId));
+  // LeetCode slots (self-reported) never take part: only judged positions are pairs (rooms-external-problems §6).
+  const judged = new Set(slotRows.map((p) => p.position));
 
   // People without any rating (left the room before their start snapshot) are not rated.
   const rated = participantRows.flatMap((p) => {
     const rating = p.ratingAtStart ?? members.get(p.userId)?.rating ?? null;
     if (rating === null) return [];
-    const mine = resultRows.filter((r) => r.userId === p.userId);
+    const mine = resultRows.filter((r) => r.userId === p.userId && judged.has(r.position));
     return [
       {
         userId: p.userId,
@@ -402,7 +408,8 @@ export async function loadSessionRatings(db: Executor, sessionId: string): Promi
       delta: roomSessionProblems.ratingDelta,
     })
     .from(roomSessionProblems)
-    .where(eq(roomSessionProblems.sessionId, sessionId))
+    // Judged problems only: LeetCode slots never have a rating (rooms-external-problems §6).
+    .where(and(eq(roomSessionProblems.sessionId, sessionId), isNotNull(roomSessionProblems.problemId)))
     .orderBy(asc(roomSessionProblems.position));
   const people = await db
     .select({
@@ -411,6 +418,7 @@ export async function loadSessionRatings(db: Executor, sessionId: string): Promi
       before: roomSessionParticipants.ratingAtStart,
       delta: roomSessionParticipants.ratingDelta,
       active: sql<boolean>`EXISTS (SELECT 1 FROM ${roomSessionResults} r
+        JOIN room_session_problems sp ON sp.session_id = r.session_id AND sp.position = r.position AND sp.problem_id IS NOT NULL
         WHERE r.session_id = ${roomSessionParticipants.sessionId} AND r.user_id = ${roomSessionParticipants.userId} AND r.attempts > 0)`,
     })
     .from(roomSessionParticipants)

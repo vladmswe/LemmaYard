@@ -73,11 +73,15 @@ export type ResultParticipant = {
 
 export type ResultProblem = {
   position: number;
-  slug: string;
+  /** Our problem's slug; null for a LeetCode slot (see `external`). */
+  slug: string | null;
   title: string;
-  difficulty: Difficulty;
+  /** Null only for a LeetCode slot without a difficulty. */
+  difficulty: Difficulty | null;
   published: boolean;
   pinned: boolean;
+  /** A LeetCode slot (rooms-external-problems): honor-system results, never rated. */
+  external?: { slug: string; rating: number | null };
   /** Rooms v2 rating slot: the problem's rating before → after the session (absent: not shown). */
   rating?: { before: number; after: number };
 };
@@ -191,11 +195,15 @@ export async function getSessionResults(
         difficulty: roomSessionProblems.difficulty,
         published: problems.published,
         pinned: roomSessionProblems.pinned,
+        externalSlug: roomSessionProblems.externalSlug,
+        externalTitle: roomSessionProblems.externalTitle,
+        externalRating: roomSessionProblems.externalRating,
       })
       .from(roomSessionProblems)
-      .innerJoin(problems, eq(problems.id, roomSessionProblems.problemId))
+      .leftJoin(problems, eq(problems.id, roomSessionProblems.problemId))
       .where(eq(roomSessionProblems.sessionId, sessionId))
-      .orderBy(asc(roomSessionProblems.position)),
+      .orderBy(asc(roomSessionProblems.position))
+      .then((rows) => rows.map(toResultProblem)),
     db
       .select({
         userId: roomSessionParticipants.userId,
@@ -321,12 +329,44 @@ export async function getSessionResults(
       const r = ratingByPosition.get(p.position);
       return {
         ...p,
-        difficulty: p.difficulty as Difficulty,
         ...(r && r.before !== null && r.after !== null ? { rating: { before: r.before, after: r.after } } : {}),
       };
     }),
     participants,
     summaries,
+  };
+}
+
+/** A slot row of the results/history queries (left join on problems) as a result problem. */
+export function toResultProblem(r: {
+  position: number;
+  slug: string | null;
+  title: string | null;
+  difficulty: Difficulty | null;
+  published: boolean | null;
+  pinned: boolean;
+  externalSlug: string | null;
+  externalTitle: string | null;
+  externalRating: number | null;
+}): ResultProblem {
+  if (r.externalSlug !== null) {
+    return {
+      position: r.position,
+      slug: null,
+      title: r.externalTitle ?? r.externalSlug,
+      difficulty: r.difficulty,
+      published: true,
+      pinned: false,
+      external: { slug: r.externalSlug, rating: r.externalRating },
+    };
+  }
+  return {
+    position: r.position,
+    slug: r.slug ?? "",
+    title: r.title ?? "",
+    difficulty: r.difficulty,
+    published: r.published ?? false,
+    pinned: r.pinned,
   };
 }
 

@@ -34,6 +34,7 @@ import {
 
 import { requireRoomMember, type RoomAccess } from "./access";
 import { closeIfDueNow } from "./lifecycle";
+import { toResultProblem } from "./results";
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
@@ -51,10 +52,14 @@ export type OpenSessionItem = {
 
 export type HistoryProblem = {
   position: number;
-  slug: string;
+  /** Null for a LeetCode slot (see `external`). */
+  slug: string | null;
   title: string;
-  difficulty: Difficulty;
+  /** Null only for a LeetCode slot without a difficulty. */
+  difficulty: Difficulty | null;
   published: boolean;
+  /** A LeetCode slot (rooms-external-problems): its cells are self-reported. */
+  external?: { slug: string; rating: number | null };
 };
 
 export type HistorySessionItem = {
@@ -211,9 +216,13 @@ export async function getRoomHistory(
               title: problems.title,
               difficulty: roomSessionProblems.difficulty,
               published: problems.published,
+              pinned: roomSessionProblems.pinned,
+              externalSlug: roomSessionProblems.externalSlug,
+              externalTitle: roomSessionProblems.externalTitle,
+              externalRating: roomSessionProblems.externalRating,
             })
             .from(roomSessionProblems)
-            .innerJoin(problems, eq(problems.id, roomSessionProblems.problemId))
+            .leftJoin(problems, eq(problems.id, roomSessionProblems.problemId))
             .where(inArray(roomSessionProblems.sessionId, ids))
             .orderBy(asc(roomSessionProblems.position)),
         ]);
@@ -232,13 +241,11 @@ export async function getRoomHistory(
       problemCount: s.problemCount,
       problems: problemRows
         .filter((p) => p.sessionId === s.id)
-        .map((p) => ({
-          position: p.position,
-          slug: p.slug,
-          title: p.title,
-          difficulty: p.difficulty as Difficulty,
-          published: p.published,
-        })),
+        .map((p) => {
+          const { pinned: _pinned, ...problem } = toResultProblem(p);
+          void _pinned;
+          return problem;
+        }),
       participants: people.length,
       winners: finished ? people.filter((p) => p.rank === 1).map((p) => p.username) : [],
       viewer: mine && finished ? { solved: mine.solvedCount, rank: mine.rank } : null,
@@ -508,7 +515,8 @@ export async function getMemberTimeline(
     position: number;
     slug: string;
     title: string;
-    difficulty: Difficulty;
+    difficulty: Difficulty | null;
+    external: boolean;
     solve_seconds: number | null;
     wrong_before_accept: number | null;
     attempts: number | null;
@@ -524,7 +532,8 @@ export async function getMemberTimeline(
       LIMIT ${TIMELINE_SESSION_LIMIT + 1}
     )
     SELECT m.session_id, m.started_at, m.rank, m.solved_count, m.participants,
-           sp.position, pr.slug, pr.title, sp.difficulty,
+           sp.position, coalesce(pr.slug, sp.external_slug) AS slug, coalesce(pr.title, sp.external_title) AS title,
+           sp.difficulty, (sp.problem_id IS NULL) AS external,
            res.solve_seconds, res.wrong_before_accept, res.attempts,
            (res.solve_seconds IS NOT NULL AND res.first_accepted_at = (
               SELECT min(r2.first_accepted_at) FROM room_session_results r2
@@ -532,7 +541,7 @@ export async function getMemberTimeline(
            )) AS first_solver
     FROM mine m
     JOIN room_session_problems sp ON sp.session_id = m.session_id
-    JOIN problems pr ON pr.id = sp.problem_id
+    LEFT JOIN problems pr ON pr.id = sp.problem_id
     LEFT JOIN room_session_results res
       ON res.session_id = m.session_id AND res.user_id = ${target.userId} AND res.position = sp.position
     ORDER BY m.started_at DESC, m.session_id DESC, sp.position
@@ -562,6 +571,7 @@ export async function getMemberTimeline(
       slug: r.slug,
       title: r.title,
       difficulty: r.difficulty,
+      ...(r.external ? { external: true } : {}),
       solveSeconds: r.solve_seconds === null ? null : Number(r.solve_seconds),
       wrongBefore: Number(r.wrong_before_accept ?? 0),
       attempts: Number(r.attempts ?? 0),

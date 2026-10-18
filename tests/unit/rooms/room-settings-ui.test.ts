@@ -144,6 +144,7 @@ describe("lobby ↔ preset tiles", () => {
     mix: { easy: 1, medium: 1, hard: 0 },
     avoidSolved: false,
     rated: false,
+    external: 0,
   };
 
   it("choosing a tile copies the preset's fields; the tile then reads as selected", () => {
@@ -177,6 +178,7 @@ describe("lobby ↔ preset tiles", () => {
       mix: { easy: 1, medium: 1, hard: 0 },
       avoidSolved: false,
       rated: false,
+      external: 0,
     });
     expect(presetFormFromLobby({ ...lobby, mode: "rating" }).mixMode).toBe("suggested");
   });
