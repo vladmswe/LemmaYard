@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   BAND_DEFAULT_RATING,
+  clampAdjust,
+  clampRating,
   closedFormCenter,
   computeSessionRatings,
   drawSlotsByRating,
@@ -87,6 +89,14 @@ describe("solve probability and helpers", () => {
     expect(BAND_DEFAULT_RATING).toEqual({ easy: 1200, medium: 1600, hard: 2000 });
     expect(problemRating({ difficulty: "medium", authorRating: null, ratingAdjust: 0 })).toBe(1600);
     expect(problemRating({ difficulty: "hard", authorRating: 1900, ratingAdjust: -7 })).toBe(1893);
+  });
+
+  it("problem adjust is clamped to ±200 around the author rating; people to 400–3500 (AC-V2-RAT-5)", () => {
+    expect(clampAdjust(198 + 5)).toBe(200);
+    expect(clampAdjust(-199 - 8)).toBe(-200);
+    expect(clampAdjust(12)).toBe(12);
+    expect(clampRating(390)).toBe(400);
+    expect(clampRating(3600)).toBe(3500);
   });
 
   it("k = K / max(N, 4); K = 160 while provisional (< 8 rated pairs), 96 after", () => {
