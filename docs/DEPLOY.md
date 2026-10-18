@@ -153,7 +153,7 @@ by `pnpm db:export-sql`), copy the whole file, then in Supabase go to
 **SQL Editor → New query**, paste it and press **Run**. Use it on an EMPTY
 project only: it refuses to run if the tables already exist. It creates all 13
 tables, indexes and CHECKs, enables RLS on each table (no policies) and records
-the 4 migrations in `drizzle.__drizzle_migrations`, so a later
+the 5 migrations in `drizzle.__drizzle_migrations`, so a later
 `pnpm db:migrate` applies only migrations added after the file was generated.
 The result shows each table with `rls = true`. The file creates no data: load the
 20 problems afterwards with
@@ -168,7 +168,8 @@ policies**: migration `0002_enable_rls` covers `users`, `problems`, `tags`,
 `problem_tags`, `test_cases` and `submissions`; migration `0003_rooms` creates
 `rooms`, `room_members`, `room_sessions`, `room_session_problems`,
 `room_session_participants`, `room_session_results` and `room_events` with RLS
-enabled. Every table added later must enable it too
+enabled. Migration `0004_rooms_v2` (per-room ratings, problem ratings, room
+presets and schedule) only adds columns to existing tables. Every table added later must enable it too
 (`tests/integration/rls.test.ts` fails otherwise). Supabase exposes the `public` schema through its
 REST API (with the public `anon` key); without RLS, anyone with that key could
 read `users`, including password hashes. With RLS on and no policies, the

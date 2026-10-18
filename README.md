@@ -155,6 +155,12 @@ A Submit counts for a session only with an explicit `roomSessionId`, and it is
 scored inside the worker's `finalize()` transaction
 (`src/server/rooms/outcome.ts`), so every executor must finalize through it.
 Expiry is applied lazily by requests and by the worker's sweep.
+Rooms v2 ([`docs/specs/rooms-v2.md`](docs/specs/rooms-v2.md)): every member
+has one rating per room (`room_members.rating`, Elo-style, pure core in
+`src/lib/rooms/rating.ts`); new sessions pick problems by rating by default
+(or by difficulty, or by hand) from the room's default preset. A rated
+session updates the room's ratings once, when it is finished and nothing is
+still being judged (`src/server/rooms/ratings.ts`).
 
 **Guide** (`src/content/learn/`, `src/lib/guide/`, `src/components/guide/`).
 Each lesson is MDX plus metadata, quiz and code samples. A visualization is a
@@ -330,6 +336,11 @@ Rules worth knowing:
   `float` (float return; needs `epsilon`).
 - `limits` is optional (default 2000 ms, 256 MB); Python gets
   `LANG_TIME_MULT_PY`× the time.
+- `rating` is optional: the author's estimate for room selection by rating
+  (integer 800–3000; without it easy = 1200, medium = 1600, hard = 2000).
+  `problems:verify` warns when it is outside the usual band of the difficulty
+  (easy 1000–1450, medium 1450–1850, hard 1850–2400). The import updates only
+  the author rating; the drift learned from rated sessions is kept.
 - Names must be valid identifiers in both languages and must not be reserved
   words or common builtins (`src/lib/problems/identifiers.ts`).
 - `number` and `slug` must be unique. Write your own statement; do not copy
