@@ -9,7 +9,7 @@ import type { RoomSessionStatus } from "@/lib/rooms/types";
 
 export const SESSION_STATUSES: Record<RoomSessionStatus, { label: string; icon: LucideIcon; className: string }> = {
   lobby: { label: "Lobby", icon: ClockIcon, className: "bg-muted text-foreground-secondary" },
-  live: { label: "Live", icon: RadioIcon, className: "bg-info-bg text-info" },
+  live: { label: "Live", icon: RadioIcon, className: "bg-live-bg text-live" },
   finished: { label: "Finished", icon: FlagIcon, className: "border-border-strong text-foreground-secondary" },
   cancelled: { label: "Cancelled", icon: BanIcon, className: "bg-muted text-muted-foreground" },
 };

@@ -96,7 +96,7 @@ export function FinalScoreboard({ results }: { results: FinishedResults }) {
           <li
             key={p.userId}
             data-user={p.username}
-            className={cn("rounded-lg border bg-card p-4 shadow-xs", p.isViewer && "bg-secondary")}
+            className={cn("rounded-xl border bg-card p-4 shadow-sm", p.isViewer && "bg-secondary")}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -259,7 +259,7 @@ function SolutionLink({ ctx, participant: p, cell }: { ctx: Ctx; participant: Re
 export function ProblemSummaryList({ results }: { results: FinishedResults }) {
   const byPos = new Map(results.summaries.map((s) => [s.position, s]));
   return (
-    <section aria-labelledby="problems-heading" className="rounded-lg border bg-card shadow-xs">
+    <section aria-labelledby="problems-heading" className="rounded-xl border bg-card shadow-sm">
       <h2 id="problems-heading" className="px-6 pt-6 text-lg/7 font-semibold">
         Problems
       </h2>

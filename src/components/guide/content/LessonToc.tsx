@@ -13,6 +13,7 @@ interface Heading {
  */
 export function LessonToc({ articleId }: { articleId: string }) {
   const [headings, setHeadings] = useState<Heading[]>([]);
+  const [active, setActive] = useState<string | null>(null);
   const ref = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
@@ -27,6 +28,22 @@ export function LessonToc({ articleId }: { articleId: string }) {
     setHeadings(list);
   }, [articleId]);
 
+  // The section being read is drawn in primary (DESIGN.md §13.9): the last h2 above the top third.
+  useEffect(() => {
+    if (headings.length === 0 || typeof IntersectionObserver === "undefined") return;
+    const els = headings.map((h) => document.getElementById(h.id)).filter((el): el is HTMLElement => el !== null);
+    const update = () => {
+      const line = window.innerHeight / 3;
+      let current: string | null = null;
+      for (const el of els) if (el.getBoundingClientRect().top <= line) current = el.id;
+      setActive(current ?? els[0]?.id ?? null);
+    };
+    const io = new IntersectionObserver(update, { rootMargin: "0px 0px -66% 0px" });
+    els.forEach((el) => io.observe(el));
+    update();
+    return () => io.disconnect();
+  }, [headings]);
+
   const shown = headings.length > 0;
   useEffect(() => {
     if (shown && ref.current && window.matchMedia("(min-width: 80rem)").matches) ref.current.open = true;
@@ -40,7 +57,7 @@ export function LessonToc({ articleId }: { articleId: string }) {
         <ol className="guide-toc-list">
           {headings.map((h) => (
             <li key={h.id}>
-              <a href={`#${h.id}`} className="guide-toc-link">
+              <a href={`#${h.id}`} className="guide-toc-link" data-active={h.id === active || undefined}>
                 {h.text}
               </a>
             </li>

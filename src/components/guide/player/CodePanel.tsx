@@ -97,8 +97,10 @@ export function CodePanel({
               onKeyDown={onTabKey}
               data-code-tab={l.id}
               className={
-                "min-h-11 rounded-lg border px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50 " +
-                (selected ? "border-primary font-semibold" : "border-border text-muted-foreground hover:bg-muted")
+                "min-h-11 rounded-full border px-3.5 text-sm transition-colors duration-(--d-1) " +
+                (selected
+                  ? "border-foreground bg-foreground font-semibold text-background"
+                  : "border-border-strong text-muted-foreground hover:text-foreground")
               }
             >
               {l.label}
@@ -121,7 +123,7 @@ export function CodePanel({
           tabIndex={0}
           role="region"
           aria-label={`${language === "python" ? "Python" : "JavaScript"} code`}
-          className="max-h-72 overflow-auto rounded-lg border border-border bg-muted/40 py-2 font-mono text-sm leading-6 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 lg:max-h-[28rem]"
+          className="guide-player-code max-h-72 overflow-auto rounded-[14px] border border-border py-2 font-mono text-[0.8125rem] leading-6 lg:max-h-[28rem]"
           data-code-scroll=""
           dangerouslySetInnerHTML={{ __html: listing.html }}
         />

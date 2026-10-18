@@ -13,7 +13,7 @@ export type SessionStatusMeta = {
 // Cancelled `Ban` muted; always word + icon.
 export const SESSION_STATUSES: Record<RoomSessionStatus, SessionStatusMeta> = {
   lobby: { label: "Lobby", icon: ClockIcon, badge: "bg-muted text-muted-foreground" },
-  live: { label: "Live", icon: RadioIcon, badge: "bg-info-bg text-info" },
+  live: { label: "Live", icon: RadioIcon, badge: "bg-live-bg text-live" },
   finished: { label: "Finished", icon: FlagIcon, badge: "border-border-strong font-medium text-foreground-secondary" },
   cancelled: { label: "Cancelled", icon: BanIcon, badge: "bg-muted text-muted-foreground" },
 };

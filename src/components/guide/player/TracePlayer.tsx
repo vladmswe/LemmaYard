@@ -389,11 +389,15 @@ export function TracePlayer<S, I>(props: TracePlayerProps<S, I>): JSX.Element {
   const showCodeOpen = codeOpen ?? isDesktop;
   const hasCode = code !== undefined;
 
+  // The two-column layout (figure | code) follows the player's own width, not the
+  // viewport: inside a lesson's article column the player stacks.
   return (
+    <div className="@container/player w-full max-w-[1040px]">
     <div
       className={cn(
-        "w-full max-w-[1040px] rounded-xl border border-border bg-card p-3 text-card-foreground sm:p-4",
-        hasCode && "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:grid-rows-[repeat(6,auto)_1fr] lg:gap-x-6",
+        "guide-player w-full max-w-[1040px] rounded-[28px] border border-border bg-card p-3 text-card-foreground shadow-sm sm:p-4",
+        hasCode &&
+          "@min-[52rem]/player:grid @min-[52rem]/player:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] @min-[52rem]/player:grid-rows-[repeat(6,auto)_1fr] @min-[52rem]/player:gap-x-5",
       )}
       data-player={playerId}
       data-motion={motion ? "on" : "off"}
@@ -405,14 +409,19 @@ export function TracePlayer<S, I>(props: TracePlayerProps<S, I>): JSX.Element {
       aria-label={`${model.title} visualization`}
       onKeyDown={onKeyDown}
     >
-      <div className="min-w-0 space-y-3 lg:col-start-1">
+      {/* Top bar (DESIGN.md §13.9): operation and phase; the group's label already names the player. */}
+      <div aria-hidden="true" className="guide-player-bar @min-[52rem]/player:col-span-2" data-player-bar="">
+        <span className="guide-player-title">{model.title}</span>
+        <span className="guide-player-phase">{frame.phase}</span>
+      </div>
+      <div className="min-w-0 space-y-3 @min-[52rem]/player:col-start-1">
         <div
           ref={figureRef}
           tabIndex={0}
           aria-describedby={descId}
           aria-label={`${model.title} figure. Arrow keys step, Space plays.`}
           role="group"
-          className="viz-figure-bg overflow-hidden rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="viz-figure-bg viz-stage overflow-hidden rounded-[18px] border border-border"
           data-player-figure=""
         >
           <VizFrameContext.Provider value={frameCtx}>
@@ -433,7 +442,7 @@ export function TracePlayer<S, I>(props: TracePlayerProps<S, I>): JSX.Element {
         <LiveRegion text={live} />
       </div>
 
-      <div className="mt-3 min-w-0 space-y-3 lg:col-start-1">
+      <div className="mt-3 min-w-0 space-y-3 @min-[52rem]/player:col-start-1">
         {note && (
           <p className="text-sm text-muted-foreground" data-player-note="">
             {note}
@@ -504,8 +513,10 @@ export function TracePlayer<S, I>(props: TracePlayerProps<S, I>): JSX.Element {
                 tabIndex={o.id === opValue ? 0 : -1}
                 onClick={() => applyInput(props.withOp!(input, o.id))}
                 className={cn(
-                  "min-h-11 rounded-lg border px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                  o.id === opValue ? "border-primary font-semibold" : "border-border hover:bg-muted",
+                  "min-h-11 min-w-11 rounded-full border px-3.5 text-sm transition-colors duration-(--d-1)",
+                  o.id === opValue
+                    ? "border-foreground bg-foreground font-semibold text-background"
+                    : "border-border-strong hover:border-foreground-secondary",
                 )}
               >
                 {o.label}
@@ -517,13 +528,13 @@ export function TracePlayer<S, I>(props: TracePlayerProps<S, I>): JSX.Element {
       </div>
 
       {hasCode && (
-        <div className="mt-3 min-w-0 lg:col-start-2 lg:row-span-full lg:row-start-1 lg:mt-0">
+        <div className="mt-3 min-w-0 @min-[52rem]/player:col-start-2 @min-[52rem]/player:mt-0 @min-[52rem]/player:[grid-row:2/-1]">
           <details
             open={showCodeOpen}
             onToggle={(e) => setCodeOpen((e.currentTarget as HTMLDetailsElement).open)}
             data-player-code-details=""
           >
-            <summary className="flex min-h-11 cursor-pointer items-center rounded-lg px-1 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 lg:hidden">
+            <summary className="guide-player-summary lg:hidden">
               Show code
             </summary>
             <CodePanel
@@ -539,7 +550,7 @@ export function TracePlayer<S, I>(props: TracePlayerProps<S, I>): JSX.Element {
       )}
 
       {model.input && (
-        <div className="mt-4 min-w-0 lg:col-start-1">
+        <div className="mt-4 min-w-0 @min-[52rem]/player:col-start-1">
           <InputBar
             idPrefix={idPrefix}
             label={model.input.label}
@@ -555,10 +566,11 @@ export function TracePlayer<S, I>(props: TracePlayerProps<S, I>): JSX.Element {
         </div>
       )}
 
-      <div className="mt-4 min-w-0 lg:col-start-1">
+      <div className="mt-4 min-w-0 @min-[52rem]/player:col-start-1">
         <KeySteps
           frames={frames}
           Renderer={Renderer}
+          current={ps.index}
           open={keyOpen}
           onToggle={(o) => {
             if (o !== keyOpen) setKeyStepsOpen(o);
@@ -566,6 +578,7 @@ export function TracePlayer<S, I>(props: TracePlayerProps<S, I>): JSX.Element {
           onSeek={(i) => act({ type: "seek", index: i })}
         />
       </div>
+    </div>
     </div>
   );
 }

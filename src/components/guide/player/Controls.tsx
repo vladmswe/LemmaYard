@@ -29,7 +29,7 @@ export function MainControls({
   nextRef: Ref<HTMLButtonElement>;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1" data-player-main-controls="">
+    <div className="flex flex-wrap items-center gap-1.5" data-player-main-controls="">
       <Button variant="outline" className={ICON_BTN} aria-label="First step" onClick={onFirst}>
         <ChevronFirst aria-hidden="true" />
       </Button>
@@ -92,16 +92,16 @@ export function SecondaryControls({
 }) {
   const speedId = `${idPrefix}-speed`;
   return (
-    <div className="flex flex-wrap items-center gap-2" data-player-secondary-controls="">
+    <div className="guide-player-secondary" data-player-secondary-controls="">
       <div className="flex items-center gap-2">
-        <label htmlFor={speedId} className="text-sm">
+        <label htmlFor={speedId} className="text-sm text-foreground-secondary">
           Speed
         </label>
         <select
           id={speedId}
           value={String(speed)}
           onChange={(e) => onSpeed(Number(e.target.value) as Speed)}
-          className="min-h-11 rounded-lg border border-border bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="min-h-11 min-w-16 rounded-[10px] border border-input bg-card px-2.5 text-sm"
           data-player-speed=""
         >
           {SPEEDS.map((s) => (
@@ -116,10 +116,10 @@ export function SecondaryControls({
       {showTable !== null && (
         <PlayerSwitch name="table" label="Show as table" checked={showTable} onChange={onShowTable} />
       )}
-      <Button variant="outline" className="min-h-11 px-3" onClick={onCopyLink}>
+      <Button variant="ghost" className="min-h-11 px-3" onClick={onCopyLink}>
         Copy link to this step
       </Button>
-      <Button variant="outline" className="min-h-11 px-3" onClick={onReset}>
+      <Button variant="ghost" className="min-h-11 px-3" onClick={onReset}>
         Reset
       </Button>
     </div>

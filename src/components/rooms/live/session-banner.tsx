@@ -26,7 +26,7 @@ import { sessionApi } from "./session-api";
 import { useAnnouncer, useNotificationPrefs } from "./use-notifications";
 import { useSessionLive } from "./use-session-live";
 
-const NAV_LINK = "inline-flex size-8 items-center justify-center rounded-md text-foreground-secondary hover:bg-secondary hover:text-foreground relative after:absolute after:-inset-1";
+const NAV_LINK = "relative inline-flex size-8 items-center justify-center rounded-full text-foreground-secondary transition-colors duration-(--d-1) after:absolute after:-inset-1 hover:bg-card hover:text-foreground";
 
 export function SessionBanner({ context, viewerId }: { context: ProblemSessionContext; viewerId: string }) {
   const { roomId, sessionId, position, problemCount, slugs } = context;
@@ -121,7 +121,11 @@ export function SessionBanner({ context, viewerId }: { context: ProblemSessionCo
       role="region"
       aria-label="Room session"
     >
-      <UsersIcon aria-hidden className="size-4 shrink-0 text-info" />
+      {status === "live" ? (
+        <span aria-hidden className="live-dot shrink-0 text-live" />
+      ) : (
+        <UsersIcon aria-hidden className="size-4 shrink-0 text-info" />
+      )}
       <p className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5">
         <strong className="truncate font-semibold">{context.roomName}</strong>
         <span aria-hidden className="text-muted-foreground">·</span>

@@ -1,7 +1,9 @@
 /*
- * Visualization tokens of the Data Structures guide (/learn).
- * Every --viz-* maps to a design-system token with a fallback to today's
- * shadcn token, so the guide works before and after the design system lands.
+ * Visualization tokens of the Data Structures guide (/learn), on the v2
+ * "Proof" palette (DESIGN.md §6, §13.9): the stage is the editor background
+ * with a 24px hairline grid, nodes are surface cards, the hot element is
+ * primary. Every --viz-* maps to a design-system token (shadcn names), with a
+ * fallback only where a token may be missing.
  * Colours that are not guaranteed to reach 3:1 on both node and figure
  * backgrounds in both themes are mixed 25% toward the node text colour
  * (darker in light mode, lighter in dark mode), which only raises contrast.
@@ -9,7 +11,8 @@
  */
 [data-player],
 .viz {
-  --viz-bg: var(--surface-sunken, var(--muted));
+  --viz-bg: var(--editor-bg, var(--surface-sunken, var(--muted)));
+  --viz-grid: color-mix(in srgb, var(--border) 70%, transparent);
   --viz-node-bg: var(--card);
   --viz-node-fg: var(--card-foreground, var(--foreground));
   --viz-node-border: var(--muted-foreground);
@@ -23,27 +26,27 @@
   --viz-removed: var(--danger, var(--destructive));
   --viz-visited: var(--muted-foreground);
   --viz-visited-fill: color-mix(in oklch, var(--viz-visited) 22%, var(--viz-node-bg));
-  --viz-frontier: color-mix(in oklch, var(--gold, oklch(0.68 0.13 80)) 75%, var(--viz-node-fg));
+  --viz-frontier: color-mix(in oklch, var(--verdict-runtime, oklch(0.62 0.15 45)) 75%, var(--viz-node-fg));
   --viz-done: color-mix(in oklch, var(--success, oklch(0.55 0.14 150)) 75%, var(--viz-node-fg));
   --viz-done-fill: var(--success-bg, color-mix(in oklch, var(--viz-done) 16%, var(--viz-node-bg)));
   --viz-path: var(--primary);
   --viz-muted: var(--faint-foreground, var(--muted-foreground));
   --viz-error: var(--danger, var(--destructive));
-  --viz-code-active: var(--accent);
+  --viz-code-active: var(--highlight, var(--accent));
   --viz-code-active-bar: var(--primary);
 }
 
 /* Duration lives on the player only (nested .viz must not reset it); static figures don't animate. */
 [data-player] {
-  --viz-duration: 240ms;
+  --viz-duration: 320ms;
 }
 
-/* Speed scales the transition (240 ms / speed, min 120 ms); motion off = 0. */
+/* Speed scales the transition (320 ms / speed, DESIGN.md §11.2); motion off = 0. */
 [data-player][data-speed="0.5"] {
-  --viz-duration: 480ms;
+  --viz-duration: 640ms;
 }
 [data-player][data-speed="2"] {
-  --viz-duration: 120ms;
+  --viz-duration: 160ms;
 }
 [data-player][data-motion="off"] {
   --viz-duration: 0ms;
@@ -61,12 +64,20 @@
 /* Moving groups: keyed by element id, so a moved element glides. */
 .viz-g {
   transition:
-    transform var(--viz-duration, 0ms) ease-out,
-    opacity var(--viz-duration, 0ms) ease-out;
+    transform var(--viz-duration, 0ms) var(--ease-out, ease-out),
+    opacity var(--viz-duration, 0ms) var(--ease-out, ease-out);
 }
 
 .viz-figure-bg {
   background: var(--viz-bg);
+}
+/* The player's stage: editor background on a 24px hairline grid. */
+.viz-stage {
+  background-image:
+    linear-gradient(var(--viz-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--viz-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
 }
 
 .viz-text {
@@ -90,6 +101,13 @@
 [data-player-code] .line[data-active="true"] {
   background: var(--viz-code-active);
   box-shadow: inset 3px 0 0 var(--viz-code-active-bar);
+}
+/* Code: white in light (Shiki's github-light comments need it for 4.5:1), editor night in dark. */
+[data-player-code] [data-code-scroll] {
+  background: var(--card);
+}
+.dark [data-player-code] [data-code-scroll] {
+  background: var(--viz-bg);
 }
 /* Grid drops the whitespace-only "\n" text between line spans, so each line is one row. */
 [data-player-code] pre code {

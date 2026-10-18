@@ -28,7 +28,7 @@ export function MemberTimelineView({ roomId, timeline }: { roomId: string; timel
   const { sessions, member } = timeline;
   if (sessions.length === 0) {
     return (
-      <div className="rounded-lg border bg-card shadow-xs">
+      <div className="rounded-xl border bg-card shadow-sm">
         <EmptyState icon={CalendarDaysIcon} title="No finished sessions yet">
           {`Sessions ${member.username} takes part in are listed here with the problems solved on each date.`}
         </EmptyState>
@@ -52,7 +52,7 @@ export function MemberTimelineView({ roomId, timeline }: { roomId: string; timel
       </dl>
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <Reveal as="section" index={3} aria-labelledby="rate-heading" className="rounded-lg border bg-card p-6 shadow-xs">
+        <Reveal as="section" index={3} aria-labelledby="rate-heading" className="rounded-xl border bg-card p-6 shadow-sm">
           <h2 id="rate-heading" className="text-lg/7 font-semibold">
             Solve rate by difficulty
           </h2>
@@ -83,7 +83,7 @@ export function MemberTimelineView({ roomId, timeline }: { roomId: string; timel
             })}
           </div>
         </Reveal>
-        <Reveal as="section" index={4} aria-labelledby="chart-heading" className="rounded-lg border bg-card p-6 shadow-xs">
+        <Reveal as="section" index={4} aria-labelledby="chart-heading" className="rounded-xl border bg-card p-6 shadow-sm">
           <h2 id="chart-heading" className="text-lg/7 font-semibold">
             Progress over time
           </h2>
@@ -110,7 +110,7 @@ export function MemberTimelineView({ roomId, timeline }: { roomId: string; timel
 
 function Stat({ label, index, children }: { label: string; index: number; children: React.ReactNode }) {
   return (
-    <Reveal index={index} className="flex flex-col-reverse rounded-lg border bg-card p-4 shadow-xs sm:p-6">
+    <Reveal index={index} className="flex flex-col-reverse rounded-xl border bg-card p-4 shadow-sm sm:p-6">
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="font-display text-[1.75rem]/9 tabular-nums sm:text-[2.25rem]/10">{children}</dd>
     </Reveal>
@@ -170,7 +170,7 @@ function TimelineItem({ roomId, session: s }: { roomId: string; session: Timelin
   const solved = s.problems.filter((p) => p.solveSeconds !== null);
   const unsolved = s.problems.filter((p) => p.solveSeconds === null);
   return (
-    <li className="rounded-lg border bg-card p-4 shadow-xs sm:p-5" data-session={s.sessionId}>
+    <li className="rounded-xl border bg-card p-4 shadow-sm sm:p-5" data-session={s.sessionId}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h3 className="text-[1.0625rem]/6 font-semibold">
           <Link href={sessionResultsHref(roomId, s.sessionId)} className={tableLinkClasses()}>

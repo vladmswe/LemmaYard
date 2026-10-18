@@ -75,7 +75,7 @@ test.describe("AC-G-1-2 roadmap and draft lessons", () => {
   test("/learn has the h1 and lists every published lesson in its track, in order", async ({ page }) => {
     const res = await page.goto("/learn");
     expect(res?.status()).toBe(200);
-    await expect(page.locator("h1")).toHaveText("Data Structures");
+    await expect(page.locator("h1")).toHaveText("Data structures, step by step");
     await expect(page).toHaveTitle("Learn data structures · LemmaYard");
     const published = publishedLessons();
     await expect(page.locator("[data-roadmap-card]")).toHaveCount(published.length);

@@ -1,6 +1,8 @@
 "use client";
 
+import { CircleCheckIcon, CircleXIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "cn";
 
 import { Button } from "@/components/ui/button";
 import type { PredictPrompt } from "@/lib/guide/contracts";
@@ -32,13 +34,16 @@ export function PromptPanel({
     >
       <fieldset
         role="group"
-        className="space-y-3 rounded-lg border border-border bg-muted/40 p-3"
+        className="guide-predict"
         data-player-prompt=""
       >
+        <span aria-hidden="true" className="guide-predict-tag">
+          Predict
+        </span>
         <legend
           ref={legendRef}
           tabIndex={-1}
-          className="float-left w-full rounded-sm pb-1 font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="float-left w-full rounded-sm pb-1 font-medium"
         >
           {prompt.question}
         </legend>
@@ -46,7 +51,7 @@ export function PromptPanel({
           {prompt.choices.map((c) => (
             <label
               key={c.id}
-              className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 hover:bg-muted"
+              className="guide-predict-choice"
             >
               <input
                 type="radio"
@@ -76,9 +81,16 @@ export function PromptPanel({
 
 export function PromptFeedback({ correct, explain }: { correct: boolean | null; explain: string }) {
   return (
-    <p className="rounded-lg border border-border p-3 text-sm" data-player-feedback="">
-      {correct !== null && <strong className="mr-1">{correct ? "Right." : "Not quite."}</strong>}
-      {explain}
+    <p
+      className={cn("guide-feedback", correct === true && "guide-feedback-right", correct === false && "guide-feedback-wrong")}
+      data-player-feedback=""
+    >
+      {correct === true && <CircleCheckIcon aria-hidden className="guide-feedback-icon" />}
+      {correct === false && <CircleXIcon aria-hidden className="guide-feedback-icon" />}
+      <span>
+        {correct !== null && <strong className="mr-1">{correct ? "Right." : "Not quite."}</strong>}
+        {explain}
+      </span>
     </p>
   );
 }

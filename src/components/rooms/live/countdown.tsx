@@ -6,6 +6,8 @@
 // always recomputed from the clock, never decremented). `role="timer"` with a
 // spoken label; milestones (10 min, 1 min) are announced once in a separate
 // polite live region, not every second.
+import "../rooms.css";
+
 import { TimerIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "cn";
@@ -70,7 +72,10 @@ export function useCountdownEffects(
 export type CountdownProps = {
   endsAt: string | null;
   offsetMs: number;
-  size?: "display" | "inline";
+  /** "hero": the giant mono timer of the live screen (DESIGN.md §13.10); "display": 30px; "inline": text. */
+  size?: "hero" | "display" | "inline";
+  /** Session length: draws the time-remaining track under the hero timer. */
+  totalMs?: number;
   className?: string;
   onMilestone?: (ms: number) => void;
   onExpire?: () => void;
@@ -82,6 +87,7 @@ export function Countdown({
   endsAt,
   offsetMs,
   size = "display",
+  totalMs,
   className,
   onMilestone,
   onExpire,
@@ -100,6 +106,49 @@ export function Countdown({
   const warning = isFinalMinutes(remaining);
   const text = formatCountdown(remaining);
 
+  if (size === "hero") {
+    // The colon blinks only in the last 5 minutes (motion-safe; static under reduced motion).
+    const blink = remaining > 0 && remaining <= 5 * 60_000;
+    const parts = text.split(":");
+    const left = totalMs && totalMs > 0 ? Math.min(1, Math.max(0, remaining / totalMs)) : null;
+    return (
+      <span className={cn("flex flex-col items-end gap-3", className)}>
+        <span
+          role="timer"
+          suppressHydrationWarning
+          aria-label={countdownLabel(remaining)}
+          data-testid="countdown"
+          data-warning={warning || undefined}
+          data-blink={blink || undefined}
+          className={cn(
+            "room-timer font-mono text-[3.5rem]/none font-medium tracking-[-0.04em] tabular-nums min-[1100px]:text-[5rem]/none",
+            warning ? "room-warn text-warning" : "text-on-night",
+          )}
+        >
+          {parts.map((p, i) => (
+            <span key={i}>
+              {i > 0 && <span className="room-timer-colon">:</span>}
+              {p}
+            </span>
+          ))}
+        </span>
+        <span aria-hidden className={cn("text-sm", warning ? "room-warn font-semibold text-warning" : "text-on-night-2")}>
+          left in this session
+        </span>
+        {left !== null && (
+          <span aria-hidden className="room-timer-track">
+            <i style={{ transform: `scaleX(${left})` }} data-warning={warning || undefined} />
+          </span>
+        )}
+        {announce && (
+          <span className="sr-only" aria-live="polite" data-testid="countdown-announcer">
+            {message}
+          </span>
+        )}
+      </span>
+    );
+  }
+
   return (
     <span className={cn("inline-flex items-baseline gap-2", className)}>
       <span
@@ -112,9 +161,9 @@ export function Countdown({
         className={cn(
           "tabular-nums",
           size === "display"
-            ? "font-heading text-[1.875rem]/9 font-semibold tracking-[-0.01em]"
-            : "font-semibold",
-          warning ? "text-warning" : "text-foreground",
+            ? "font-mono text-[1.75rem]/9 font-medium tracking-[-0.02em]"
+            : "font-mono font-medium",
+          warning ? "room-warn text-warning" : size === "display" && "text-foreground",
         )}
       >
         {size === "display" && (
@@ -122,7 +171,7 @@ export function Countdown({
         )}
         {text}
       </span>
-      <span aria-hidden className={cn("text-sm", warning ? "font-semibold text-warning" : "text-muted-foreground")}>
+      <span aria-hidden className={cn("text-sm", warning ? "room-warn font-semibold text-warning" : "opacity-75")}>
         left
       </span>
       {announce && (

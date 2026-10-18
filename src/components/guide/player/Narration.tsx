@@ -15,11 +15,11 @@ export function announcement(step: number, total: number, phase: string, narrati
  */
 export function StepCaption({ label, narration }: { label: string; narration: string }) {
   return (
-    <div aria-hidden="true" className="space-y-1" data-player-caption="">
-      <p className="text-sm font-medium text-muted-foreground" data-player-step="">
+    <div aria-hidden="true" className="guide-caption" data-player-caption="">
+      <p className="guide-caption-step" data-player-step="">
         {label}
       </p>
-      <p className="text-base leading-relaxed" data-player-caption-text="">
+      <p className="guide-caption-text" data-player-caption-text="">
         {narration}
       </p>
     </div>

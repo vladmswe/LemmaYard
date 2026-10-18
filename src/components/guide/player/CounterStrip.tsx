@@ -39,7 +39,7 @@ export function CounterStrip({
             key={k}
             data-counter={k}
             data-changed={delta > 0 ? "true" : undefined}
-            className="rounded-md border border-border px-2 py-1 font-mono tabular-nums"
+            className="rounded-sm border border-border bg-surface-sunken px-2 py-1 font-mono text-[0.8125rem] tabular-nums"
           >
             {LABELS[k]} {v}
             {delta > 0 && <span className="ml-1 font-semibold">+{delta}</span>}

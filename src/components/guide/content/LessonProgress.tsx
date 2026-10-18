@@ -2,6 +2,7 @@
 
 import { useEffect, useId } from "react";
 
+import { Qed } from "@/components/brand/qed";
 import { Checkbox } from "@/components/ui/checkbox";
 import { markVisited, progressStore, toggleComplete, useProgress } from "@/lib/guide/content/progress";
 
@@ -25,6 +26,12 @@ export function LessonProgress({ slug }: { slug: string }) {
         />
         <span>Mark lesson as complete</span>
       </label>
+      {completed && (
+        <span className="guide-complete-done">
+          <Qed size={10} snap />
+          Lesson complete
+        </span>
+      )}
     </div>
   );
 }

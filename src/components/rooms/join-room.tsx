@@ -109,7 +109,7 @@ export function JoinRoom({ signedIn }: { signedIn: boolean }) {
       {(state.kind === "invalid" || state.kind === "missing") && (
         <>
           <CardHeader>
-            <h1 className="font-heading text-[1.75rem]/9 font-semibold">Join a room</h1>
+            <h1 className="font-display text-[2rem]/[1.1] text-balance">Join a room</h1>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Alert variant="danger" role="alert">
@@ -128,7 +128,7 @@ export function JoinRoom({ signedIn }: { signedIn: boolean }) {
       {state.kind === "guest" && (
         <>
           <CardHeader>
-            <h1 className="font-heading text-[1.75rem]/9 font-semibold">You&apos;re invited to a room</h1>
+            <h1 className="font-display text-[2rem]/[1.1] text-balance">You&apos;re invited to a room</h1>
             <p className="text-[0.9375rem] text-muted-foreground">
               Log in or create a free account to see the room and join it. Your invite is kept in this tab.
             </p>
@@ -150,7 +150,7 @@ export function JoinRoom({ signedIn }: { signedIn: boolean }) {
         <>
           <CardHeader>
             <p className="eyebrow text-muted-foreground">Room invite</p>
-            <h1 className="font-heading text-[1.75rem]/9 font-semibold break-words">
+            <h1 className="font-display text-[2rem]/[1.1] text-balance break-words">
               {state.preview.alreadyMember ? state.preview.name : `Join ${state.preview.name}?`}
             </h1>
           </CardHeader>
@@ -208,7 +208,7 @@ export function JoinRoom({ signedIn }: { signedIn: boolean }) {
       {state.kind === "error" && (
         <>
           <CardHeader>
-            <h1 className="font-heading text-[1.75rem]/9 font-semibold">Join a room</h1>
+            <h1 className="font-display text-[2rem]/[1.1] text-balance">Join a room</h1>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Alert variant="warning" role="alert">

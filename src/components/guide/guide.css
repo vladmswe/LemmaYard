@@ -1,10 +1,23 @@
 /*
- * Lesson styles of the Data Structures guide (/learn), M-G1.
- * Design tokens only (globals.css / DESIGN.md); no colours or fonts of its own,
- * so a redesign re-skins the guide by changing the tokens.
+ * Lesson styles of the Data Structures guide (/learn), design v2 "Proof"
+ * (DESIGN.md §13.8, §13.9). Design tokens only (globals.css); no colours or
+ * fonts of its own, so the guide re-skins with the tokens. Serif only for
+ * display sizes (≥ 28px); everything else is Instrument Sans or mono.
  */
 
-/* ------------------------------------------------------------ lesson shell */
+/* ------------------------------------------------------------ lesson layout */
+
+/* Lessons by track | article (+ "On this page" rail from 1280px). */
+.guide-lesson-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (width >= 961px) {
+  .guide-lesson-layout {
+    grid-template-columns: 14.5rem minmax(0, 1fr);
+    column-gap: 2.5rem;
+  }
+}
 
 .guide-lesson-grid {
   display: grid;
@@ -13,8 +26,8 @@
 }
 @media (width >= 80rem) {
   .guide-lesson-grid {
-    grid-template-columns: minmax(0, 1fr) 15rem;
-    column-gap: 3rem;
+    grid-template-columns: minmax(0, 1fr) 13.5rem;
+    column-gap: 2.5rem;
   }
   .guide-lesson-head,
   .guide-lesson-body,
@@ -27,35 +40,26 @@
   }
   .guide-toc {
     position: sticky;
-    top: 5.5rem;
+    top: 6.5rem;
   }
 }
 
 .guide-lesson-title {
-  font-family: var(--font-heading);
-  font-size: 1.875rem;
-  line-height: 2.375rem;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  text-wrap: balance;
-}
-@media (width >= 40rem) {
-  .guide-lesson-title {
-    font-size: 2.25rem;
-    line-height: 2.75rem;
-  }
+  max-width: 20ch;
 }
 .guide-lesson-summary {
-  margin-top: 0.75rem;
-  max-width: 70ch;
-  font-size: 1.1875rem;
-  line-height: 1.875rem;
+  margin-top: 1.25rem;
+  max-width: 38ch;
+  font-size: var(--t-lead);
+  line-height: 1.55;
   color: var(--foreground-secondary);
+  text-wrap: pretty;
 }
 .guide-lesson-meta {
-  margin-top: 0.75rem;
+  margin-top: 1.25rem;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem 1.25rem;
   font-size: 0.875rem;
   color: var(--muted-foreground);
@@ -64,18 +68,192 @@
 .guide-link {
   color: var(--link);
   text-decoration: underline;
+  text-decoration-thickness: 1px;
   text-underline-offset: 3px;
+}
+.guide-link:hover {
+  text-decoration-thickness: 2px;
 }
 
 .guide-lesson-foot {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  margin-top: 1.5rem;
   border-top: 1px solid var(--border);
-  padding-top: 1.5rem;
+  padding-top: 1.75rem;
 }
 
-/* ------------------------------------------------------------ TOC */
+/* ------------------------------------------------------------ status squares */
+
+/* Done ∎ (filled primary), in progress (half), todo (outline). Decorative. */
+.guide-status-sq {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--border-strong);
+}
+.guide-status-sq[data-status="completed"] {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.guide-status-sq[data-status="in-progress"] {
+  border-color: var(--primary);
+  background: linear-gradient(to top, var(--primary) 50%, transparent 50%);
+}
+.on-night .guide-status-sq {
+  border-color: var(--on-night-2);
+}
+
+.guide-card-status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.guide-status-word {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.guide-card-status[data-variant="pill"] .guide-status-word {
+  min-height: 1.5rem;
+  border-radius: 9999px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  padding: 0 0.625rem;
+  font-size: 0.78125rem;
+  font-weight: 600;
+}
+.guide-card-status[data-variant="row"] .guide-status-word {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+/* ------------------------------------------------------------ lessons by track */
+
+.guide-tracknav {
+  display: none;
+}
+@media (width >= 961px) {
+  .guide-tracknav {
+    display: block;
+    position: sticky;
+    top: 6.5rem;
+    align-self: start;
+    max-height: calc(100dvh - 8rem);
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
+}
+.guide-tracknav-group + .guide-tracknav-group {
+  margin-top: 1.5rem;
+}
+.guide-tracknav-track {
+  margin-bottom: 0.5rem;
+  font: 500 0.75rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.guide-tracknav-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-height: 2.5rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--foreground-secondary);
+  transition: background-color var(--d-1) var(--ease-out);
+}
+.guide-tracknav-link .guide-status-sq {
+  margin-top: 0.3em;
+}
+.guide-tracknav-link:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.guide-tracknav-link[aria-current="page"] {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-weight: 600;
+}
+.guide-tracknav-foot {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+/* Below 961px: a sticky "Lesson k / N" bar with squares and an "All lessons" sheet. */
+.guide-lessonbar {
+  position: sticky;
+  top: 60px;
+  z-index: 20;
+  margin: -0.5rem calc(var(--pad) * -1) 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}
+@media (width >= 961px) {
+  .guide-lessonbar {
+    display: none;
+  }
+}
+.guide-lessonbar-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3rem;
+  padding: 0 var(--pad);
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.875rem;
+}
+.guide-lessonbar-summary::-webkit-details-marker {
+  display: none;
+}
+.guide-lessonbar-pos {
+  flex: none;
+  font: 600 0.875rem/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.guide-lessonbar-squares {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.guide-lessonbar-squares .guide-status-sq {
+  width: 9px;
+  height: 9px;
+}
+.guide-lessonbar-all {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+.guide-lessonbar-details[open] .guide-lessonbar-all svg {
+  transform: rotate(180deg);
+}
+.guide-lessonbar-panel {
+  max-height: min(70dvh, 32rem);
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  background: var(--popover);
+  padding: 1rem var(--pad) 1.25rem;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ------------------------------------------------------------ "On this page" */
 
 .guide-toc-details {
   border: 1px solid var(--border);
@@ -88,8 +266,10 @@
   min-height: 2.75rem;
   padding-inline: 1rem;
   cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font: 500 0.75rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
 }
 .guide-toc-list {
   display: flex;
@@ -99,62 +279,113 @@
 .guide-toc-link {
   display: flex;
   align-items: center;
-  min-height: 2.75rem;
-  padding-inline: 0.5rem;
-  border-radius: var(--radius-md);
+  min-height: 2.5rem;
+  padding-inline: 0.75rem;
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
-  color: var(--foreground-secondary);
+  line-height: 1.35;
+  color: var(--muted-foreground);
 }
 .guide-toc-link:hover {
-  background: var(--accent);
-  color: var(--accent-foreground);
+  color: var(--foreground);
+}
+.guide-toc-link[data-active] {
+  color: var(--foreground);
+  font-weight: 600;
+}
+@media (width >= 80rem) {
+  .guide-toc-details {
+    border: 0;
+    background: none;
+  }
+  .guide-toc-summary {
+    min-height: 2rem;
+    padding-inline: 0;
+    pointer-events: none;
+    list-style: none;
+  }
+  .guide-toc-summary::-webkit-details-marker {
+    display: none;
+  }
+  .guide-toc-list {
+    margin-top: 0.5rem;
+    padding: 0;
+    border-left: 1px solid var(--border);
+  }
+  .guide-toc-link {
+    margin-left: -1px;
+    border-left: 2px solid transparent;
+    border-radius: 0;
+    min-height: 2.25rem;
+  }
+  .guide-toc-link[data-active] {
+    border-left-color: var(--primary);
+  }
 }
 
 /* ------------------------------------------------------------ prose */
 
 .guide-prose {
-  font-size: 1rem;
-  line-height: 1.75rem;
+  font-size: 1.09375rem; /* 17.5px */
+  line-height: 1.7;
   color: var(--foreground);
+  counter-reset: guide-h2;
 }
 .guide-prose > * {
-  max-width: 70ch;
+  max-width: 68ch;
 }
 .guide-prose > * + * {
   margin-top: 1.125rem;
 }
-/* Players, quizzes and code break out of the prose measure. */
+/* Players, quizzes and code use the whole column. */
 .guide-prose > .guide-wide,
 .guide-prose > .guide-code,
 .guide-prose > .guide-complexity,
 .guide-prose > .guide-quiz {
   max-width: 1040px;
 }
+.guide-prose > .guide-wide,
+.guide-prose > .guide-code,
+.guide-prose > .guide-complexity,
+.guide-prose > .guide-quiz,
+.guide-prose > [data-callout] {
+  margin-top: 1.75rem;
+}
+/* h2: serif display (≥ 28px) with a mono section number. */
 .guide-prose h2 {
-  margin-top: 2.75rem;
-  font-family: var(--font-heading);
-  font-size: 1.5rem;
-  line-height: 2rem;
+  margin-top: 3.5rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 1.5rem + 1vw, 2.125rem);
+  line-height: 1.1;
+  font-weight: 400;
+  font-synthesis: none;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+  scroll-margin-top: 6.5rem;
+}
+.guide-prose > h2::before {
+  counter-increment: guide-h2;
+  content: counter(guide-h2, decimal-leading-zero);
+  display: inline-block;
+  margin-right: 0.875rem;
+  font: 500 0.8125rem/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--gutter-ink);
+  vertical-align: 0.35em;
+}
+/* h3: the sans heading style (DESIGN.md §7.2). */
+.guide-prose h3 {
+  margin-top: 2.25rem;
+  font-size: 1.25rem;
+  line-height: 1.3;
   font-weight: 600;
   letter-spacing: -0.01em;
-  scroll-margin-top: 5.5rem;
-}
-@media (width >= 40rem) {
-  .guide-prose h2 {
-    font-size: 1.75rem;
-    line-height: 2.25rem;
-  }
-}
-.guide-prose h3 {
-  margin-top: 2rem;
-  font-size: 1.25rem;
-  line-height: 1.75rem;
-  font-weight: 600;
-  scroll-margin-top: 5.5rem;
+  scroll-margin-top: 6.5rem;
 }
 .guide-prose a {
   color: var(--link);
   text-decoration: underline;
+  text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
 .guide-prose strong {
@@ -179,8 +410,8 @@
 }
 .guide-prose :not(pre) > code {
   font-family: var(--font-mono);
-  font-size: 0.875em;
-  background: var(--muted);
+  font-size: 0.84em;
+  background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 1px 5px;
@@ -192,9 +423,9 @@
   font-family: var(--font-mono);
   font-size: 0.875rem;
   line-height: 1.375rem;
-  background: var(--surface-sunken);
+  background: var(--editor-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: 0.75rem 1rem;
   overflow-x: auto;
   font-variant-ligatures: none;
@@ -207,29 +438,42 @@
 }
 .guide-table-scroll {
   overflow-x: auto;
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  background: var(--card);
 }
 .guide-table-scroll table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9375rem;
+  line-height: 1.5;
 }
 .guide-table-scroll th {
   text-align: left;
-  font-weight: 600;
+  font: 500 0.75rem/1.2 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
   background: var(--surface-sunken);
 }
 .guide-table-scroll th,
 .guide-table-scroll td {
-  border: 1px solid var(--border);
-  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.625rem 0.875rem;
+}
+.guide-table-scroll tr:last-child td {
+  border-bottom: 0;
 }
 .guide-prose blockquote {
-  border-left: 3px solid var(--border-strong);
+  border-left: 2px solid var(--primary);
   padding-left: 1rem;
   color: var(--foreground-secondary);
 }
 
+.guide-callout {
+  font-size: 1rem;
+  line-height: 1.6;
+}
 .guide-callout [data-slot="alert-description"] > * + * {
   margin-top: 0.5rem;
 }
@@ -243,8 +487,13 @@
 a.guide-term {
   color: inherit;
   text-decoration: underline dotted;
+  text-decoration-thickness: 1.5px;
   text-decoration-color: var(--muted-foreground);
   text-underline-offset: 4px;
+}
+.guide-prose a.guide-term:hover,
+a.guide-term:hover {
+  text-decoration-color: var(--primary);
 }
 .guide-dfn > a.guide-term {
   font-weight: 600;
@@ -253,21 +502,27 @@ a.guide-term {
 /* ------------------------------------------------------------ code (Shiki) */
 
 .guide-code-title {
-  margin-bottom: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font: 500 0.75rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
 }
 .guide-code-body {
   overflow: auto;
   max-height: 32rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  /* Light: white, where Shiki's github-light comments keep 4.5:1; dark: the editor night. */
   background: var(--card);
-  padding-block: 0.5rem;
+  padding-block: 0.625rem;
   font-family: var(--font-mono);
   font-size: 0.875rem;
   line-height: 1.5rem;
   font-variant-ligatures: none;
+}
+.dark .guide-code-body {
+  background: var(--editor-bg);
 }
 /* The box scrolls, not the <pre> inside it. */
 .guide-code-body pre {
@@ -276,11 +531,23 @@ a.guide-term {
 .guide-code-body pre code {
   display: grid;
   min-width: max-content;
+  counter-reset: guide-line;
 }
 .guide-code-body .line {
   display: block;
   min-height: 1.5rem; /* blank lines keep their height */
   padding-inline: 1rem;
+}
+/* The real line-number gutter (DESIGN.md §5). */
+.guide-code-body .line::before {
+  counter-increment: guide-line;
+  content: counter(guide-line);
+  display: inline-block;
+  width: 2ch;
+  margin-right: 1.25rem;
+  text-align: right;
+  color: var(--gutter-ink);
+  user-select: none;
 }
 /* Shiki emits both themes as CSS variables (defaultColor: false). */
 .shiki,
@@ -302,33 +569,59 @@ a.guide-term {
 .guide-complexity-caption {
   caption-side: top;
   margin: 0;
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--border);
   text-align: left;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--foreground);
+}
+.guide-complexity th,
+.guide-complexity td {
+  white-space: normal;
+  vertical-align: top;
+  padding-block: 0.875rem;
+  line-height: 1.5;
 }
 .guide-complexity-op {
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
+  font-family: var(--font-sans);
   font-size: 0.9375rem;
   color: var(--foreground);
-  white-space: normal;
+  min-width: 7rem;
 }
 .guide-complexity-cost {
-  white-space: normal;
+  min-width: 9rem;
 }
 .guide-complexity-cell {
+  overflow-wrap: anywhere;
+}
+/* The bound and its qualifier stay together; a condition may wrap. */
+.guide-complexity-bound {
   white-space: nowrap;
 }
 .guide-complexity-cell code {
   font-family: var(--font-mono);
-  font-size: 0.875em;
+  font-size: 0.875rem;
+  font-weight: 500;
   font-variant-ligatures: none;
+}
+.guide-complexity-q {
+  display: inline-block;
+  margin-left: 0.125rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font: 500 0.6875rem/1.3 var(--font-mono);
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+  vertical-align: 0.1em;
 }
 .guide-complexity-why {
   color: var(--foreground-secondary);
-  min-width: 12rem;
+  min-width: 10rem;
 }
 .guide-complexity-notes {
   margin-top: 0.75rem;
@@ -360,10 +653,12 @@ a.guide-term {
   }
   .guide-complexity tr {
     padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
   }
   .guide-complexity th[scope="row"],
   .guide-complexity td {
     height: auto;
+    min-width: 0;
     padding: 0.125rem 0;
     border: 0;
     background: transparent;
@@ -373,15 +668,9 @@ a.guide-term {
     font-weight: 600;
     color: var(--muted-foreground);
   }
-  .guide-complexity-cell {
-    white-space: normal;
-  }
-  .guide-complexity-why {
-    min-width: 0;
-  }
 }
 
-/* ------------------------------------------------------------ quiz */
+/* ------------------------------------------------------------ quiz ("Check yourself") */
 
 .guide-quiz {
   display: flex;
@@ -389,37 +678,55 @@ a.guide-term {
   gap: 1.25rem;
 }
 .guide-quiz-question {
+  position: relative;
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   background: var(--card);
-  padding: 1rem;
+  padding: 1.125rem 1rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  box-shadow: var(--shadow-sm);
 }
 @media (width >= 40rem) {
   .guide-quiz-question {
-    padding: 1.25rem 1.5rem;
+    padding: 1.375rem 1.5rem;
   }
 }
 .guide-quiz-question[data-result="correct"] {
   border-color: var(--success);
 }
 .guide-quiz-question[data-result="incorrect"] {
-  border-color: var(--warning);
+  border-color: var(--danger);
+}
+/* Correct = success + ∎ in the corner (decorative; the status text carries the meaning). */
+.guide-quiz-question[data-result="correct"]::after {
+  content: "";
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: 10px;
+  height: 10px;
+  background: var(--success);
 }
 .guide-quiz-prompt {
   float: left; /* legend inside the box, not on the border */
   width: 100%;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.875rem;
+  padding-right: 1.5rem;
+  font-size: 1.0625rem;
   font-weight: 600;
+  line-height: 1.45;
 }
 .guide-quiz-prompt + * {
   clear: both;
 }
 .guide-quiz-number {
   display: block;
-  margin-bottom: 0.25rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  margin-bottom: 0.5rem;
+  font: 500 0.75rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted-foreground);
 }
 .guide-quiz-code {
@@ -429,25 +736,38 @@ a.guide-term {
 .guide-quiz-choices {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
   clear: both;
 }
+/* Radio cards. */
 .guide-quiz-choice {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   min-height: 2.75rem;
-  padding: 0.375rem 0.75rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   cursor: pointer;
+  transition:
+    border-color var(--d-1) var(--ease-out),
+    background-color var(--d-1) var(--ease-out);
 }
 .guide-quiz-choice:hover {
+  border-color: var(--border-strong);
   background: var(--accent);
+}
+.guide-quiz-choice:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--secondary);
+}
+.guide-quiz-choice input {
+  accent-color: var(--primary);
 }
 .guide-quiz-feedback {
   display: flex;
   gap: 0.5rem;
-  margin: 0.125rem 0 0.5rem 0.75rem;
+  margin: 0.375rem 0 0.25rem 0.875rem;
   font-size: 0.9375rem;
   color: var(--foreground-secondary);
 }
@@ -479,9 +799,12 @@ a.guide-term {
   gap: 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+  background: var(--surface-sunken);
+  padding: 0.25rem 0.25rem 0.25rem 0.875rem;
 }
 .guide-quiz-order-pos {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
   color: var(--muted-foreground);
 }
@@ -499,20 +822,29 @@ a.guide-term {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
-  margin-top: 1rem;
+  margin-top: 1.125rem;
 }
 .guide-quiz-saved {
   font-size: 0.875rem;
   color: var(--muted-foreground);
 }
 .guide-quiz-explain {
-  margin-top: 0.75rem;
-  border-radius: var(--radius-md);
+  margin-top: 0.875rem;
+  border-left: 2px solid var(--primary);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   background: var(--surface-sunken);
   padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+}
+.guide-quiz-question[data-result="incorrect"] .guide-quiz-explain {
+  border-left-color: var(--danger);
+}
+.guide-quiz-question[data-result="correct"] .guide-quiz-explain {
+  border-left-color: var(--success);
 }
 .guide-quiz-score {
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ------------------------------------------------------------ practice */
@@ -529,15 +861,24 @@ a.guide-term {
   }
 }
 .guide-practice-item {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem 0.75rem;
+  gap: 0.375rem 0.75rem;
   margin: 0 !important;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   background: var(--card);
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1.125rem 1rem;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform var(--d-2) var(--ease-out),
+    box-shadow var(--d-2) var(--ease-out);
+}
+.guide-practice-item:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 .guide-prose .guide-practice-link,
 .guide-practice-link {
@@ -546,11 +887,36 @@ a.guide-term {
   gap: 0.375rem;
   min-height: 2.75rem;
   font-weight: 600;
+  color: var(--foreground);
+  text-decoration: none;
+}
+.guide-prose .guide-practice-link:hover,
+.guide-practice-link:hover {
   color: var(--link);
+}
+.guide-practice-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.guide-practice-link:focus-visible {
+  outline: none;
+}
+.guide-practice-item:has(.guide-practice-link:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.guide-practice-link svg {
+  transition: transform var(--d-2) var(--ease-out);
+}
+.guide-practice-item:hover .guide-practice-link svg {
+  transform: translateX(3px);
 }
 .guide-practice-why {
   flex-basis: 100%;
   font-size: 0.9375rem;
+  line-height: 1.55;
   color: var(--foreground-secondary);
 }
 .guide-practice-note {
@@ -559,6 +925,12 @@ a.guide-term {
 
 /* ------------------------------------------------------------ completion + nav */
 
+.guide-complete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
 .guide-complete-label {
   display: inline-flex;
   align-items: center;
@@ -566,6 +938,13 @@ a.guide-term {
   min-height: 2.75rem;
   cursor: pointer;
   font-weight: 600;
+}
+.guide-complete-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--success);
 }
 .guide-lesson-nav {
   display: grid;
@@ -579,15 +958,20 @@ a.guide-term {
 .guide-lesson-nav-link {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.375rem;
   min-height: 2.75rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   background: var(--card);
-  padding: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform var(--d-2) var(--ease-out),
+    box-shadow var(--d-2) var(--ease-out);
 }
 .guide-lesson-nav-link:hover {
-  border-color: var(--border-strong);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 .guide-lesson-nav-next {
   text-align: right;
@@ -602,16 +986,160 @@ a.guide-term {
 .guide-lesson-nav-dir {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.875rem;
+  gap: 0.375rem;
+  font: 500 0.75rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted-foreground);
 }
 .guide-lesson-nav-title {
   font-weight: 600;
+  color: var(--foreground);
+}
+.guide-lesson-nav-link:hover .guide-lesson-nav-title {
   color: var(--link);
 }
 
-/* ------------------------------------------------------------ roadmap + glossary */
+/* ------------------------------------------------------------ roadmap (/learn) */
+
+.guide-roadmap-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+}
+.guide-how {
+  max-width: 46rem;
+  border-left: 2px solid var(--primary);
+  padding-left: 1.25rem;
+}
+.guide-how h2 {
+  margin-bottom: 0.5rem;
+}
+
+.guide-track-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.guide-track-head .sec-no {
+  grid-column: 1 / -1;
+}
+@media (width >= 961px) {
+  .guide-track-head {
+    grid-template-columns: var(--gutter-w) minmax(0, 1fr) auto;
+  }
+  .guide-track-head .sec-no {
+    grid-column: auto;
+  }
+}
+.guide-track-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.875rem, 1.5rem + 1.2vw, 2.5rem);
+  line-height: 1.05;
+  font-weight: 400;
+  font-synthesis: none;
+}
+.guide-track-count {
+  font: 500 0.75rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.guide-track-list {
+  border-top: 1px solid var(--border);
+}
+@media (width >= 961px) {
+  .guide-track-list {
+    margin-left: calc(var(--gutter-w) + 1.5rem);
+  }
+}
+.guide-track.on-night {
+  padding: 1.5rem;
+}
+.guide-track.on-night .guide-track-title,
+.guide-track.on-night .guide-row-title {
+  color: var(--on-night);
+}
+.guide-track.on-night :is(.guide-track-count, .guide-row-summary, .guide-row-meta, .guide-row-no) {
+  color: var(--on-night-2);
+}
+
+/* One lesson: a row of the vertical proof. */
+.guide-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: 0.25rem 1rem;
+  padding: 1.25rem 0.75rem 1.25rem 0;
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--d-2) var(--ease-out);
+}
+.guide-row:hover {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+@media (width >= 640px) {
+  .guide-row {
+    grid-template-columns: 2.75rem minmax(0, 1fr) 4rem;
+    gap: 0.25rem 1.25rem;
+  }
+}
+.guide-row-no {
+  padding-top: 0.3rem;
+  padding-left: 0.5rem;
+  font: 500 0.8125rem/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--gutter-ink);
+}
+.guide-row:hover .guide-row-no {
+  color: var(--primary);
+}
+.guide-row-main {
+  min-width: 0;
+}
+.guide-row-title {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.guide-row-summary {
+  margin-top: 0.375rem;
+  max-width: 64ch;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--foreground-secondary);
+}
+.guide-row-meta {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+.guide-row-needs {
+  position: relative;
+  z-index: 1;
+}
+.guide-row-glyph {
+  display: none;
+  align-self: center;
+  color: var(--muted-foreground);
+  transition: color var(--d-2) var(--ease-out);
+}
+@media (width >= 640px) {
+  .guide-row-glyph {
+    display: block;
+  }
+}
+.guide-row:hover .guide-row-glyph {
+  color: var(--primary);
+}
 
 .guide-card-link::after {
   content: "";
@@ -625,27 +1153,286 @@ a.guide-term {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
-.guide-card-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.guide-roadmap-progress {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem 1.5rem;
-}
+
+/* ------------------------------------------------------------ glossary */
+
 .guide-glossary {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.guide-glossary-entry {
+  display: grid;
+  gap: 0.375rem 2rem;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+@media (width >= 768px) {
+  .guide-glossary-entry {
+    grid-template-columns: 14rem minmax(0, 1fr);
+  }
 }
 .guide-glossary-term {
   font-size: 1.125rem;
+  line-height: 1.4;
   font-weight: 600;
-  scroll-margin-top: 5.5rem;
+  scroll-margin-top: 6.5rem;
+}
+.guide-glossary-term:target {
+  color: var(--primary);
+}
+.guide-glossary-def {
+  color: var(--foreground-secondary);
 }
 .guide-glossary-def > * + * {
-  margin-top: 0.25rem;
+  margin-top: 0.375rem;
+}
+
+/* ------------------------------------------------------------ player skin (§13.9) */
+
+.guide-player {
+  font-size: 1rem;
+  line-height: 1.55;
+}
+.guide-player-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin: -0.25rem -0.25rem 0.75rem;
+  padding: 0.25rem 0.25rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.guide-player-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.guide-player-phase {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  border-radius: 9999px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  padding: 0 0.625rem;
+  font-size: 0.78125rem;
+  font-weight: 600;
+}
+.guide-caption {
+  border-left: 2px solid var(--primary);
+  padding: 0.125rem 0 0.125rem 0.875rem;
+}
+.guide-caption-step {
+  font: 500 0.75rem/1.3 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.guide-caption-text {
+  margin-top: 0.375rem;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Scrubber: the native range over a strip of step segments. */
+.guide-scrub-label {
+  font: 500 0.75rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.guide-scrub {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 2.75rem;
+}
+.guide-scrub-track {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  display: flex;
+  gap: 3px;
+  height: 8px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.guide-scrub-track > i {
+  flex: 1;
+  min-width: 0;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background-color var(--viz-duration, 0ms) var(--ease-out);
+}
+.guide-scrub-track > i[data-state="done"] {
+  background: color-mix(in srgb, var(--primary) 55%, var(--border));
+}
+.guide-scrub-track > i[data-state="current"] {
+  background: var(--primary);
+}
+.guide-scrub-track:not([data-segments]) {
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+}
+.guide-scrub-track > i[data-state="fill"] {
+  border-radius: 0;
+  background: var(--primary);
+  transform-origin: left;
+  transition: transform var(--viz-duration, 0ms) var(--ease-out);
+}
+.guide-scrub-input {
+  position: relative;
+  width: 100%;
+  height: 2.75rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.guide-scrub-input::-webkit-slider-runnable-track {
+  height: 2.75rem;
+  background: transparent;
+}
+.guide-scrub-input::-moz-range-track {
+  height: 2.75rem;
+  background: transparent;
+}
+.guide-scrub-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 6px;
+  height: 22px;
+  margin-top: 11px;
+  border-radius: 3px;
+  background: var(--foreground);
+  box-shadow: 0 0 0 2px var(--card);
+}
+.guide-scrub-input::-moz-range-thumb {
+  width: 6px;
+  height: 22px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--foreground);
+  box-shadow: 0 0 0 2px var(--card);
+}
+
+.guide-player-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+.guide-player-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  padding-inline: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+/* The "Show code" summary is for small screens only (unlayered CSS beats the lg:hidden utility). */
+@media (width >= 1024px) {
+  [data-player-code-details] > .guide-player-summary {
+    display: none;
+  }
+}
+.guide-keystep {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.375rem;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  padding: 0.5rem;
+  text-align: left;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  transition: border-color var(--d-1) var(--ease-out);
+}
+.guide-keystep:hover {
+  border-color: var(--border-strong);
+}
+.guide-keystep-no {
+  font: 500 0.75rem/1.3 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.guide-keystep[data-seen] .guide-keystep-no {
+  color: var(--primary);
+}
+
+/* Predict: dashed primary border. */
+.guide-predict {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1.5px dashed color-mix(in srgb, var(--primary) 70%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--secondary) 35%, transparent);
+  padding: 0.875rem 1rem 1rem;
+}
+.guide-predict-tag {
+  font: 500 0.75rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.guide-predict-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  cursor: pointer;
+}
+.guide-predict-choice:hover {
+  border-color: var(--border-strong);
+}
+.guide-predict-choice:has(input:checked) {
+  border-color: var(--primary);
+}
+.guide-feedback {
+  display: flex;
+  gap: 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 0.875rem;
+  font-size: 0.9375rem;
+}
+.guide-feedback-right {
+  border-color: var(--success);
+  background: var(--success-bg);
+}
+.guide-feedback-wrong {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+.guide-feedback-icon {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.125rem;
+}
+.guide-feedback-right .guide-feedback-icon {
+  color: var(--success);
+}
+.guide-feedback-wrong .guide-feedback-icon {
+  color: var(--danger);
 }

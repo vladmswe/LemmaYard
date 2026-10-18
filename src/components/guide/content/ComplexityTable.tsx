@@ -46,7 +46,9 @@ export function ComplexityTable({ table }: { table: ComplexityTableData }) {
                         {" · "}
                       </span>
                     )}
-                    <code>{cell.bound}</code> {cell.q}
+                    <span className="guide-complexity-bound">
+                      <code>{cell.bound}</code> <span className="guide-complexity-q">{cell.q}</span>
+                    </span>
                     {cell.cond && <span className="text-muted-foreground"> ({cell.cond})</span>}
                   </span>
                 ))}
