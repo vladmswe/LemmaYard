@@ -4,7 +4,14 @@
 import type { SessionSnapshot } from "./events";
 import { firstSolvers } from "./scoring";
 import type { DrawError, DrawNotice, Tier } from "./selection";
-import { DIFFICULTIES, type Difficulty, type Mix, type RoomSessionSettings, type RoomSessionStatus } from "./types";
+import {
+  DIFFICULTIES,
+  type Difficulty,
+  type Mix,
+  type RoomSessionSettings,
+  type RoomSessionStatus,
+  type SelectionMode,
+} from "./types";
 
 export const SESSION_NOT_FOUND = "Session not found";
 export const HOST_ONLY = "Only the host can do this";
@@ -72,6 +79,9 @@ export function drawErrorStatus(code: DrawError["code"]): 400 | 409 {
 export type DrawNoticeView = DrawNotice & { message: string };
 
 export function noticeView(n: DrawNotice): DrawNoticeView {
+  if (n.code === "targets_far") {
+    return { ...n, message: `Problem ${n.position}: closest available: ${n.rating} (target ${n.target})` };
+  }
   return { ...n, message: `${REROLLS_RESET_NOTICE} (${LABEL[n.difficulty]})` };
 }
 
@@ -84,6 +94,8 @@ export type LobbySlotView = {
   problem?: { slug: string; title: string; published: boolean };
   /** Host/owner only: why this problem was drawn (§2.4 muted note). */
   note?: { tier: Tier | null; solvedBy: number | null; expectedCount: number; lastUsedAt: string | null };
+  /** v2, rating mode only. */
+  rating?: LobbySlotRatingView;
 };
 
 export type CalibrationView = {
@@ -121,6 +133,38 @@ export type LobbyView = {
   notices: DrawNoticeView[];
   /** Set when the draw at create time failed; the slots are then empty. */
   drawError?: DrawErrorView;
+  /** v2: how the problems are picked (sessions from before v2 read "difficulty"). */
+  mode?: SelectionMode;
+  /** v2: whether the results change the room's ratings. */
+  rated?: boolean;
+  /** v2, rating mode, host/owner only (§6.3 "Shown"). */
+  expected?: LobbyExpectationView;
+};
+
+/** v2 rating numbers of one slot. Non-hosts get `chance` only (a rating narrows the problem down). */
+export type LobbySlotRatingView = {
+  /** Room solve chance = mean over the expected participants of P(R_u, R_p). */
+  chance: number;
+  rating?: number;
+  /** Null for a pinned slot. */
+  target?: number | null;
+  /** rating − target */
+  deviation?: number | null;
+};
+
+export type LobbyExpectationView = {
+  /** τ of the challenge (0.75 / 0.55 / 0.35). */
+  target: number;
+  /** "about X of N per person". */
+  expectedPerPerson: number;
+  /** X / N. */
+  share: number;
+  perUser: { userId: string; username: string; rating: number; provisional: boolean; expected: number }[];
+  /** Ladder center (rounded) and whether it was widened for a wide rating spread. */
+  center: number | null;
+  widened: boolean;
+  /** Lowest and highest rating among the expected participants. */
+  ratingRange: { min: number; max: number } | null;
 };
 
 // --- State snapshot (§7.2) ---

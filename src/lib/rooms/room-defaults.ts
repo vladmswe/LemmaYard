@@ -108,10 +108,16 @@ export const presetsSchema = z
   .max(MAX_PRESETS, `A room keeps at most ${MAX_PRESETS} presets`)
   .refine((list) => new Set(list.map((p) => p.id)).size === list.length, "Each preset id once");
 
+/**
+ * An IANA zone name the runtime knows. `Intl.supportedValuesOf` lists only
+ * canonical ICU names ("Europe/Kiev", not "Europe/Kyiv"), so the check asks
+ * `Intl.DateTimeFormat`, which also accepts the current aliases.
+ */
 function isTimeZone(zone: string): boolean {
-  if (zone === "UTC") return true;
+  if (!/^[A-Za-z][A-Za-z0-9_+-]*(\/[A-Za-z0-9_+-]+)*$/.test(zone)) return false;
   try {
-    return Intl.supportedValuesOf("timeZone").includes(zone);
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+    return true;
   } catch {
     return false;
   }
