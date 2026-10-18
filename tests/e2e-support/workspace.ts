@@ -2,7 +2,7 @@
 // problem, pick the language and put code into Monaco. Selectors are roles,
 // labels and the existing data-testids only, so restyling does not break them.
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { expect, type Page } from "@playwright/test";
@@ -67,6 +67,14 @@ export async function pasteCode(page: Page, code: string, marker?: string): Prom
     document.activeElement?.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
   }, code);
   await expect.poll(() => editorText(page)).toContain(expected);
+}
+
+/** Problems the e2e database holds: every directory in problems/ with a meta.json. */
+export function problemCount(): number {
+  const root = path.join(process.cwd(), "problems");
+  return readdirSync(root, { withFileTypes: true }).filter(
+    (e) => e.isDirectory() && existsSync(path.join(root, e.name, "meta.json")),
+  ).length;
 }
 
 const SOLUTION_FILES: Record<Language, string> = {
