@@ -3,6 +3,7 @@
   "slug": "fizz-buzz",
   "title": "Fizz Buzz",
   "difficulty": "easy",
+  "rating": 1050,
   "tags": [
     "math",
     "string"

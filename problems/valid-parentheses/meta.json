@@ -3,6 +3,7 @@
   "slug": "valid-parentheses",
   "title": "Valid Parentheses",
   "difficulty": "easy",
+  "rating": 1270,
   "tags": [
     "string",
     "stack"

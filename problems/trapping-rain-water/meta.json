@@ -3,6 +3,7 @@
   "slug": "trapping-rain-water",
   "title": "Trapping Rain Water",
   "difficulty": "hard",
+  "rating": 1950,
   "tags": ["array", "two-pointers", "dynamic-programming"],
   "signature": {
     "name": "trap",

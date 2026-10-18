@@ -3,6 +3,7 @@
   "slug": "coin-change",
   "title": "Coin Change",
   "difficulty": "medium",
+  "rating": 1680,
   "tags": [
     "dynamic-programming"
   ],

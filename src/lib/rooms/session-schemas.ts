@@ -3,6 +3,7 @@
 // Every object is strict (extra keys → 400).
 import { z } from "zod";
 
+import type { SessionTemplate } from "./room-defaults";
 import {
   CHALLENGES,
   DEFAULT_DURATION_MIN,
@@ -15,8 +16,11 @@ import {
   MIN_PROBLEM_COUNT,
   mixSchema,
   mixTotal,
+  SELECTION_MODES,
+  selectionModeOf,
   type Mix,
   type RoomSessionSettings,
+  type SelectionMode,
 } from "./types";
 
 /** Spec §7.2: 10 session creates per room per hour (DB count). */
@@ -63,11 +67,29 @@ export const sessionSettingsBodySchema = z.strictObject({
   challenge: z.enum(CHALLENGES).optional(),
   avoidSolved: z.boolean().optional(),
   plannedFor: z.iso.datetime({ offset: true }).nullable().optional(),
+  /** v2: "rating" | "difficulty" | "manual". Omitted with `mixMode`/`mix` present → "difficulty". */
+  mode: z.enum(SELECTION_MODES).optional(),
+  /** v2: whether the results change ratings. */
+  rated: z.boolean().optional(),
 });
 export type SessionSettingsBody = z.infer<typeof sessionSettingsBodySchema>;
 
+/** POST /sessions: the settings plus an optional preset (Rooms v2 §4); explicit fields override the preset. */
+export const createSessionBodySchema = sessionSettingsBodySchema.extend({
+  presetId: z.string().regex(/^[A-Za-z0-9_-]{1,16}$/, "Unknown preset").optional(),
+});
+export type CreateSessionBody = z.infer<typeof createSessionBodySchema>;
+
+/** A session is unrated by default when it gives less than this many minutes per problem (v2 §6.2). */
+export const MIN_RATED_MINUTES_PER_PROBLEM = 10;
+
+/** Off by default for very short sessions (v2 §6.2: duration / N < 10 min). */
+export function ratedByDefault(durationMin: number, problemCount: number, presetRated = true): boolean {
+  return presetRated && durationMin / problemCount >= MIN_RATED_MINUTES_PER_PROBLEM;
+}
+
 /** Body fields whose change re-draws the unpinned slots (§2.5 "Re-draw"). */
-export const DRAW_FIELDS = ["problemCount", "tags", "mixMode", "mix", "challenge", "avoidSolved"] as const;
+export const DRAW_FIELDS = ["problemCount", "tags", "mixMode", "mix", "challenge", "avoidSolved", "mode"] as const;
 
 export function touchesDraw(body: SessionSettingsBody): boolean {
   return DRAW_FIELDS.some((k) => body[k] !== undefined);
@@ -98,6 +120,8 @@ export type ResolvedSettings = {
   durationMin: number;
   plannedFor: Date | null;
   settings: RoomSessionSettings;
+  /** v2: `room_sessions.rated`. */
+  rated: boolean;
 };
 
 export type SettingsError = { status: 400; error: string; field: string };
@@ -110,6 +134,26 @@ export const DEFAULT_SESSION_SETTINGS: RoomSessionSettings = {
   avoidSolved: true,
 };
 
+/** The starting point of a new session created from a preset (v2 §4). */
+export function settingsFromTemplate(template: SessionTemplate): ResolvedSettings {
+  const settings: RoomSessionSettings = {
+    tags: [...template.tags].sort(),
+    mixMode: template.mix ? "manual" : "suggested",
+    mix: template.mix ? { ...template.mix } : { ...DEFAULT_SESSION_SETTINGS.mix },
+    challenge: template.challenge,
+    avoidSolved: template.avoidSolved,
+    mode: template.mode,
+  };
+  if (template.id !== "default") settings.presetId = template.id;
+  return {
+    problemCount: template.problemCount,
+    durationMin: template.durationMin,
+    plannedFor: null,
+    settings,
+    rated: ratedByDefault(template.durationMin, template.problemCount, template.rated),
+  };
+}
+
 /**
  * Merges a body into the current settings (or the defaults for a new
  * session). A `mix` without `mixMode` means a custom mix. A custom mix must
@@ -119,14 +163,24 @@ export function resolveSettings(
   current: ResolvedSettings | null,
   body: SessionSettingsBody,
   now: Date,
+  template?: SessionTemplate,
 ): ResolvedSettings | SettingsError {
-  const base: ResolvedSettings = current ?? {
-    problemCount: DEFAULT_PROBLEM_COUNT,
-    durationMin: DEFAULT_DURATION_MIN,
-    plannedFor: null,
-    settings: DEFAULT_SESSION_SETTINGS,
-  };
+  const base: ResolvedSettings =
+    current ??
+    (template
+      ? settingsFromTemplate(template)
+      : {
+          problemCount: DEFAULT_PROBLEM_COUNT,
+          durationMin: DEFAULT_DURATION_MIN,
+          plannedFor: null,
+          settings: DEFAULT_SESSION_SETTINGS,
+          rated: true,
+        });
   const problemCount = body.problemCount ?? base.problemCount;
+  const durationMin = body.durationMin ?? base.durationMin;
+  // An explicit difficulty mix (old lobby form) means the difficulty mode.
+  const mode: SelectionMode =
+    body.mode ?? (body.mixMode !== undefined || body.mix !== undefined ? "difficulty" : selectionModeOf(base.settings));
   const mixMode = body.mixMode ?? (body.mix !== undefined ? "manual" : base.settings.mixMode);
   let mix: Mix = base.settings.mix;
   if (mixMode === "manual") {
@@ -146,16 +200,19 @@ export function resolveSettings(
       return { status: 400, error: "Plan the session within the next year", field: "plannedFor" };
     }
   }
-  return {
-    problemCount,
-    durationMin: body.durationMin ?? base.durationMin,
-    plannedFor,
-    settings: {
-      tags: body.tags ? [...body.tags].sort() : base.settings.tags,
-      mixMode,
-      mix: { ...mix },
-      challenge: body.challenge ?? base.settings.challenge,
-      avoidSolved: body.avoidSolved ?? base.settings.avoidSolved,
-    },
+  const settings: RoomSessionSettings = {
+    tags: body.tags ? [...body.tags].sort() : base.settings.tags,
+    mixMode,
+    mix: { ...mix },
+    challenge: body.challenge ?? base.settings.challenge,
+    avoidSolved: body.avoidSolved ?? base.settings.avoidSolved,
   };
+  // Pre-v2 rows stay without `mode` until something changes it, so they read back unchanged.
+  if (base.settings.mode !== undefined || body.mode !== undefined || mode !== "difficulty") settings.mode = mode;
+  if (base.settings.presetId !== undefined) settings.presetId = base.settings.presetId;
+  if (mode === "rating" && base.settings.targets !== undefined) settings.targets = [...base.settings.targets];
+  // New sessions: short ones are unrated unless the body says otherwise; existing ones keep their flag.
+  const rated =
+    body.rated ?? (current ? current.rated : ratedByDefault(durationMin, problemCount, template ? template.rated : true));
+  return { problemCount, durationMin, plannedFor, settings, rated };
 }

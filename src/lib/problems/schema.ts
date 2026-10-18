@@ -64,6 +64,25 @@ export const limitsSchema = z.strictObject({
   memoryMb: z.int().min(32).max(1024),
 });
 
+/** Rooms v2 §8: the author's rating in meta.json (`problems.author_rating`, same CHECK). */
+export const AUTHOR_RATING_MIN = 800;
+export const AUTHOR_RATING_MAX = 3000;
+
+/** Rooms v2 §8: usual rating range per difficulty; outside it `problems:verify` warns (no error). */
+export const DIFFICULTY_RATING_BANDS: Readonly<Record<"easy" | "medium" | "hard", readonly [number, number]>> = {
+  easy: [1000, 1450],
+  medium: [1450, 1850],
+  hard: [1850, 2400],
+};
+
+/** The verify warning for a rating outside its difficulty's band, or null. */
+export function ratingBandWarning(meta: { slug: string; difficulty: "easy" | "medium" | "hard"; rating?: number }): string | null {
+  if (meta.rating === undefined) return null;
+  const [lo, hi] = DIFFICULTY_RATING_BANDS[meta.difficulty];
+  if (meta.rating >= lo && meta.rating <= hi) return null;
+  return `${meta.slug}: rating ${meta.rating} is outside the usual ${meta.difficulty} band ${lo}–${hi}`;
+}
+
 export const metaSchema = z
   .strictObject({
     // Upper bound keeps `number + NUMBER_PARK_OFFSET` (importer) within int4.
@@ -71,6 +90,12 @@ export const metaSchema = z
     slug: z.string().regex(slugRe, "slug must be kebab-case: [a-z0-9]+(-[a-z0-9]+)*"),
     title: z.string().trim().min(1),
     difficulty: z.enum(["easy", "medium", "hard"]),
+    /** Optional author rating (Rooms v2); absent → band default by difficulty. */
+    rating: z
+      .int("rating must be a whole number")
+      .min(AUTHOR_RATING_MIN, `rating must be ${AUTHOR_RATING_MIN}–${AUTHOR_RATING_MAX}`)
+      .max(AUTHOR_RATING_MAX, `rating must be ${AUTHOR_RATING_MIN}–${AUTHOR_RATING_MAX}`)
+      .optional(),
     tags: z
       .array(z.string().regex(slugRe, "tag must be kebab-case: [a-z0-9]+(-[a-z0-9]+)*"))
       .refine((tags) => new Set(tags).size === tags.length, "duplicate tags"),

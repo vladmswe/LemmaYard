@@ -3,6 +3,7 @@
   "slug": "house-robber",
   "title": "House Robber",
   "difficulty": "medium",
+  "rating": 1500,
   "tags": [
     "array",
     "dynamic-programming"

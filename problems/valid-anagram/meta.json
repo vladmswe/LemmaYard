@@ -3,6 +3,7 @@
   "slug": "valid-anagram",
   "title": "Valid Anagram",
   "difficulty": "easy",
+  "rating": 1150,
   "tags": [
     "string",
     "hash-table"

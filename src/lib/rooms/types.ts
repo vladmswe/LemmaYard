@@ -20,6 +20,19 @@ export type RoomSessionEndReason = (typeof ROOM_SESSION_END_REASONS)[number];
 export const CHALLENGES = ["relaxed", "balanced", "tough"] as const;
 export type Challenge = (typeof CHALLENGES)[number];
 
+/**
+ * How the lobby picks problems (Rooms v2 §7): by the room's ratings, by a
+ * difficulty mix (v1), or by hand ("I'll pick them"). A stored session
+ * without `mode` predates v2 and reads as "difficulty".
+ */
+export const SELECTION_MODES = ["rating", "difficulty", "manual"] as const;
+export type SelectionMode = (typeof SELECTION_MODES)[number];
+export const DEFAULT_SELECTION_MODE: SelectionMode = "rating";
+
+/** Where a member's first rating in a room came from (Rooms v2 §6.4). */
+export const RATING_SOURCES = ["default", "self_reported", "practice"] as const;
+export type RatingSource = (typeof RATING_SOURCES)[number];
+
 /** Problems per difficulty; always sums to the session's problem count. */
 export type Mix = { easy: number; medium: number; hard: number };
 
@@ -44,8 +57,19 @@ export const roomSessionSettingsSchema = z.strictObject({
   mix: mixSchema,
   challenge: z.enum(CHALLENGES),
   avoidSolved: z.boolean(),
+  /** v2: absent on sessions created before Rooms v2 (= "difficulty"); see `selectionModeOf`. */
+  mode: z.enum(SELECTION_MODES).optional(),
+  /** v2: the preset the session started from, if any. */
+  presetId: z.string().max(16).optional(),
+  /** v2, rating mode: the target rating per position (index = position − 1); null for pinned slots. */
+  targets: z.array(z.int().nullable()).max(MAX_PROBLEM_COUNT).optional(),
 });
 export type RoomSessionSettings = z.infer<typeof roomSessionSettingsSchema>;
+
+/** The selection mode of stored settings; rows without one predate v2 and used the difficulty draw. */
+export function selectionModeOf(settings: Pick<RoomSessionSettings, "mode">): SelectionMode {
+  return settings.mode ?? "difficulty";
+}
 
 export function mixTotal(mix: Mix): number {
   return mix.easy + mix.medium + mix.hard;

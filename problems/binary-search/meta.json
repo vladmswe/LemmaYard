@@ -3,6 +3,7 @@
   "slug": "binary-search",
   "title": "Binary Search",
   "difficulty": "easy",
+  "rating": 1250,
   "tags": [
     "array",
     "binary-search"

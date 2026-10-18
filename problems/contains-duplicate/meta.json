@@ -3,6 +3,7 @@
   "slug": "contains-duplicate",
   "title": "Contains Duplicate",
   "difficulty": "easy",
+  "rating": 1120,
   "tags": [
     "array",
     "hash-table"

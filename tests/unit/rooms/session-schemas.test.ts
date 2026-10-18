@@ -74,6 +74,7 @@ describe("resolveSettings", () => {
       durationMin: 90,
       plannedFor: null,
       settings: DEFAULT_SESSION_SETTINGS,
+      rated: true,
     });
   });
 
@@ -82,6 +83,7 @@ describe("resolveSettings", () => {
     durationMin: 60,
     plannedFor: null,
     settings: { tags: ["string"], mixMode: "manual", mix: { easy: 1, medium: 1, hard: 1 }, challenge: "relaxed", avoidSolved: false },
+    rated: true,
   };
 
   it("keeps omitted fields of the current settings", () => {

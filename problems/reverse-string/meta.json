@@ -3,6 +3,7 @@
   "slug": "reverse-string",
   "title": "Reverse String",
   "difficulty": "easy",
+  "rating": 1080,
   "tags": [
     "string",
     "two-pointers"

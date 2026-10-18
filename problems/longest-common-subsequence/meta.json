@@ -3,6 +3,7 @@
   "slug": "longest-common-subsequence",
   "title": "Longest Common Subsequence",
   "difficulty": "medium",
+  "rating": 1720,
   "tags": ["string", "dynamic-programming"],
   "signature": {
     "name": "longestCommonSubsequence",
