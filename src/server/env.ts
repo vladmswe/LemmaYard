@@ -87,6 +87,10 @@ export const envSchema = z.object({
   // Shown on the legal and report pages. Required in production when
   // COMMUNITY_ENABLED=1.
   CONTACT_EMAIL: z.email().optional(),
+  // Rooms: auto-pick of LeetCode problems from the committed catalog
+  // (docs/specs/leetcode-integration.md). "0" turns the feature off without a
+  // code change; hand-picked LeetCode links keep working.
+  LEETCODE_CATALOG_ENABLED: z.enum(["0", "1"]).default("1"),
 }).superRefine((env, ctx) => {
   if (env.VERCEL && env.AUTH_RATE_LIMITS === "0") {
     ctx.addIssue({ code: "custom", path: ["AUTH_RATE_LIMITS"], message: "must not be 0 on Vercel" });

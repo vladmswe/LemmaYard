@@ -38,6 +38,8 @@ import { MAX_PRESETS, PRESET_NAME_MAX, type SessionTemplate } from "@/lib/rooms/
 import { DIFFICULTY_LABEL } from "@/lib/rooms/lobby-copy";
 import { DIFFICULTIES, MAX_PROBLEM_COUNT, MIN_PROBLEM_COUNT, mixTotal } from "@/lib/rooms/types";
 
+import { AUTO_PICK_LABEL, autoPickHelp, LEETCODE_ATTRIBUTION } from "@/lib/leetcode/labels";
+
 import { Stepper } from "../lobby/stepper";
 import { useRoomAction } from "../use-room-action";
 import { ChallengeField, DurationField, ModeField, TopicsField } from "./session-fields";
@@ -51,12 +53,15 @@ export function PresetsCard({
   defaultPresetId,
   canEdit,
   tags,
+  leetcodeCatalogSize = null,
 }: {
   roomId: string;
   presets: SessionTemplate[];
   defaultPresetId: string;
   canEdit: boolean;
   tags: Tag[];
+  /** LeetCode catalog size; null hides the auto-pick switch (catalog off or invalid). */
+  leetcodeCatalogSize?: number | null;
 }) {
   const [editing, setEditing] = useState<PresetForm | null>(null);
   const [deleting, setDeleting] = useState<SessionTemplate | null>(null);
@@ -140,6 +145,7 @@ export function PresetsCard({
           initial={editing}
           tags={tags}
           isDefault={editing.id === defaultPresetId}
+          leetcodeCatalogSize={leetcodeCatalogSize}
           onClose={() => setEditing(null)}
         />
       )}
@@ -173,11 +179,13 @@ export function PresetEditorDialog({
   makeDefaultInitial = false,
   onSaved,
   title,
+  leetcodeCatalogSize = null,
 }: {
   roomId: string;
   initial: PresetForm;
   tags: Tag[];
   isDefault: boolean;
+  leetcodeCatalogSize?: number | null;
   onClose: () => void;
   makeDefaultInitial?: boolean;
   /** After a successful save (the lobby re-reads the room's presets). */
@@ -262,13 +270,25 @@ export function PresetEditorDialog({
               min={0}
               max={form.problemCount}
               disabled={pending}
-              onChange={(v) => update({ external: v })}
+              onChange={(v) => update({ external: v, ...(v === 0 ? { leetcodeAuto: false } : {}) })}
             />
             <FieldHelp>
-              Slots the host fills with LeetCode links in the lobby. They are self-reported and never change ratings.
+              {form.leetcodeAuto && form.external > 0
+                ? "Filled automatically when the lobby draws. They are self-reported and never change ratings."
+                : "Slots the host fills with LeetCode links in the lobby. They are self-reported and never change ratings."}
             </FieldHelp>
             {errors.external && <FieldError>{errors.external}</FieldError>}
           </div>
+          {leetcodeCatalogSize !== null && (
+            <SwitchRow
+              label={AUTO_PICK_LABEL}
+              help={`${autoPickHelp(leetcodeCatalogSize)} ${LEETCODE_ATTRIBUTION}.`}
+              checked={form.leetcodeAuto && form.external > 0}
+              onChange={(v) => update({ leetcodeAuto: v })}
+              disabled={pending || form.external === 0}
+              testId="preset-leetcode-auto"
+            />
+          )}
           <DurationField value={form.durationMin} onChange={(v) => update({ durationMin: v })} disabled={pending} />
           {errors.durationMin && <FieldError>{errors.durationMin}</FieldError>}
           <ModeField value={form.mode} onChange={(v) => update({ mode: v })} disabled={pending} />

@@ -17,9 +17,12 @@ export function RoomDefaultsCards({
   detail,
   tags,
   bank,
+  leetcodeCatalogSize = null,
 }: {
   detail: RoomDetail;
   tags: SessionTag[];
+  /** LeetCode catalog size, null when auto-pick is unavailable. */
+  leetcodeCatalogSize?: number | null;
   /** The room's LeetCode list (rooms-external-problems). */
   bank: BankEntry[];
 }) {
@@ -41,8 +44,9 @@ export function RoomDefaultsCards({
           defaultPresetId={room.defaultPresetId}
           canEdit={isOwner}
           tags={tags}
+          leetcodeCatalogSize={leetcodeCatalogSize}
         />
-        <LeetCodeBankCard roomId={room.id} entries={bank} canEdit={isOwner} />
+        <LeetCodeBankCard roomId={room.id} entries={bank} canEdit={isOwner} catalogAvailable={leetcodeCatalogSize !== null} />
         <ScheduleCard
           // Re-mount after a save so the form starts from the stored schedule.
           key={JSON.stringify(room.schedule)}

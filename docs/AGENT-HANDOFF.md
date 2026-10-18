@@ -38,6 +38,11 @@ Shipped on `main` (see the root `README.md` for details):
   times), live attempts, history, room presets and weekly schedule with `.ics`,
   per-room Elo rating (internal; optional self-reported LeetCode rating is only
   a seed and visible only to its owner).
+- LeetCode in rooms: hand-picked links with honor-system results
+  (`docs/specs/rooms-external-problems.md`) and automatic picks from a committed, offline LeetCode catalog
+  (`docs/specs/leetcode-integration.md`, `src/server/leetcode/`: zerotrac MIT ratings + an overlay with
+  estimated tags and difficulty overrides; kill switch `LEETCODE_CATALOG_ENABLED`). Refresh procedure below
+  (section 8, "Maintenance").
 - Design system v2 "Proof" (dark theme only for now: `src/lib/theme-config.ts`).
 - Deploy tooling: `docs/DEPLOY.md`, generated `docs/supabase/schema.sql` and
   `docs/supabase/problems.sql` (+ split parts) that can be pasted into the
@@ -54,7 +59,12 @@ Product:
   (who solved which problem, when, with time from session start); rooms double
   as teams; default selection mode is "By rating"; rating is PER ROOM (one rating
   per member inside a room, everyone in the room gets the same problems and all
-  members see all ratings); no LeetCode data is ever scraped or copied.
+  members see all ratings); no LeetCode data is ever scraped or fetched by us. The owner allowed (2026-10-18)
+  committing LeetCode problem FACTS (number, slug, title, contest position) and the MIT community ratings of
+  zerotrac/leetcode_problem_rating with attribution; never statements, examples, hints, tests or premium content.
+  Self-reported LeetCode solves never change Elo. Difficulty of catalog problems is derived from the rating
+  (`src/lib/leetcode/difficulty.ts`) and labelled "estimated"; topic tags were estimated by an agent and live in
+  `overlay.json` for the owner to correct.
 - Problems are original work. Never copy LeetCode/Codeforces statements or tests.
   LeetCode problems may only be **linked** (see "In flight").
 - More submission languages are wanted; Java first, then others (C++, Go,
@@ -255,6 +265,14 @@ entries here.
     a nonce-based CSP, DB-backed
     rate limits for the auth routes (current limiter is in memory per instance),
     row-level policies if the app ever uses Supabase client access.
+
+### Maintenance: refreshing the LeetCode catalog
+
+When the owner wants newer contests (monthly is plenty): follow `src/server/leetcode/NOTICE.md` → "Refreshing the
+catalog" (anonymous `git ls-remote` + download of zerotrac's `data.json` at a commit, then
+`pnpm leetcode:catalog --input <path> --commit <sha>`, review the diff, `pnpm test`, commit `catalog.json` and
+`NOTICE.md` on a branch). Never fetch anything from leetcode.com; never edit `catalog.json` by hand; tags and
+overrides go into `overlay.json`.
 
 ## 9. How to brief a sub-agent
 

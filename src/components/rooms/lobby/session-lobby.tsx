@@ -249,7 +249,7 @@ export function SessionLobby({
               <InfoIcon aria-hidden />
               <AlertDescription>
                 {notices.map((n) => (
-                  <p key={`${n.code}-${n.difficulty}-${"position" in n ? n.position : ""}`}>{n.message}</p>
+                  <p key={`${n.code}-${"difficulty" in n ? n.difficulty : ""}-${"position" in n ? n.position : ""}`}>{n.message}</p>
                 ))}
               </AlertDescription>
             </Alert>
@@ -277,6 +277,14 @@ export function SessionLobby({
               })
             }
             external={externalCount}
+            rerollsLeft={lobby.rerollsLeft}
+            leetcodeAuto={lobby.settings.leetcodeAuto === true && lobby.leetcodeCatalog !== undefined}
+            onRerollExternal={(pos) =>
+              act(`reroll-external-${pos}`, () => sessionApi.external(roomId, sessionId, { action: "reroll", position: pos }), {
+                focusPosition: pos,
+                focusMessage: `Problem ${pos} (LeetCode) re-rolled`,
+              })
+            }
             onAddExternal={() => setAddingExternal(true)}
             onRemoveExternal={(pos) =>
               act(`remove-external-${pos}`, () => sessionApi.external(roomId, sessionId, { action: "remove", position: pos }), {
@@ -443,6 +451,9 @@ export function SessionLobby({
       {canManage && addingExternal && (
         <AddLeetCodeDialog
           roomId={roomId}
+          sessionId={sessionId}
+          catalogSize={lobby.leetcodeCatalog?.problems ?? null}
+          tagName={tagName}
           pending={busy !== null}
           canSaveToBank={room?.role === "owner"}
           inSession={new Set(lobby.slots.flatMap((s) => (s.external?.slug ? [s.external.slug] : [])))}

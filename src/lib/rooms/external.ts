@@ -33,6 +33,11 @@ const LEETCODE_URL_RE =
 /** Invisible or direction-changing characters and control characters (never in a title). */
 const UNSAFE_TEXT = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 
+/** True when `s` holds a control, format (bidi, zero-width) or line/paragraph separator character. */
+export function hasUnsafeText(s: string): boolean {
+  return UNSAFE_TEXT.test(s);
+}
+
 export type ParsedLeetCodeUrl = { ok: true; slug: string } | { ok: false; error: string };
 
 export const URL_REQUIRED = "Paste a LeetCode problem link";
@@ -124,6 +129,13 @@ export type BankBody = z.infer<typeof bankBodySchema>;
 /** POST …/sessions/:sid/external (host or owner, lobby). */
 export const sessionExternalBodySchema = z.union([
   z.strictObject({ action: z.literal("add"), bankId: idSchema }),
+  /** A problem of the LeetCode catalog, picked by the host (leetcode-integration §6.7): written as pinned. */
+  z.strictObject({
+    action: z.literal("add"),
+    catalogSlug: z.string().min(1).max(EXTERNAL_SLUG_MAX).regex(EXTERNAL_SLUG_RE, "Unknown LeetCode problem"),
+  }),
+  /** Re-roll an auto-picked LeetCode slot (counts toward the session's re-rolls). */
+  z.strictObject({ action: z.literal("reroll"), position: z.number().int().min(1).max(8) }),
   externalProblemInputSchema.extend({ action: z.literal("add"), saveToBank: z.boolean().optional() }),
   z.strictObject({ action: z.literal("remove"), position: z.number().int().min(1).max(8) }),
 ]);

@@ -44,6 +44,8 @@ export const MAX_DURATION_MIN = 240;
 export const DURATION_STEP_MIN = 5;
 export const DEFAULT_DURATION_MIN = 90;
 export const MAX_SESSION_TAGS = 5;
+/** Re-rolled LeetCode slugs remembered per session (the oldest drop out). */
+export const MAX_LEETCODE_REROLLED = 30;
 
 const mixCount = z.number().int().min(0).max(MAX_PROBLEM_COUNT);
 export const mixSchema = z.strictObject({ easy: mixCount, medium: mixCount, hard: mixCount });
@@ -69,12 +71,34 @@ export const roomSessionSettingsSchema = z.strictObject({
    * draw fills the first `problemCount − external`. Absent = 0.
    */
   external: z.int().min(0).max(MAX_PROBLEM_COUNT).optional(),
+  /**
+   * docs/specs/leetcode-integration.md §5: the draw fills empty or auto-picked
+   * (unpinned) LeetCode slots from the committed catalog. Absent = false.
+   */
+  leetcodeAuto: z.boolean().optional(),
+  /**
+   * Slugs of the LeetCode slots the draw picked (re-rollable, re-picked by the
+   * next draw); every other LeetCode slot was picked by hand. Host only. Kept
+   * here because LeetCode rows must stay `pinned = false` (CHECK
+   * room_session_problems_kind) and no migration is allowed for this feature.
+   */
+  leetcodeAutoSlugs: z.array(z.string().min(1).max(100)).max(MAX_PROBLEM_COUNT).optional(),
+  /** LeetCode slugs re-rolled away in this session (avoided by later picks; host only). */
+  leetcodeRerolled: z
+    .array(z.string().min(1).max(100))
+    .max(MAX_LEETCODE_REROLLED)
+    .optional(),
 });
 export type RoomSessionSettings = z.infer<typeof roomSessionSettingsSchema>;
 
 /** LeetCode slots reserved at the end of the session (0 when absent). */
 export function externalCountOf(settings: Pick<RoomSessionSettings, "external">): number {
   return settings.external ?? 0;
+}
+
+/** Whether the draw auto-picks LeetCode problems for the LeetCode slots. */
+export function leetcodeAutoOf(settings: Pick<RoomSessionSettings, "leetcodeAuto">): boolean {
+  return settings.leetcodeAuto === true;
 }
 
 /** The selection mode of stored settings; rows without one predate v2 and used the difficulty draw. */

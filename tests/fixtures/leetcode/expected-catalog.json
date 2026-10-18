@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "source": {"name":"zerotrac/leetcode_problem_rating","url":"https://github.com/zerotrac/leetcode_problem_rating","commit":"1111111111111111111111111111111111111111","licence":"MIT","retrievedAt":"2026-01-02"},
+  "problems": [
+    {"n":1001,"slug":"fixture-alpha-sum","title":"Fixture Alpha Sum","rating":1201,"contest":"weekly-contest-118","q":1},
+    {"n":1002,"slug":"fixture-beta-window","title":"Fixture Beta Window","rating":1450,"contest":"biweekly-contest-7","q":2},
+    {"n":1003,"slug":"fixture-gamma-grid","title":"Fixture Gamma Grid","rating":1850,"contest":"weekly-contest-119","q":3},
+    {"n":1004,"slug":"fixture-delta-paths","title":"Fixture Delta Paths","rating":2211,"contest":"weekly-contest-120","q":4},
+    {"n":1005,"slug":"fixture-epsilon-tree","title":"Fixture Epsilon Tree","rating":1700,"contest":"weekly-contest-121","q":2}
+  ]
+}

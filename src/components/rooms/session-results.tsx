@@ -36,7 +36,9 @@ import { formatScoreTime } from "@/lib/rooms/scoring";
 import { mixLabel } from "@/lib/rooms/session-view";
 import type { FinishedResults, ResultParticipant } from "@/server/rooms/results";
 
-import { LeetCodeLink, LeetCodeTag } from "./external/leetcode-bits";
+import { DIFFICULTY_ESTIMATED_HELP, ratingSourceHelp } from "@/lib/leetcode/labels";
+
+import { EstimatedTag, LeetCodeLink, LeetCodeTag } from "./external/leetcode-bits";
 import { LocalTime } from "./local-time";
 import { MatrixLegend, ScoreMatrix, type MatrixRating } from "./matrix/score-matrix";
 
@@ -330,10 +332,17 @@ export function ProblemSummaryList({ results, rows }: { results: FinishedResults
                 )}
                 {p.external && <LeetCodeTag />}
                 {p.difficulty && <DifficultyBadge difficulty={p.difficulty} />}
+                {p.external?.provenance?.difficultyEstimated && p.difficulty && (
+                  <EstimatedTag help={DIFFICULTY_ESTIMATED_HELP} testId={`result-difficulty-estimated-${p.position}`} />
+                )}
                 {p.external?.rating != null && (
                   <span
                     className="rounded-sm border border-border-strong px-1.5 font-mono text-xs text-muted-foreground"
-                    title="Rating entered by the room owner (display only)"
+                    title={
+                      p.external.provenance?.ratingSource
+                        ? ratingSourceHelp(p.external.provenance.ratingSource)
+                        : "Rating entered by the room owner (display only)"
+                    }
                   >
                     {p.external.rating}
                   </span>

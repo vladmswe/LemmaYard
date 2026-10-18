@@ -18,6 +18,7 @@ import { RoomDefaultsCards } from "@/components/rooms/settings/room-settings-tab
 import { Skeleton } from "@/components/ui/skeleton";
 import { membersHref, parseLeaderboardRange, parsePageParam, type LeaderboardRange } from "@/lib/rooms/history";
 import { getCurrentUser, requireUser } from "@/server/auth/session";
+import { getLeetCodeCatalog } from "@/server/leetcode/catalog";
 import { getDb } from "@/server/db";
 import { requireRoomMember } from "@/server/rooms/access";
 import { listBank } from "@/server/rooms/external";
@@ -110,7 +111,7 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
               <MembersTab roomId={roomId} userId={user.id} range={membersRange} detail={detail} />
             </Suspense>
           }
-          settings={<RoomSettingsTab detail={detail} defaults={<RoomDefaultsCards detail={detail} tags={tags} bank={bank} />} />}
+          settings={<RoomSettingsTab detail={detail} defaults={<RoomDefaultsCards detail={detail} tags={tags} bank={bank} leetcodeCatalogSize={getLeetCodeCatalog()?.visible.length ?? null} />} />}
         />
       </div>
     </>

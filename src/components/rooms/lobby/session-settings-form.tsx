@@ -18,6 +18,7 @@ import { FieldError, FieldHelp } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Segmented } from "@/components/ui/segmented";
+import { AUTO_PICK_LABEL, autoPickHelp, LEETCODE_ATTRIBUTION } from "@/lib/leetcode/labels";
 import { EXTERNAL_UNRATED_HELP } from "@/lib/rooms/external";
 import { DIFFICULTY_LABEL, formFromLobby, mixError, settingsDiff, type LobbyForm } from "@/lib/rooms/lobby-copy";
 import {
@@ -205,8 +206,7 @@ export function SessionSettingsForm({
           />
           <FieldHelp>
             {MIN_PROBLEM_COUNT}–{MAX_PROBLEM_COUNT} · {minutesPerProblem(form.durationMin, form.problemCount)}
-            {form.external > 0 &&
-              ` · ${form.external} from LeetCode (add or remove them in the Problems list), ${form.problemCount - form.external} drawn`}
+            {form.external > 0 && ` · ${form.external} from LeetCode, ${form.problemCount - form.external} drawn`}
           </FieldHelp>
           {form.external > form.problemCount && <FieldError>{mixError(form)}</FieldError>}
         </div>
@@ -274,6 +274,36 @@ export function SessionSettingsForm({
 
       <TopicsField tags={tags} value={form.tags} onChange={(v) => update({ tags: v })} disabled={pending} />
 
+      <fieldset className="flex flex-col gap-4 border-t pt-5" data-testid="leetcode-settings">
+        <legend className="sr-only">LeetCode problems</legend>
+        <div className="flex flex-col gap-1.5" data-testid="leetcode-count">
+          <Stepper
+            label="LeetCode problems"
+            unit="LeetCode problems"
+            value={form.external}
+            min={0}
+            max={form.problemCount}
+            disabled={pending}
+            onChange={(v) => update({ external: v, ...(v === 0 ? { leetcodeAuto: false } : {}) })}
+          />
+          <FieldHelp>
+            {form.external === 0
+              ? "None. A LeetCode problem is a link to leetcode.com that people mark solved themselves; it never changes ratings."
+              : `The last ${form.external === 1 ? "slot is a LeetCode problem" : `${form.external} slots are LeetCode problems`}: a link to leetcode.com, marked solved by each person. Never rated.`}
+          </FieldHelp>
+        </div>
+        {lobby.leetcodeCatalog && (
+          <SwitchRow
+            label={AUTO_PICK_LABEL}
+            help={`${autoPickHelp(lobby.leetcodeCatalog.problems)} ${LEETCODE_ATTRIBUTION}.`}
+            checked={form.leetcodeAuto}
+            onChange={(v) => update({ leetcodeAuto: v })}
+            disabled={pending || form.external === 0}
+            testId="leetcode-auto-switch"
+          />
+        )}
+      </fieldset>
+
       <div className="flex flex-col gap-5 border-t pt-5">
         <SwitchRow
           label="Avoid problems someone has already solved"
@@ -331,6 +361,7 @@ export function SessionSettingsForm({
           initial={presetFormFromLobby(form, saveDialog.makeDefault && selected ? selected.name : "")}
           tags={tags}
           isDefault={false}
+          leetcodeCatalogSize={lobby.leetcodeCatalog?.problems ?? null}
           makeDefaultInitial={saveDialog.makeDefault}
           title={saveDialog.makeDefault ? "Save as room default" : "Save current as preset"}
           onClose={() => setSaveDialog(null)}

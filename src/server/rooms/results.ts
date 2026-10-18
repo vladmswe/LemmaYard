@@ -4,6 +4,8 @@
 // null (404). Results budget: Q0, session (+ host, pending judging), problems,
 // participants with their cells and sharing flags, tag names when the session
 // had topics = at most 5 queries (+ a due lazy close).
+import type { LeetCodeProvenance } from "@/lib/leetcode/labels";
+import { slotProvenance } from "@/server/leetcode/catalog";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -81,7 +83,7 @@ export type ResultProblem = {
   published: boolean;
   pinned: boolean;
   /** A LeetCode slot (rooms-external-problems): honor-system results, never rated. */
-  external?: { slug: string; rating: number | null };
+  external?: { slug: string; rating: number | null; provenance?: LeetCodeProvenance };
   /** Rooms v2 rating slot: the problem's rating before → after the session (absent: not shown). */
   rating?: { before: number; after: number };
 };
@@ -198,6 +200,7 @@ export async function getSessionResults(
         externalSlug: roomSessionProblems.externalSlug,
         externalTitle: roomSessionProblems.externalTitle,
         externalRating: roomSessionProblems.externalRating,
+        externalProblemId: roomSessionProblems.externalProblemId,
       })
       .from(roomSessionProblems)
       .leftJoin(problems, eq(problems.id, roomSessionProblems.problemId))
@@ -348,8 +351,20 @@ export function toResultProblem(r: {
   externalSlug: string | null;
   externalTitle: string | null;
   externalRating: number | null;
+  /** Results page only: the room-list link, to tell catalog picks (estimated values) apart. */
+  externalProblemId?: string | null;
 }): ResultProblem {
   if (r.externalSlug !== null) {
+    const provenance =
+      r.externalProblemId === undefined
+        ? null
+        : slotProvenance({
+            slug: r.externalSlug,
+            title: r.externalTitle ?? r.externalSlug,
+            difficulty: r.difficulty,
+            rating: r.externalRating,
+            bankId: r.externalProblemId,
+          });
     return {
       position: r.position,
       slug: null,
@@ -357,7 +372,7 @@ export function toResultProblem(r: {
       difficulty: r.difficulty,
       published: true,
       pinned: false,
-      external: { slug: r.externalSlug, rating: r.externalRating },
+      external: { slug: r.externalSlug, rating: r.externalRating, ...(provenance ? { provenance } : {}) },
     };
   }
   return {

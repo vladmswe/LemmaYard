@@ -85,6 +85,8 @@ the `AUTH_URL` note):
 | `COMMUNITY_READ_ONLY` | no | `1` | Incident switch: community pages stay readable, every community write answers 503. Default `0`. |
 | `CONTACT_EMAIL` | with `COMMUNITY_ENABLED=1` | `hello@example.com` | Shown on the legal and report pages. **Required in production when `COMMUNITY_ENABLED=1`**: env validation fails without it. |
 
+| `LEETCODE_CATALOG_ENABLED` | no | `0` | Rooms: automatic LeetCode problems from the committed catalog. Unset or `1`: on. `0` turns the feature off without a code change (takes effect after a redeploy, below); hand-picked LeetCode links keep working. |
+
 Do **not** set `DATABASE_URL_DIRECT` on Vercel; the web app never uses it.
 Do not set `NODE_ENV` or `PORT` either; Vercel manages them. Do not set
 `AUTH_RATE_LIMITS` (login/register limits; `0` is rejected on Vercel).

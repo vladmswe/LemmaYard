@@ -58,6 +58,24 @@ export function LeetCodeTag({ className }: { className?: string }) {
 }
 
 /**
+ * "estimated" next to a value LemmaYard estimated (difficulty from the
+ * rating, agent-made topics, an estimated rating). Text, not colour; the
+ * tooltip and the screen-reader text say what was estimated.
+ */
+export function EstimatedTag({ help, className, testId = "estimated" }: { help: string; className?: string; testId?: string }) {
+  return (
+    <span
+      className={cn("text-xs text-muted-foreground italic", className)}
+      title={help}
+      data-testid={testId}
+    >
+      estimated
+      <span className="sr-only"> ({help})</span>
+    </span>
+  );
+}
+
+/**
  * "SELF" on a self-reported solve: text and a dashed border, never colour
  * alone. `sr` adds a spoken word for places without their own sentence.
  */

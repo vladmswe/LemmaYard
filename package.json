@@ -28,6 +28,7 @@
     "user:role": "tsx scripts/user-role.ts",
     "community:recount": "tsx scripts/community-recount.ts",
     "community:difficulty-report": "tsx scripts/community-difficulty-report.ts",
+    "leetcode:catalog": "tsx scripts/leetcode-catalog.ts",
     "setup": "pnpm install && docker compose up -d --wait && pnpm sandbox:build && pnpm db:seed",
     "test:e2e:guide": "E2E_JUDGE=0 playwright test tests/e2e/guide"
   },

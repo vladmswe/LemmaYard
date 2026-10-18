@@ -1,0 +1,12 @@
+[
+  {"Rating": 2210.6, "ID": 1004, "Title": "Fixture Delta Paths", "TitleZH": "ignored", "TitleSlug": "fixture-delta-paths", "ContestSlug": "weekly-contest-120", "ProblemIndex": "Q4", "ContestID_en": "Weekly Contest 120", "ContestID_zh": "ignored"},
+  {"Rating": 1201.4, "ID": 1001, "Title": "Fixture Alpha Sum", "TitleZH": "ignored", "TitleSlug": "fixture-alpha-sum", "ContestSlug": "weekly-contest-118", "ProblemIndex": "Q1", "ContestID_en": "Weekly Contest 118", "ContestID_zh": "ignored"},
+  {"Rating": 1449.5, "ID": 1002, "Title": "Fixture Beta Window", "TitleZH": "ignored", "TitleSlug": "fixture-beta-window", "ContestSlug": "biweekly-contest-7", "ProblemIndex": "Q2", "ContestID_en": "Biweekly Contest 7", "ContestID_zh": "ignored"},
+  {"Rating": 1850.0, "ID": 1003, "Title": "Fixture Gamma Grid", "TitleZH": "ignored", "TitleSlug": "fixture-gamma-grid", "ContestSlug": "weekly-contest-119", "ProblemIndex": "Q3", "ContestID_en": "Weekly Contest 119", "ContestID_zh": "ignored"},
+  {"Rating": 1700.2, "ID": 1005, "Title": "  Fixture Epsilon Tree ", "TitleZH": "ignored", "TitleSlug": "fixture-epsilon-tree", "ContestSlug": "weekly-contest-121", "ProblemIndex": "Q2", "ContestID_en": "Weekly Contest 121", "ContestID_zh": "ignored"},
+  {"Rating": 1300, "ID": 1006, "Title": "Bad Slug", "TitleZH": "ignored", "TitleSlug": "Bad_Slug", "ContestSlug": "weekly-contest-122", "ProblemIndex": "Q1", "ContestID_en": "x", "ContestID_zh": "x"},
+  {"Rating": 1300, "ID": 1007, "Title": "Bell\u0007Title", "TitleZH": "ignored", "TitleSlug": "fixture-bell-title", "ContestSlug": "weekly-contest-122", "ProblemIndex": "Q2", "ContestID_en": "x", "ContestID_zh": "x"},
+  {"Rating": 1500, "ID": 2000, "Title": "Fixture Alpha Sum Again", "TitleZH": "ignored", "TitleSlug": "fixture-alpha-sum", "ContestSlug": "weekly-contest-200", "ProblemIndex": "Q1", "ContestID_en": "x", "ContestID_zh": "x"},
+  {"Rating": 5000, "ID": 1008, "Title": "Fixture Too Hard", "TitleZH": "ignored", "TitleSlug": "fixture-too-hard", "ContestSlug": "weekly-contest-123", "ProblemIndex": "Q4", "ContestID_en": "x", "ContestID_zh": "x"},
+  {"Rating": 1999.9, "ID": 1009, "Title": "Fixture Bidi ‮Title", "TitleZH": "ignored", "TitleSlug": "fixture-bidi-title", "ContestSlug": "weekly-contest-123", "ProblemIndex": "Q3", "ContestID_en": "x", "ContestID_zh": "x"}
+]
