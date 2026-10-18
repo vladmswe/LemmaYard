@@ -254,7 +254,7 @@ export default async function Home() {
               Worked examples, explicit constraints and hidden tests. Filter by difficulty, topic
               and status.
             </p>
-            <Link href="/problems" className="mt-5 inline-flex items-center gap-2 self-start rounded-sm font-semibold text-link underline-offset-4 hover:underline">
+            <Link href="/problems" className="mt-3 inline-flex min-h-10 items-center gap-2 self-start rounded-sm font-semibold text-link underline-offset-4 hover:underline">
               Browse the catalog
               <ArrowRightIcon aria-hidden className="size-4" />
             </Link>
@@ -272,7 +272,7 @@ export default async function Home() {
             <p className="max-w-[44ch]">
               Lessons with step-through diagrams, code in both languages and practice links.
             </p>
-            <Link href="/learn" className="mt-5 inline-flex items-center gap-2 self-start rounded-sm font-semibold underline-offset-4 hover:underline">
+            <Link href="/learn" className="mt-3 inline-flex min-h-10 items-center gap-2 self-start rounded-sm font-semibold underline-offset-4 hover:underline">
               Open the guide
               <ArrowRightIcon aria-hidden className="size-4" />
             </Link>

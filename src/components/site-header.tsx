@@ -44,7 +44,8 @@ export async function SiteHeader({ compact = false }: { compact?: boolean }) {
         <Link
           href="/"
           aria-label="LemmaYard home"
-          className="flex shrink-0 items-center rounded-md text-foreground"
+          // after: = invisible 42px-tall hit area around the 26px logo (DESIGN.md §12).
+          className="relative flex shrink-0 items-center rounded-md text-foreground after:absolute after:-inset-x-1 after:-inset-y-2"
         >
           <Logo className={compact ? "text-lg" : undefined} markClassName={compact ? "size-[22px]" : undefined} />
         </Link>
