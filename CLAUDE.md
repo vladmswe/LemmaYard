@@ -1,6 +1,7 @@
 # LemmaYard — conventions for agents
 
-Read `PLAN.md` in full before starting any milestone or feature. It is the
+Read `docs/AGENT-HANDOFF.md` first (current state, owner decisions, workflow,
+verification gate, backlog), then `PLAN.md` before starting any milestone or feature. It is the
 source of truth (with the specs in `docs/specs/`); do only what the current
 task's acceptance criteria require. `README.md` describes the architecture,
 the problem format and the language contract.
@@ -84,8 +85,10 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
   accessibility). The site is dark only for now: the switch is
   `THEME_TOGGLE_ENABLED` in `src/lib/theme-config.ts` (keep both themes
   working; theme-aware client code reads `useAppliedTheme()`).
-- DB schema changes only in M1. Later milestones must not change the schema.
-  Exception: each feature spec (F-features, Rooms) adds one additive migration.
+- DB schema changes are additive migrations, one per feature spec (rooms, F-features,
+  community phases, ...), with RLS enabled on new tables and
+  `pnpm db:export-sql` regenerated. Migration numbers can clash between
+  parallel branches; see `docs/AGENT-HANDOFF.md` section 6.
 - User code runs only inside the sandbox (Docker; in production a Vercel
   Sandbox microVM), always, including in tests.
   Authored guide code samples in `src/content/learn/**/code/` are trusted repo code and may run on the host in unit tests; the Docker-only rule applies to untrusted user submissions.
@@ -98,6 +101,6 @@ Run `pnpm problems:verify` after changing anything in `problems/`.
 - Next.js is newer than most training data: check `node_modules/next/dist/docs/`
   before using an API.
 - Git: one branch per unit of work, `feature/<name>` (milestones
-  `feature/<m#-name>`) or `fix/<name>`, merged into `integration` after review.
-  `main` and `integration` receive merges only, never direct commits. Never
-  merge into `main` or push without the owner's explicit go-ahead.
+  `feature/<m#-name>`) or `fix/<name>`, merged after review and the verification gate in `docs/AGENT-HANDOFF.md`.
+  `main` receives merges only, never direct commits. Never merge into `main`
+  or push without the owner's explicit go-ahead.
