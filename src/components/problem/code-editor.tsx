@@ -34,6 +34,32 @@ export type CodeEditorProps = {
 
 type StandaloneEditor = Parameters<OnMount>[0];
 
+/**
+ * On iOS / iPadOS (Monaco's own check: Mac or iPad/iPhone UA with touch)
+ * Monaco adds an unlabeled `<textarea class="iPadShowKeyboard">` overlay
+ * whose only job is to focus the editor. Name it (axe "label", critical) and
+ * keep it out of the Tab order; it is created lazily, so watch until it exists.
+ */
+function labelShowKeyboardWidget(editor: StandaloneEditor) {
+  const ua = navigator.userAgent;
+  const ios = /Macintosh|iPad|iPhone/.test(ua) && navigator.maxTouchPoints > 0;
+  if (!ios) return;
+  const root = editor.getContainerDomNode();
+  const label = () => {
+    const el = root.querySelector<HTMLTextAreaElement>("textarea.iPadShowKeyboard");
+    if (!el) return false;
+    el.setAttribute("aria-label", "Show keyboard");
+    el.tabIndex = -1;
+    return true;
+  };
+  if (label()) return;
+  const observer = new MutationObserver(() => {
+    if (label()) observer.disconnect();
+  });
+  observer.observe(root, { childList: true, subtree: true });
+  editor.onDidDispose(() => observer.disconnect());
+}
+
 export default function CodeEditor({
   slug,
   language,
@@ -90,6 +116,8 @@ export default function CodeEditor({
     editor.onDidChangeCursorPosition((e) => cursorRef.current(e.position.lineNumber, e.position.column));
     const pos = editor.getPosition();
     if (pos) cursorRef.current(pos.lineNumber, pos.column);
+
+    labelShowKeyboardWidget(editor);
 
     // next/font loads JetBrains Mono asynchronously; re-measure once it is in.
     if (typeof document !== "undefined" && document.fonts) {
