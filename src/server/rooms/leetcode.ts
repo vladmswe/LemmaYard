@@ -3,9 +3,10 @@
 // the plan for the session's LeetCode slots, and writing it. Nothing here
 // talks to leetcode.com; the catalog is bundled server-side.
 //
-// A LeetCode slot is AUTO when the draw picked it (`pinned = false` and no
-// room-list entry); slots picked by hand (room list, pasted link, catalog
-// search) are written with `pinned = true` and never re-picked.
+// A LeetCode slot is AUTO when the draw picked it: its slug is in
+// `settings.leetcodeAutoSlugs` (LeetCode rows must keep `pinned = false`, see
+// the CHECK room_session_problems_kind). Slots picked by hand (room list,
+// pasted link, catalog search) are never re-picked.
 import { and, eq, isNull, sql } from "drizzle-orm";
 
 import {
@@ -17,8 +18,8 @@ import {
 import type { Rng } from "@/lib/rooms/rng";
 import type { DrawError, DrawNotice } from "@/lib/rooms/selection";
 import type { ResolvedSettings } from "@/lib/rooms/session-schemas";
-import { externalCountOf, leetcodeAutoOf, selectionModeOf } from "@/lib/rooms/types";
-import { roomSessionProblems } from "@/server/db/schema";
+import { externalCountOf, leetcodeAutoOf, selectionModeOf, type RoomSessionSettings } from "@/lib/rooms/types";
+import { roomSessionProblems, roomSessions } from "@/server/db/schema";
 import { getLeetCodeCatalog, type LeetCodeCatalog } from "@/server/leetcode/catalog";
 
 import type { RoomSessionRow } from "./access";
@@ -28,8 +29,25 @@ import type { Tx } from "./queries";
 export const CATALOG_UNAVAILABLE = "Automatic LeetCode problems are not available right now. Pick them yourself instead.";
 
 /** Picked by the draw (re-rollable); everything else was picked by hand. */
-export function isAutoSlot(e: Pick<ExternalSlotRow, "pinned" | "bankId">): boolean {
-  return !e.pinned && e.bankId === null;
+export function isAutoSlot(e: Pick<ExternalSlotRow, "slug" | "bankId">, settings: Pick<RoomSessionSettings, "leetcodeAutoSlugs">): boolean {
+  return e.bankId === null && (settings.leetcodeAutoSlugs ?? []).includes(e.slug);
+}
+
+/** Settings with this list of auto-picked slugs (absent when empty). */
+export function withAutoSlugs<S extends Pick<RoomSessionSettings, "leetcodeAutoSlugs">>(settings: S, slugs: readonly string[]): S {
+  const next = { ...settings };
+  if (slugs.length > 0) next.leetcodeAutoSlugs = [...new Set(slugs)];
+  else delete next.leetcodeAutoSlugs;
+  return next;
+}
+
+/** Rewrites the session's auto-picked slugs (after a hand pick, a removal or a re-roll). */
+export async function updateAutoSlugs(tx: Tx, sessionId: string, change: (slugs: string[]) => string[]): Promise<void> {
+  const [row] = await tx.select({ settings: roomSessions.settings }).from(roomSessions).where(eq(roomSessions.id, sessionId));
+  const before = row.settings.leetcodeAutoSlugs ?? [];
+  const after = change([...before]);
+  if (after.length === before.length && after.every((s, i) => s === before[i])) return;
+  await tx.update(roomSessions).set({ settings: withAutoSlugs(row.settings, after) }).where(eq(roomSessions.id, sessionId));
 }
 
 /** Visible catalog problems with their use and self-reported solves in this room. */
@@ -103,7 +121,7 @@ export async function planLeetCode(
   const catalog = getLeetCodeCatalog();
   if (!leetcodeAutoOf(settings) || external === 0 || mode === "manual" || !catalog) return { kind: "skip" };
   const externals = await loadExternalSlots(tx, session.id);
-  const fixed = externals.filter((e) => !isAutoSlot(e)).slice(0, external);
+  const fixed = externals.filter((e) => !isAutoSlot(e, settings)).slice(0, external);
   const count = external - fixed.length;
   if (count === 0) return { kind: "plan", fixed, picks: [], rerolled: [...(settings.leetcodeRerolled ?? [])], notices: [] };
   const fixedSlugs = new Set(fixed.map((f) => f.slug));
@@ -131,7 +149,7 @@ export async function planLeetCode(
 /** Snapshot values of a catalog pick (title and rating as in the catalog). */
 export function pickSnapshot(catalog: LeetCodeCatalog, pick: Pick<LeetCodePick, "slug">): Omit<ExternalSlotRow, "position"> {
   const p = catalog.bySlug.get(pick.slug)!;
-  return { slug: p.slug, title: p.title, difficulty: p.difficulty, rating: p.rating, bankId: null, pinned: false };
+  return { slug: p.slug, title: p.title, difficulty: p.difficulty, rating: p.rating, bankId: null };
 }
 
 /**

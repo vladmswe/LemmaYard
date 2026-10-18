@@ -43,7 +43,14 @@ import { findVisibleProblem, getLeetCodeCatalog } from "@/server/leetcode/catalo
 import { requireRoomMember, type RoomSessionRow } from "./access";
 import { roomSettingsLimiter } from "./defaults";
 import { expectedUserIds, externalSlotValues, loadExternalSlots, type ExternalSlotRow } from "./draw";
-import { CATALOG_UNAVAILABLE, isAutoSlot, loadLeetCodeCandidates, pickSnapshot } from "./leetcode";
+import {
+  CATALOG_UNAVAILABLE,
+  isAutoSlot,
+  loadLeetCodeCandidates,
+  pickSnapshot,
+  updateAutoSlugs,
+  withAutoSlugs,
+} from "./leetcode";
 import { sessionRng } from "./rng";
 import { appendRoomEvent } from "./events";
 import { json, OWNER_ONLY, roomMutation, roomNotFound, SIGN_IN_REQUIRED, tooMany } from "./http";
@@ -231,6 +238,8 @@ export function updateSessionExternal(request: Request, roomId: string, sessionI
           .map((e) => (e.position > position ? { ...e, position: e.position - 1 } : e));
         await rewriteExternals(tx, session.id, next);
         await setSessionShape(tx, session.id, session.problemCount - 1, external - 1);
+        const removed = externals.find((e) => e.position === position)?.slug;
+        await updateAutoSlugs(tx, session.id, (slugs) => slugs.filter((s) => s !== removed));
         await lobbyUpdated(tx, session.id);
         return lobbyResponse(tx, session, canManage);
       }
@@ -244,13 +253,13 @@ export function updateSessionExternal(request: Request, roomId: string, sessionI
           .where(and(eq(roomExternalProblems.id, data.bankId), eq(roomExternalProblems.roomId, roomId)))
           .limit(1);
         if (!entry) return jsonError(404, BANK_NOT_FOUND);
-        values = { slug: entry.slug, title: entry.title, difficulty: entry.difficulty, rating: entry.rating, bankId: entry.id, pinned: true };
+        values = { slug: entry.slug, title: entry.title, difficulty: entry.difficulty, rating: entry.rating, bankId: entry.id };
       } else if ("catalogSlug" in data) {
         const catalog = getLeetCodeCatalog();
         if (!catalog) return codedError(409, "leetcode_catalog_unavailable", CATALOG_UNAVAILABLE);
         const problem = findVisibleProblem(catalog, data.catalogSlug);
         if (!problem) return jsonError(404, CATALOG_NOT_FOUND);
-        values = { ...pickSnapshot(catalog, problem), pinned: true };
+        values = pickSnapshot(catalog, problem);
       } else {
         const typed = normalizeExternalInput(data);
         let bankId: string | null = null;
@@ -267,7 +276,7 @@ export function updateSessionExternal(request: Request, roomId: string, sessionI
             bankId = row.id;
           }
         }
-        values = { ...typed, bankId, pinned: true };
+        values = { ...typed, bankId };
       }
       if (externals.some((e) => e.slug === values.slug)) return codedError(409, "duplicate", SESSION_DUPLICATE);
 
@@ -285,6 +294,8 @@ export function updateSessionExternal(request: Request, roomId: string, sessionI
         await setSessionShape(tx, session.id, session.problemCount + 1, external + 1);
       }
       await tx.insert(roomSessionProblems).values(externalSlotValues(session.id, position, values));
+      // Picked by hand: never re-picked by a draw.
+      await updateAutoSlugs(tx, session.id, (slugs) => slugs.filter((s) => s !== values.slug));
       await lobbyUpdated(tx, session.id);
       return lobbyResponse(tx, session, canManage);
     },
@@ -309,7 +320,7 @@ async function rerollAutoSlot(
   if (position <= drawn) return codedError(409, "judged_slot", "Use the slot's own Re-roll for our problems");
   const slot = externals.find((e) => e.position === position);
   if (!slot) return codedError(409, "slot_empty", "Pick a LeetCode problem for this slot first");
-  if (!isAutoSlot(slot)) return codedError(409, "not_auto", NOT_AUTO);
+  if (!isAutoSlot(slot, session.settings)) return codedError(409, "not_auto", NOT_AUTO);
   if (session.rerollCount >= MAX_REROLLS) return codedError(409, "reroll_limit", REROLL_LIMIT);
   const catalog = getLeetCodeCatalog();
   if (!catalog) return codedError(409, "leetcode_catalog_unavailable", CATALOG_UNAVAILABLE);
@@ -340,7 +351,13 @@ async function rerollAutoSlot(
     .where(and(eq(roomSessionProblems.sessionId, session.id), eq(roomSessionProblems.position, position)));
   await tx
     .update(roomSessions)
-    .set({ rerollCount: session.rerollCount + 1, settings: { ...session.settings, leetcodeRerolled: result.rerolled } })
+    .set({
+      rerollCount: session.rerollCount + 1,
+      settings: withAutoSlugs(
+        { ...session.settings, leetcodeRerolled: result.rerolled },
+        (session.settings.leetcodeAutoSlugs ?? []).map((s) => (s === slot.slug ? snap.slug : s)),
+      ),
+    })
     .where(eq(roomSessions.id, session.id));
   await lobbyUpdated(tx, session.id);
   return lobbyResponse(tx, session, canManage, { notices: result.notices });

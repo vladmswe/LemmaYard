@@ -14,7 +14,9 @@ import type { SessionSnapshot } from "@/lib/rooms/events";
 import { problemLabel } from "@/lib/rooms/live-view";
 import { formatScoreTime } from "@/lib/rooms/scoring";
 
-import { LeetCodeLink, LeetCodeTag, SelfReportedTag } from "../external/leetcode-bits";
+import { DIFFICULTY_ESTIMATED_HELP } from "@/lib/leetcode/labels";
+
+import { EstimatedTag, LeetCodeLink, LeetCodeTag, SelfReportedTag } from "../external/leetcode-bits";
 import { sessionApi } from "./session-api";
 
 /** "Mark solved" / "Undo" for the viewer's own LeetCode slot. */
@@ -128,6 +130,7 @@ export function ExternalProblemsCard({
               </span>
               <LeetCodeTag />
               {p.difficulty && <DifficultyBadge difficulty={p.difficulty} />}
+              {p.difficulty && p.external?.provenance?.difficultyEstimated && <EstimatedTag help={DIFFICULTY_ESTIMATED_HELP} />}
               <span className="min-w-0 flex-1 basis-40 font-semibold break-words">
                 <span className="sr-only">{problemLabel(p.position)}: </span>
                 {p.external?.slug ? <LeetCodeLink slug={p.external.slug}>{p.title}</LeetCodeLink> : p.title}

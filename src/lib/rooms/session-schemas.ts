@@ -250,6 +250,7 @@ export function resolveSettings(
   const leetcodeAuto = body.leetcodeAuto ?? base.settings.leetcodeAuto ?? false;
   if (leetcodeAuto) settings.leetcodeAuto = true;
   if (base.settings.leetcodeRerolled !== undefined) settings.leetcodeRerolled = [...base.settings.leetcodeRerolled];
+  if (base.settings.leetcodeAutoSlugs !== undefined) settings.leetcodeAutoSlugs = [...base.settings.leetcodeAutoSlugs];
   // New sessions: short ones are unrated unless the body says otherwise; existing ones keep their flag.
   const rated =
     body.rated ?? (current ? current.rated : ratedByDefault(durationMin, problemCount, template ? template.rated : true));

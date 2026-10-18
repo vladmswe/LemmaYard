@@ -76,6 +76,13 @@ export const roomSessionSettingsSchema = z.strictObject({
    * (unpinned) LeetCode slots from the committed catalog. Absent = false.
    */
   leetcodeAuto: z.boolean().optional(),
+  /**
+   * Slugs of the LeetCode slots the draw picked (re-rollable, re-picked by the
+   * next draw); every other LeetCode slot was picked by hand. Host only. Kept
+   * here because LeetCode rows must stay `pinned = false` (CHECK
+   * room_session_problems_kind) and no migration is allowed for this feature.
+   */
+  leetcodeAutoSlugs: z.array(z.string().min(1).max(100)).max(MAX_PROBLEM_COUNT).optional(),
   /** LeetCode slugs re-rolled away in this session (avoided by later picks; host only). */
   leetcodeRerolled: z
     .array(z.string().min(1).max(100))

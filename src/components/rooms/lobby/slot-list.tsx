@@ -18,7 +18,9 @@ import { slotRatingLines } from "@/lib/rooms/lobby-rating";
 import type { LobbySlotView } from "@/lib/rooms/session-view";
 import { MAX_PROBLEM_COUNT, type SelectionMode } from "@/lib/rooms/types";
 
-import { LeetCodeLink, LeetCodeTag } from "../external/leetcode-bits";
+import { DIFFICULTY_ESTIMATED_HELP, ratingSourceHelp, TAGS_ESTIMATED_HELP } from "@/lib/leetcode/labels";
+
+import { EstimatedTag, LeetCodeLink, LeetCodeTag } from "../external/leetcode-bits";
 
 function IconAction({
   label,
@@ -69,13 +71,21 @@ export function SlotList({
   onUnpin,
   mode = "difficulty",
   external = 0,
+  rerollsLeft: rerollsLeftProp,
   onAddExternal,
   onRemoveExternal,
+  onRerollExternal,
+  leetcodeAuto = false,
 }: {
+  /** Re-roll an auto-picked LeetCode slot (leetcode-integration §6.7). */
+  onRerollExternal?: (position: number) => void;
+  /** Auto-pick is on: an empty LeetCode slot is filled by the next draw. */
+  leetcodeAuto?: boolean;
   /** v2: rating mode shows the rating lines; manual mode has no re-roll and empty slots say "Pick a problem". */
   mode?: SelectionMode;
   /** LeetCode slots at the end (rooms-external-problems §1.2). */
   external?: number;
+  rerollsLeft?: number;
   /** Opens "Add LeetCode problem" (null: the next free LeetCode slot or a new one). */
   onAddExternal: (position: number | null) => void;
   onRemoveExternal: (position: number) => void;
@@ -99,6 +109,7 @@ export function SlotList({
   const positions = Array.from({ length: problemCount }, (_, i) => i + 1);
   const drawn = problemCount - external;
   const hasEmptyExternal = positions.some((p) => p > drawn && !byPos.has(p));
+  const rerollsLeft = rerollsLeftProp ?? 1;
 
   return (
     <div className="flex flex-col gap-2">
@@ -119,6 +130,10 @@ export function SlotList({
                 problemCount={problemCount}
                 onPick={onAddExternal}
                 onRemove={onRemoveExternal}
+                onReroll={mode !== "manual" ? onRerollExternal : undefined}
+                rerollsLeft={rerollsLeft}
+                tagName={tagName}
+                autoOn={leetcodeAuto && mode !== "manual"}
                 itemRef={(el) => {
                   if (el) refs.current.set(pos, el);
                   else refs.current.delete(pos);
@@ -256,6 +271,10 @@ function ExternalSlotItem({
   problemCount,
   onPick,
   onRemove,
+  onReroll,
+  rerollsLeft,
+  tagName,
+  autoOn,
   itemRef,
 }: {
   position: number;
@@ -265,9 +284,16 @@ function ExternalSlotItem({
   problemCount: number;
   onPick: (position: number | null) => void;
   onRemove: (position: number) => void;
+  onReroll?: (position: number) => void;
+  rerollsLeft: number;
+  tagName: (slug: string) => string;
+  autoOn: boolean;
   itemRef: (el: HTMLLIElement | null) => void;
 }) {
   const ext = slot?.external;
+  const prov = ext?.provenance;
+  const r = slotRatingLines(slot?.rating);
+  const ratingHelp = prov?.ratingSource ? ratingSourceHelp(prov.ratingSource) : "Rating entered by the room owner (display only)";
   return (
     <li
       tabIndex={-1}
@@ -290,21 +316,54 @@ function ExternalSlotItem({
               {ext.title ?? ext.slug}
             </LeetCodeLink>
           ) : null}
+          {canManage && ext?.n !== undefined && (
+            <span className="font-mono text-xs text-muted-foreground tabular-nums" data-testid={`slot-leetcode-number-${pos}`}>
+              #{ext.n}
+            </span>
+          )}
           <LeetCodeTag />
           {slot?.difficulty && <DifficultyBadge difficulty={slot.difficulty} />}
+          {canManage && prov?.difficultyEstimated && <EstimatedTag help={DIFFICULTY_ESTIMATED_HELP} testId={`slot-difficulty-estimated-${pos}`} />}
           {canManage && ext?.rating != null && (
             <span
               className="inline-flex h-6 items-center rounded-sm border border-border-strong px-1.5 font-mono text-xs tabular-nums text-foreground-secondary"
-              title="Rating entered by the room owner (display only)"
+              title={ratingHelp}
+              data-testid={`slot-rating-${pos}`}
             >
               <span className="sr-only">rating </span>
               {ext.rating}
+              <span className="sr-only"> ({ratingHelp})</span>
             </span>
           )}
+          {canManage && slot && ext?.slug && (
+            <Badge variant="outline" data-testid={`slot-leetcode-source-${pos}`}>
+              {ext.auto ? "Auto-picked" : "Picked by you"}
+            </Badge>
+          )}
           {!slot && (
-            <span className="text-sm text-muted-foreground">{canManage ? "Pick a LeetCode problem" : "LeetCode problem, not picked yet"}</span>
+            <span className="text-sm text-muted-foreground">
+              {canManage
+                ? autoOn
+                  ? "Apply and draw to pick one automatically, or pick it yourself"
+                  : "Pick a LeetCode problem"
+                : "LeetCode problem, not picked yet"}
+            </span>
           )}
         </div>
+        {canManage && slot && ((ext?.tags?.length ?? 0) > 0 || r?.target) && (
+          <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+            {[ext?.tags?.map(tagName).join(", "), r?.target].filter(Boolean).join(" · ")}
+            {prov?.tagsEstimated && (ext?.tags?.length ?? 0) > 0 && <EstimatedTag help={TAGS_ESTIMATED_HELP} />}
+          </p>
+        )}
+        {canManage && r && (
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-foreground-secondary" data-testid={`slot-chance-${pos}`}>
+            <span>{r.chance}</span>
+            <span aria-hidden className="relative h-1.5 w-28 overflow-hidden rounded-full bg-surface-sunken ring-1 ring-border">
+              <span className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${r.chancePercent}%` }} />
+            </span>
+          </p>
+        )}
         <p className="text-sm text-muted-foreground">Self-reported: solved on leetcode.com, marked here. Not rated.</p>
       </div>
       {canManage && (
@@ -313,6 +372,17 @@ function ExternalSlotItem({
             <Button variant="secondary" size="sm" disabled={busy !== null} onClick={() => onPick(pos)} data-testid={`pick-leetcode-${pos}`}>
               Pick<span className="sr-only"> a LeetCode problem for Problem {pos}</span>
             </Button>
+          )}
+          {slot && ext?.auto && onReroll && (
+            <IconAction
+              label={`Re-roll Problem ${pos} (LeetCode)`}
+              onClick={() => onReroll(pos)}
+              disabled={busy !== null || rerollsLeft === 0}
+              loading={busy === `reroll-external-${pos}`}
+              testId={`reroll-external-${pos}`}
+            >
+              <DicesIcon aria-hidden />
+            </IconAction>
           )}
           <IconAction
             label={`Remove Problem ${pos} (LeetCode slot)`}

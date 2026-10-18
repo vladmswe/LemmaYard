@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Logo } from "@/components/brand/logo";
+import { LEETCODE_ATTRIBUTION } from "@/lib/leetcode/labels";
 import { getCurrentUser } from "@/server/auth/session";
 
 type FooterLink = { href: string; label: string };
@@ -86,7 +87,12 @@ export async function SiteFooter() {
           <span className="qed bg-sky!" />
         </div>
         <div className="flex flex-wrap justify-between gap-4 border-t border-night-line pt-5 text-sm text-on-night-2">
-          <span>© 2026 LemmaYard. Problem statements are original.</span>
+          <span>
+            © 2026 LemmaYard. Problem statements are original.{" "}
+            <Link href="/notices" className="text-on-night underline-offset-4 hover:underline" data-testid="footer-notices">
+              {LEETCODE_ATTRIBUTION}
+            </Link>
+          </span>
           <span className="font-mono text-[0.8125rem]">A personal practice project</span>
         </div>
       </div>

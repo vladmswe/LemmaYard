@@ -180,6 +180,7 @@ describe("lobby ↔ preset tiles", () => {
       avoidSolved: false,
       rated: false,
       external: 0,
+      leetcodeAuto: false,
     });
     expect(presetFormFromLobby({ ...lobby, mode: "rating" }).mixMode).toBe("suggested");
   });

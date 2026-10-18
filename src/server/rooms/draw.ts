@@ -59,7 +59,7 @@ import {
 import { getLeetCodeCatalog, slotProvenance } from "@/server/leetcode/catalog";
 
 import type { RoomSessionRow } from "./access";
-import { isAutoSlot, planLeetCode, writeLeetCodePlan, type LeetCodePlan } from "./leetcode";
+import { isAutoSlot, planLeetCode, withAutoSlugs, writeLeetCodePlan, type LeetCodePlan } from "./leetcode";
 import type { Tx } from "./queries";
 import { ensureMemberRatings, problemRatingSql } from "./ratings";
 
@@ -223,8 +223,6 @@ export type ExternalSlotRow = {
   difficulty: Difficulty | null;
   rating: number | null;
   bankId: string | null;
-  /** Picked by hand (room list, pasted link, catalog search); false = auto-picked by the draw. */
-  pinned: boolean;
 };
 
 export async function loadExternalSlots(tx: Pick<Tx, "select">, sessionId: string): Promise<ExternalSlotRow[]> {
@@ -236,7 +234,6 @@ export async function loadExternalSlots(tx: Pick<Tx, "select">, sessionId: strin
       difficulty: roomSessionProblems.difficulty,
       rating: roomSessionProblems.externalRating,
       bankId: roomSessionProblems.externalProblemId,
-      pinned: roomSessionProblems.pinned,
     })
     .from(roomSessionProblems)
     .where(and(eq(roomSessionProblems.sessionId, sessionId), isNull(roomSessionProblems.problemId)))
@@ -252,7 +249,8 @@ export function externalSlotValues(sessionId: string, position: number, e: Omit<
     position,
     problemId: null,
     difficulty: e.difficulty,
-    pinned: e.pinned,
+    // Always false for LeetCode rows (CHECK room_session_problems_kind); auto picks: settings.leetcodeAutoSlugs.
+    pinned: false,
     externalProblemId: e.bankId,
     externalSlug: e.slug,
     externalTitle: e.title,
@@ -319,13 +317,18 @@ async function saveDraw(
   let settings = settingsIn;
   if (lc.kind === "plan") {
     const lcTargets = await writeLeetCodePlan(tx, session.id, drawn, lc);
-    settings = { ...settings, leetcodeRerolled: lc.rerolled };
+    settings = withAutoSlugs({ ...settings, leetcodeRerolled: lc.rerolled }, lc.picks.map((p) => p.slug));
     if (settings.leetcodeRerolled?.length === 0) delete settings.leetcodeRerolled;
     if (selectionModeOf(settings) === "rating") {
       settings.targets = lcTargets.map((t, i) => (i < drawn ? (settingsIn.targets?.[i] ?? null) : t));
     }
   } else {
     await placeExternalSlots(tx, session.id, drawn, external);
+    // Auto picks that were dropped with their slot are no longer auto.
+    if (settings.leetcodeAutoSlugs) {
+      const present = new Set((await loadExternalSlots(tx, session.id)).map((e) => e.slug));
+      settings = withAutoSlugs(settings, settings.leetcodeAutoSlugs.filter((s) => present.has(s)));
+    }
   }
   await writeSlots(tx, session.id, slots);
   await tx
@@ -359,8 +362,9 @@ function settingsWithoutTargets(settings: RoomSessionSettings): RoomSessionSetti
 
 /** Settings a non-host member may see before the start: no targets, no re-rolled LeetCode slugs. */
 export function settingsForMember(settings: RoomSessionSettings): RoomSessionSettings {
-  const { leetcodeRerolled: _rerolled, ...rest } = settingsWithoutTargets(settings);
+  const { leetcodeRerolled: _rerolled, leetcodeAutoSlugs: _auto, ...rest } = settingsWithoutTargets(settings);
   void _rerolled;
+  void _auto;
   return rest;
 }
 
@@ -594,7 +598,7 @@ export async function buildLobbyView(
         title: e.title,
         rating: e.rating,
         bankId: e.bankId,
-        auto: isAutoSlot(e),
+        auto: isAutoSlot(e, session.settings),
         ...(entry ? { n: entry.n } : {}),
         ...(provenance && entry ? { tags: entry.tags, provenance } : {}),
       },

@@ -3,6 +3,7 @@
 // and `counts` (§2.6) that the lobby renders inline.
 import type { BankView, SessionExternalBody } from "@/lib/rooms/external";
 import type { LobbyView } from "@/lib/rooms/session-view";
+import type { LeetCodeSearchHit } from "@/server/rooms/leetcode-search";
 import type { Mix } from "@/lib/rooms/types";
 
 export type SessionApiError = {
@@ -77,6 +78,9 @@ export const sessionApi = {
   /** LeetCode slots (rooms-external-problems §3): add from the room list / a link, or remove. */
   external: (roomId: string, sessionId: string, body: SessionExternalBody) =>
     call<LobbyResponse>("POST", `${base(roomId, sessionId)}/external`, body),
+  /** LeetCode catalog search (host/owner, lobby; leetcode-integration §6.7). */
+  leetcodeSearch: (roomId: string, sessionId: string, params: Record<string, string>) =>
+    call<{ problems: LeetCodeSearchHit[] }>("GET", `${base(roomId, sessionId)}/leetcode-search?${new URLSearchParams(params).toString()}`),
   /** The room's LeetCode list (members). */
   bank: (roomId: string) => call<BankView>("GET", `/api/rooms/${encodeURIComponent(roomId)}/external-problems`),
   /** Self-reported LeetCode solve of the viewer (live). */

@@ -64,7 +64,7 @@ import {
   writeSlots,
 } from "./draw";
 import { loadSessionTemplate } from "./defaults";
-import { CATALOG_UNAVAILABLE, isAutoSlot, planLeetCode, writeLeetCodePlan, type LeetCodePlan } from "./leetcode";
+import { CATALOG_UNAVAILABLE, isAutoSlot, withAutoSlugs, planLeetCode, writeLeetCodePlan, type LeetCodePlan } from "./leetcode";
 import { appendRoomEvent, lockSession } from "./events";
 import { json, readAuthedBody, roomNotFound, SIGN_IN_REQUIRED, tooMany } from "./http";
 import { closeIfDue } from "./lifecycle";
@@ -384,7 +384,9 @@ export function rerollAllSlots(request: Request, roomId: string, sessionId: stri
       if (session.status !== "lobby") return notInLobby(session);
       const mode = selectionModeOf(session.settings);
       if (mode === "manual") return codedError(409, "manual_mode", "Pick the problems yourself in this mode");
-      const autoSlugs = (await loadExternalSlots(tx, session.id)).filter(isAutoSlot).map((e) => e.slug);
+      const autoSlugs = (await loadExternalSlots(tx, session.id))
+        .filter((e) => isAutoSlot(e, session.settings))
+        .map((e) => e.slug);
       if (drawnCount(session) === 0 && (autoSlugs.length === 0 || !leetcodeAutoOf(session.settings))) {
         return codedError(409, "external_only", "Only LeetCode problems you picked yourself: nothing to re-roll");
       }
@@ -459,7 +461,7 @@ async function saveLeetCodeReroll(
   if (lc.kind !== "plan") return;
   const drawn = drawnCount(session);
   const lcTargets = await writeLeetCodePlan(tx, session.id, drawn, lc);
-  const next = { ...settings, leetcodeRerolled: lc.rerolled };
+  const next = withAutoSlugs({ ...settings, leetcodeRerolled: lc.rerolled }, lc.picks.map((p) => p.slug));
   if (selectionModeOf(settings) === "rating") {
     next.targets = lcTargets.map((t, i) => (i < drawn ? (settings.targets?.[i] ?? null) : t));
   }

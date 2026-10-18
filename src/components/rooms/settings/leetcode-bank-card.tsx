@@ -5,6 +5,7 @@
 // entries; members read it. Hosts pick from it in the lobby. Only the slug is
 // stored; the link is built here and opens leetcode.com in a new tab.
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 import { DifficultyBadge } from "@/components/problems/difficulty-badge";
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FieldError } from "@/components/ui/field";
+import { LEETCODE_ATTRIBUTION, LEETCODE_NOT_AFFILIATED } from "@/lib/leetcode/labels";
 import {
   emptyExternalForm,
   externalFormFrom,
@@ -36,7 +38,18 @@ import { useRoomAction } from "../use-room-action";
 
 type Editing = { id?: string; form: ExternalForm };
 
-export function LeetCodeBankCard({ roomId, entries, canEdit }: { roomId: string; entries: BankEntry[]; canEdit: boolean }) {
+export function LeetCodeBankCard({
+  roomId,
+  entries,
+  canEdit,
+  catalogAvailable = false,
+}: {
+  roomId: string;
+  entries: BankEntry[];
+  canEdit: boolean;
+  /** Auto-pick from the LeetCode catalog is available (leetcode-integration §6.8). */
+  catalogAvailable?: boolean;
+}) {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [removing, setRemoving] = useState<BankEntry | null>(null);
   const { run, pending } = useRoomAction();
@@ -60,7 +73,16 @@ export function LeetCodeBankCard({ roomId, entries, canEdit }: { roomId: string;
           Links to problems on leetcode.com that hosts can add to a session. Our judge cannot check them: people open
           them in a new tab and mark them solved themselves. They never change ratings.
           {!canEdit && " Only the owner can change the list."}
+          {catalogAvailable &&
+            " Hosts can also let the lobby pick LeetCode problems automatically (a session or preset setting)."}
         </CardDescription>
+        <p className="text-xs text-muted-foreground" data-testid="leetcode-disclaimer">
+          {LEETCODE_NOT_AFFILIATED} {LEETCODE_ATTRIBUTION}:{" "}
+          <Link href="/notices" className="text-link hover:underline">
+            third-party notices
+          </Link>
+          .
+        </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {entries.length === 0 ? (
