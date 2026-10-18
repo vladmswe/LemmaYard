@@ -365,7 +365,7 @@ export function RatingChangeCard({ results, rows }: { results: FinishedResults; 
           {n < 4 && ` With ${plural(n, "problem")} the change is scaled down (${n} of 4).`}
         </p>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" role="region" aria-label="Rating change per member" tabIndex={0}>
         <table className="w-full text-sm">
           <caption className="sr-only">Rating change per member</caption>
           <thead className="label-mono text-muted-foreground">

@@ -64,7 +64,7 @@ test("team room: presets, weekly schedule, Next session + .ics, rating lobby for
   await expect(po.getByRole("radio", { name: "Green" })).toBeChecked();
   await expectNoSeriousAxe(po, "create dialog");
   await po.getByRole("button", { name: "Create room" }).click();
-  await expect(po).toHaveURL(/\/rooms\/[0-9a-f-]{36}\?tab=members$/);
+  await expect(po).toHaveURL(/\/rooms\/[0-9a-f-]{36}\?tab=settings$/);
   const roomPath = new URL(po.url()).pathname;
   await expect(po.getByText("Weekly practice with friends · 1 member · team room")).toBeVisible();
   await po.getByRole("button", { name: "Create link" }).click();
@@ -210,8 +210,8 @@ test("team room: presets, weekly schedule, Next session + .ics, rating lobby for
   await expect(po.getByTestId("slot-3")).toHaveCount(0);
   await po.getByTestId("start-session").click();
   await po.getByTestId("confirm-start").click();
-  await expect(po.getByTestId("problem-list")).toBeVisible({ timeout: 10_000 });
-  await expect(pf.getByTestId("problem-list")).toBeVisible({ timeout: 10_000 });
+  await expect(po.getByTestId("scoreboard")).toBeVisible({ timeout: 10_000 });
+  await expect(pf.getByTestId("scoreboard")).toBeVisible({ timeout: 10_000 });
 
   await owner.close();
   await friend.close();
