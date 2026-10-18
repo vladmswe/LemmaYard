@@ -129,14 +129,7 @@ export default async function SubmissionPage({ params }: PageProps<"/submissions
                   {submission.passedCount} / {submission.totalCount} passed
                   {failedAt >= 0 && view?.type === "submit" && view.failedOn ? ` · ${view.failedOn.toLowerCase()}` : ""}
                 </p>
-                <div className="relative max-w-full">
-                  <TestSquares results={squares} className="gap-1 [&>i]:size-3" />
-                </div>
-                {failedAt >= 0 && (
-                  <p aria-hidden className="font-mono text-xs text-verdict-wrong">
-                    test {failedAt + 1} ◆
-                  </p>
-                )}
+                <TestSquares results={squares} className="max-w-full gap-1 [&>i]:size-3" />
               </div>
             )}
           </div>
