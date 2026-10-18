@@ -7,7 +7,7 @@
 import { CalendarClockIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-export const ROOM_TABS = ["sessions", "leaderboard", "members"] as const;
+export const ROOM_TABS = ["sessions", "leaderboard", "members", "settings"] as const;
 export type RoomTab = (typeof ROOM_TABS)[number];
 export const DEFAULT_ROOM_TAB: RoomTab = "sessions";
 
@@ -15,6 +15,7 @@ export const ROOM_TAB_LABELS: Record<RoomTab, string> = {
   sessions: "Sessions",
   leaderboard: "Leaderboard",
   members: "Members",
+  settings: "Settings",
 };
 
 /** `?tab=` value → a known tab (anything else → the default). */

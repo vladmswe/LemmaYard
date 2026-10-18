@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEFAULT_ROOM_TAB, ROOM_TAB_LABELS, ROOM_TABS, type RoomTab } from "./room-page-slots";
 
 /**
- * Sessions | Leaderboard | Members, with the tab in `?tab=` (spec §7.4).
+ * Sessions | Leaderboard | Members | Settings, with the tab in `?tab=` (spec §7.4).
  * Panels are server-rendered and passed in; switching only rewrites the URL.
  */
 export function RoomTabs({
@@ -15,14 +15,17 @@ export function RoomTabs({
   sessions,
   leaderboard,
   members,
+  settings,
 }: {
   initialTab: RoomTab;
   sessions: ReactNode;
   leaderboard: ReactNode;
   members: ReactNode;
+  /** Rooms v2 (V2-2): profile, presets, schedule, starting rating. */
+  settings: ReactNode;
 }) {
   const [tab, setTab] = useState<RoomTab>(initialTab);
-  const panels: Record<RoomTab, ReactNode> = { sessions, leaderboard, members };
+  const panels: Record<RoomTab, ReactNode> = { sessions, leaderboard, members, settings };
 
   function onChange(value: unknown) {
     const next = ROOM_TABS.includes(value as RoomTab) ? (value as RoomTab) : DEFAULT_ROOM_TAB;

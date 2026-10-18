@@ -35,6 +35,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { JUDGE_DISABLED_CODE, JUDGE_DISABLED_LOBBY_NOTE, JUDGE_DISABLED_LOBBY_TITLE } from "@/lib/judge-availability";
 import type { SessionSnapshot } from "@/lib/rooms/events";
 import { availableLine, humanizeTag } from "@/lib/rooms/lobby-copy";
+import { lobbyMode, memberRatingLabel, startBlockedReason } from "@/lib/rooms/lobby-rating";
 import type { SessionSettingsBody } from "@/lib/rooms/session-schemas";
 import type { DrawErrorView, DrawNoticeView, LobbyView } from "@/lib/rooms/session-view";
 import type { SessionTag } from "@/server/rooms/session-page";
@@ -43,7 +44,9 @@ import { sessionApi, type SessionApiResult } from "../live/session-api";
 import { CalibrationPanel } from "./calibration-panel";
 import { ProblemSearchDialog } from "./problem-search-dialog";
 import { SessionSettingsForm } from "./session-settings-form";
+import { LobbyExpectationPanel, RatingExplainerCard } from "./rating-panels";
 import { SlotList } from "./slot-list";
+import { useRoomInfo } from "./use-room-info";
 
 type DrawProblem = Pick<DrawErrorView, "code" | "error" | "counts" | "requested">;
 
@@ -88,7 +91,12 @@ export function SessionLobby({
   const tagNames = new Map(tags.map((t) => [t.slug, t.name]));
   const tagName = (slug: string) => tagNames.get(slug) ?? humanizeTag(slug);
   const participants = snapshot?.participants ?? [];
-  const filled = lobby.slots.length === lobby.problemCount && lobby.slots.every((s) => s.problem?.published !== false);
+  const mode = lobbyMode(lobby);
+  const blocked = startBlockedReason(lobby);
+  const filled = blocked === null;
+  // Room ratings (D3) and presets; re-read when someone joins (their rating is seeded at join).
+  const { info: room, reload: reloadRoom } = useRoomInfo(roomId, participants.map((p) => p.userId).join(","));
+  const expectedBy = new Map((lobby.expected?.perUser ?? []).map((u) => [u.userId, u]));
 
   async function act<T extends object>(
     key: string,
@@ -146,6 +154,27 @@ export function SessionLobby({
   return (
     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
       <div className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-1">
+        {canManage && (
+          <Card>
+            <CardContent>
+              <SessionSettingsForm
+                roomId={roomId}
+                lobby={lobby}
+                tags={tags}
+                pending={busy === "draw"}
+                onApply={apply}
+                // A failed Apply leaves its error up while the form still holds
+                // the rejected settings; once they are undone the saved draw
+                // stands again, so its own state (usually no error) is back.
+                onClean={clearDrawProblem}
+                presets={room?.presets ?? null}
+                defaultPresetId={room?.defaultPresetId ?? null}
+                canSavePresets={room?.role === "owner"}
+                onPresetsChanged={reloadRoom}
+              />
+            </CardContent>
+          </Card>
+        )}
         <section aria-labelledby="lobby-problems" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -154,10 +183,12 @@ export function SessionLobby({
               </h2>
               <p className="text-sm text-muted-foreground">
                 {lobby.problemCount} problem{lobby.problemCount === 1 ? "" : "s"} · {lobby.durationMin} minutes
+                {mode === "rating" ? " · warm-up first, stretch last" : ""}
+                {lobby.rated === false ? " · unrated" : ""}
               </p>
             </div>
             {canManage && (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm text-muted-foreground tabular-nums" data-testid="rerolls-left">
                   {lobby.rerollsLeft} re-roll{lobby.rerollsLeft === 1 ? "" : "s"} left
                 </span>
@@ -165,7 +196,8 @@ export function SessionLobby({
                   variant="secondary"
                   size="sm"
                   loading={busy === "reroll-all"}
-                  disabled={busy !== null || lobby.rerollsLeft === 0 || lobby.slots.length === 0}
+                  disabled={busy !== null || lobby.rerollsLeft === 0 || lobby.slots.length === 0 || mode === "manual"}
+                  aria-describedby={mode === "manual" ? "reroll-manual-hint" : undefined}
                   onClick={() =>
                     act("reroll-all", () => sessionApi.rerollAll(roomId, sessionId), {
                       success: "Re-rolled the unpinned problems",
@@ -175,6 +207,11 @@ export function SessionLobby({
                   <DicesIcon aria-hidden />
                   Re-roll all
                 </Button>
+                {mode === "manual" && (
+                  <span id="reroll-manual-hint" className="w-full text-sm text-muted-foreground">
+                    You pick every problem in this mode, so there is nothing to re-roll. Switch to By rating or By difficulty to draw.
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -208,13 +245,14 @@ export function SessionLobby({
               <InfoIcon aria-hidden />
               <AlertDescription>
                 {notices.map((n) => (
-                  <p key={`${n.code}-${n.difficulty}`}>{n.message}</p>
+                  <p key={`${n.code}-${n.difficulty}-${"position" in n ? n.position : ""}`}>{n.message}</p>
                 ))}
               </AlertDescription>
             </Alert>
           )}
 
           <SlotList
+            mode={mode}
             slots={lobby.slots}
             problemCount={lobby.problemCount}
             canManage={canManage}
@@ -255,21 +293,47 @@ export function SessionLobby({
           <CardContent className="flex flex-col gap-4">
             <div>
               <h2 id="lobby-people" className="text-xl/7 font-semibold">
-                Participants
+                In the lobby
               </h2>
               <p className="text-sm text-muted-foreground" data-testid="joined-count">
                 {participants.length} joined
+                {expectedBy.size > 0 ? " · rating · expected solves" : ""}
               </p>
             </div>
             <ul className="flex flex-col divide-y" aria-label="Joined" data-testid="lobby-participants">
-              {participants.map((p) => (
-                <li key={p.userId} className="flex items-center gap-2 py-2">
-                  <span className="font-medium">{p.username}</span>
-                  {p.userId === viewerId && <span className="text-sm text-muted-foreground">(you)</span>}
-                  {p.isHost && <Badge variant="outline">Host</Badge>}
-                </li>
-              ))}
+              {participants.map((p) => {
+                const r = room?.ratings.get(p.userId);
+                const rating = memberRatingLabel(r);
+                const exp = expectedBy.get(p.userId);
+                return (
+                  <li key={p.userId} className="flex flex-wrap items-center gap-2 py-2" data-testid={`lobby-person-${p.username}`}>
+                    <span className="font-medium">{p.username}</span>
+                    {p.userId === viewerId && <span className="text-sm text-muted-foreground">(you)</span>}
+                    {p.isHost && <Badge variant="outline">Host</Badge>}
+                    {rating && (
+                      <span
+                        className="inline-flex h-6 items-center rounded-sm border bg-surface-sunken px-1.5 font-mono text-xs tabular-nums text-foreground-secondary"
+                        title={r?.provisional ? "Provisional: moves faster for the first two sessions." : "Rating in this room"}
+                        data-testid={`lobby-rating-${p.username}`}
+                      >
+                        <span className="sr-only">rating </span>
+                        {rating}
+                        {r?.provisional && <span className="sr-only"> (provisional)</span>}
+                      </span>
+                    )}
+                    {exp && (
+                      <span className="ml-auto font-mono text-[0.8125rem] text-foreground-secondary tabular-nums">
+                        {exp.expected.toFixed(1)} of {lobby.problemCount}
+                        <span className="sr-only"> expected solves</span>
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
+            {canManage && mode === "rating" && lobby.expected && (
+              <LobbyExpectationPanel expected={lobby.expected} problemCount={lobby.problemCount} challenge={lobby.settings.challenge} />
+            )}
 
             {viewer.isParticipant ? (
               <div className="flex flex-wrap items-center gap-3">
@@ -305,7 +369,11 @@ export function SessionLobby({
                   <PlayIcon aria-hidden />
                   Start session
                 </Button>
-                {!filled && <p className="text-sm text-muted-foreground">Fill every problem slot to start.</p>}
+                {blocked && (
+                  <p className="text-sm text-muted-foreground" data-testid="start-blocked">
+                    {blocked}
+                  </p>
+                )}
                 <Button variant="ghost" disabled={busy !== null} onClick={() => setConfirm("cancel")}>
                   <XIcon aria-hidden />
                   Cancel session
@@ -322,31 +390,18 @@ export function SessionLobby({
             )}
           </CardContent>
         </Card>
+        {mode === "rating" && <RatingExplainerCard lobby={lobby} />}
         <p className="text-sm text-muted-foreground">
           Room members who have not joined can open this session from the room page and press Join.
         </p>
       </aside>
 
-      {/* DOM order = mobile order (problems, people + Start, then settings); lg places the aside right. */}
-      <div className="flex min-w-0 flex-col gap-6 lg:col-start-1">
-        {canManage && <CalibrationPanel lobby={lobby} />}
-        {canManage && (
-          <Card>
-            <CardContent>
-              <SessionSettingsForm
-                lobby={lobby}
-                tags={tags}
-                pending={busy === "draw"}
-                onApply={apply}
-                // A failed Apply leaves its error up while the form still holds
-                // the rejected settings; once they are undone the saved draw
-                // stands again, so its own state (usually no error) is back.
-                onClean={clearDrawProblem}
-              />
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* DOM order = mobile order (setup, problems, people + Start, then the v1 calibration); lg places the aside right. */}
+      {canManage && mode === "difficulty" && (
+        <div className="flex min-w-0 flex-col gap-6 lg:col-start-1">
+          <CalibrationPanel lobby={lobby} />
+        </div>
+      )}
 
       {canManage && pinFor !== null && (
         <ProblemSearchDialog
