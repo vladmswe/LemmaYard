@@ -49,7 +49,7 @@ export async function findOwnSubmission(
 
 export async function getSubmission(id: string): Promise<NextResponse> {
   const user = await getCurrentUser();
-  if (!user) return jsonError(401, "Sign in to view submissions");
+  if (!user) return jsonError(401, "Log in to view submissions");
   const dto = await findOwnSubmission(getDb(), user.id, id);
   if (!dto) return jsonError(404, "Submission not found");
   return NextResponse.json(dto, { headers: { "Cache-Control": "no-store" } });

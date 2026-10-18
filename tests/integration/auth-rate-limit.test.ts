@@ -93,7 +93,7 @@ describe("login rate limit", () => {
     expect(state.argon2.verify).toBe(0);
     expect(Number(blocked.headers.get("Retry-After"))).toBe(15 * 60);
     expect(blocked.headers.get("Cache-Control")).toBe("no-store");
-    expect(await blocked.json()).toEqual({ error: "Too many sign-in attempts. Try again in 15 min." });
+    expect(await blocked.json()).toEqual({ error: "Too many login attempts. Try again in 15 min." });
     expect(blocked.headers.getSetCookie()).toEqual([]);
 
     // Retry-After shrinks with time and the window frees up when it says so.

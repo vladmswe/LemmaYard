@@ -16,7 +16,7 @@ import { lockRoom, type Tx } from "./queries";
 
 export const ROOM_NOT_FOUND = "Room not found";
 export const OWNER_ONLY = "Only the room owner can do this";
-export const SIGN_IN_REQUIRED = "Sign in to continue";
+export const SIGN_IN_REQUIRED = "Log in to continue";
 
 /** 404 with the exact body of an unknown id (AC-S-SEC-1). */
 export function roomNotFound(): NextResponse {
