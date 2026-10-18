@@ -576,14 +576,17 @@ export function MatrixLegend({ className }: { className?: string }) {
 /** "You: 1✓ 2✗ 3✓ 4·" (replaces "You 1/4 · Leader 2/4"). */
 export function YouChips({ chips, label = "You", className }: { chips: readonly Chip[]; label?: string; className?: string }) {
   return (
-    <span className={cn("inline-flex items-baseline gap-1.5 tabular-nums", className)} data-testid="you-chips" data-chips={chipsText(chips)}>
-      <span aria-hidden>{label}:</span>
+    <span className={cn("relative inline-flex items-baseline gap-1.5 tabular-nums", className)} data-testid="you-chips" data-chips={chipsText(chips)}>
+      {/* Many problems on a narrow bar: the label stays for screen readers only. */}
+      <span aria-hidden className={cn(chips.length > 5 && "max-sm:hidden")}>
+        {label}:
+      </span>
       <span aria-hidden className="font-mono">
         {chips.map((c, i) => (
           <span
             key={c.position}
             className={cn(
-              i > 0 && "ml-1.5",
+              i > 0 && (chips.length > 5 ? "ml-1" : "ml-1.5"),
               c.state === "solved" && "text-success",
               c.state === "attempted" && "text-danger",
               c.state === "judging" && "text-info",
