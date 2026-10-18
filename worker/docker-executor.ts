@@ -21,6 +21,13 @@ export const SANDBOX_LABEL = "lemmayard.sandbox=1";
 export const NAMESPACE_LABEL_KEY = "lemmayard.ns";
 export const OUTPUT_LIMIT_BYTES = 1024 * 1024;
 export const WALL_BASE_MS = 3000;
+/**
+ * Extra wall-clock time for Java: JVM start-up and the in-memory compile of
+ * the solution happen before the first test (about 1–1.5 s of CPU with the
+ * image's AOT cache, more on a busy host). They never count towards a test's
+ * time limit; only the wall clock has to allow for them.
+ */
+export const JAVA_STARTUP_ALLOWANCE_MS = 5000;
 const DOCKER_CMD_TIMEOUT_MS = 30_000;
 /** After a kill, how long to wait for `docker start -a` to return before killing it. */
 const KILL_GRACE_MS = 5000;
@@ -28,8 +35,10 @@ const KILL_GRACE_MS = 5000;
 export type DockerExecutorConfig = {
   imagePython: string;
   imageNode: string;
+  imageJava: string;
   timeMultPython: number;
   timeMultJs: number;
+  timeMultJava: number;
   wallCapMs: number;
   /** Value of the `lemmayard.ns` label (see `sandboxNamespace`). */
   namespace: string;
@@ -42,8 +51,10 @@ export function dockerConfigFromEnv(env: Env): DockerExecutorConfig {
   return {
     imagePython: env.SANDBOX_IMAGE_PYTHON,
     imageNode: env.SANDBOX_IMAGE_NODE,
+    imageJava: env.SANDBOX_IMAGE_JAVA,
     timeMultPython: env.LANG_TIME_MULT_PY,
     timeMultJs: env.LANG_TIME_MULT_JS,
+    timeMultJava: env.LANG_TIME_MULT_JAVA,
     wallCapMs: env.WALL_CAP_MS,
     namespace: env.SANDBOX_NAMESPACE ?? defaultSandboxNamespace(),
   };
@@ -75,19 +86,68 @@ export class SandboxSetupError extends Error {
 export function effectiveTimeLimitMs(
   language: Language,
   timeMs: number,
-  config: Pick<DockerExecutorConfig, "timeMultPython" | "timeMultJs">,
+  config: Pick<DockerExecutorConfig, "timeMultPython" | "timeMultJs" | "timeMultJava">,
 ): number {
-  const mult = language === "python" ? config.timeMultPython : config.timeMultJs;
+  const mult = {
+    python: config.timeMultPython,
+    javascript: config.timeMultJs,
+    java: config.timeMultJava,
+  }[language];
   return Math.round(timeMs * mult);
 }
 
-/** `wall = 3000 ms + min(n_tests × effective_limit, WALL_CAP_MS)`. */
-export function wallBudgetMs(nTests: number, effectiveLimitMs: number, wallCapMs: number): number {
-  return WALL_BASE_MS + Math.min(nTests * effectiveLimitMs, wallCapMs);
+/** Wall-clock time a language needs before its first test (see `JAVA_STARTUP_ALLOWANCE_MS`). */
+export function startupAllowanceMs(language: Language): number {
+  return language === "java" ? JAVA_STARTUP_ALLOWANCE_MS : 0;
+}
+
+/**
+ * `wall = 3000 ms + startup allowance + min(n_tests × effective_limit, WALL_CAP_MS)`;
+ * the allowance is 0 except for Java.
+ */
+export function wallBudgetMs(
+  nTests: number,
+  effectiveLimitMs: number,
+  wallCapMs: number,
+  language?: Language,
+): number {
+  const startup = language ? startupAllowanceMs(language) : 0;
+  return WALL_BASE_MS + startup + Math.min(nTests * effectiveLimitMs, wallCapMs);
 }
 
 export function imageFor(language: Language, config: DockerExecutorConfig): string {
-  return language === "python" ? config.imagePython : config.imageNode;
+  return { python: config.imagePython, javascript: config.imageNode, java: config.imageJava }[language];
+}
+
+/** Every sandbox image the executor needs (checked by `prepareSandbox`). */
+export function sandboxImages(config: DockerExecutorConfig): string[] {
+  return [config.imagePython, config.imageNode, config.imageJava];
+}
+
+/**
+ * JVM flags of the Java runner, in this order also used for the AOT training
+ * run in sandbox/Dockerfile.java (the garbage collector must match there).
+ * - heap (-Xmx) is half the memory limit and direct buffers share that cap: the
+ *   rest is for the JVM itself (metaspace, code cache, the compiler, the AOT
+ *   cache mapping; about 60 MB at rest) and the solution thread's stack;
+ * - the solution thread's stack is limit/8 (8–64 MB): deep recursion works;
+ * - Serial GC (one CPU), no perf data file, no attach listener, JVM logging
+ *   only for errors and only to stderr (stdout carries the frames).
+ */
+export function javaFlags(memoryMb: number): string[] {
+  const heapMb = Math.max(32, Math.floor(memoryMb * 0.5));
+  const stackMb = Math.min(64, Math.max(8, Math.floor(memoryMb / 8)));
+  return [
+    "-XX:AOTCache=/sandbox/harness.aot",
+    "-XX:+UseSerialGC",
+    `-Xmx${heapMb}m`,
+    `-XX:MaxDirectMemorySize=${heapMb}m`,
+    "-XX:-UsePerfData",
+    "-XX:+DisableAttachMechanism",
+    "-Xlog:disable",
+    "-Xlog:all=error:stderr",
+    `-Dsolution.stackMb=${stackMb}`,
+  ];
 }
 
 /** The runner command inside the image (part of the harness contract). */
@@ -96,6 +156,9 @@ export function sandboxCommand(language: Language, memoryMb: number): string[] {
     // -I: isolated (ignores PYTHON* env, no user site, no cwd on sys.path);
     // -B: never write .pyc (the root filesystem is read-only).
     return ["python3", "-I", "-B", "/sandbox/harness.py"];
+  }
+  if (language === "java") {
+    return ["java", ...javaFlags(memoryMb), "-cp", "/sandbox/harness.jar", "Harness"];
   }
   // V8 heap below the cgroup limit so heap exhaustion aborts cleanly (exit 134).
   const heapMb = Math.max(16, Math.floor(memoryMb * 0.75));
@@ -175,7 +238,7 @@ export function namespaceFilterArgs(namespace: string): string[] {
  * Worker start-up: removes orphaned sandbox containers of this namespace
  * (labels `lemmayard.sandbox=1` and `lemmayard.ns=<namespace>`; containers of
  * other namespaces and old containers without the ns label are left alone)
- * and checks that both images exist. Other users of the executor
+ * and checks that every sandbox image exists. Other users of the executor
  * (`problems:verify`) pass `removeOrphans: false` so that they never remove
  * the containers of a running worker.
  */
@@ -195,7 +258,7 @@ export async function prepareSandbox(
   }
   if (options.removeOrphans === false) ids = [];
   if (ids.length > 0) await docker(bin, ["rm", "-f", ...ids]);
-  for (const image of [config.imagePython, config.imageNode]) {
+  for (const image of sandboxImages(config)) {
     try {
       await docker(bin, ["image", "inspect", "--format", "{{.Id}}", image]);
     } catch {
@@ -322,7 +385,7 @@ export function createDockerExecutor(config: DockerExecutorConfig): Executor {
   const bin = config.dockerBin ?? "docker";
   return async function dockerExecutor(job: ExecJob): Promise<ExecResult> {
     const effective = effectiveTimeLimitMs(job.language, job.limits.timeMs, config);
-    const wallMs = wallBudgetMs(job.tests.length, effective, config.wallCapMs);
+    const wallMs = wallBudgetMs(job.tests.length, effective, config.wallCapMs, job.language);
     const payload = buildSandboxPayload(job, effective, randomBytes(16).toString("hex"));
     let id: string | null = null;
     try {

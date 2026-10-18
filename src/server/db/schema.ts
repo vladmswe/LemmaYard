@@ -5,6 +5,9 @@
 // Migration 0003 (Rooms, docs/specs/rooms.md) is the first feature migration.
 // Migration 0004 (Rooms v2, docs/specs/rooms-v2.md §8, owner decision D2:
 // ratings are PER ROOM, stored on room_members) adds columns only.
+// Migration 0005 (Java, README "How to add a language") adds the enum value
+// `java` and two problem columns: `languages` (derived by the importer from the
+// reference solutions present) and `wide_ints`.
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -41,7 +44,7 @@ import {
 
 export const difficultyEnum = pgEnum("difficulty", ["easy", "medium", "hard"]);
 export const submissionKindEnum = pgEnum("submission_kind", ["run", "submit"]);
-export const languageEnum = pgEnum("language", ["python", "javascript"]);
+export const languageEnum = pgEnum("language", ["python", "javascript", "java"]);
 export const submissionStatusEnum = pgEnum("submission_status", [
   "queued",
   "running",
@@ -99,6 +102,21 @@ export const problems = pgTable(
     authorRating: smallint("author_rating"),
     /** Rooms v2: observed drift from rated sessions (global per problem); never written by the importer. */
     ratingAdjust: smallint("rating_adjust").notNull().default(0),
+    /**
+     * Languages a submission may use: those with a reference solution
+     * (`solution.<ext>`) in the problem directory, verified by
+     * `pnpm problems:verify`. Python and JavaScript are always present.
+     */
+    languages: languageEnum("languages")
+      .array()
+      .notNull()
+      .default(sql`'{python,javascript}'::language[]`),
+    /**
+     * Signature positions (parameter names, or "return") whose int values in the
+     * tests do not fit in 32 bits: statically typed templates declare them as
+     * 64-bit (Java `long`). Derived from tests.json by the importer.
+     */
+    wideInts: text("wide_ints").array().notNull().default(sql`'{}'::text[]`),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

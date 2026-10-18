@@ -75,4 +75,6 @@ export function sandboxContainers(): string[] {
     .filter(Boolean);
 }
 
-export const fileName = (language: Language) => (language === "python" ? "solution.py" : "solution.js");
+/** The file name user code is compiled as (and shown in error texts). */
+export const fileName = (language: Language) =>
+  ({ python: "solution.py", javascript: "solution.js", java: "Solution.java" })[language];

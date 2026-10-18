@@ -10,8 +10,11 @@ import {
   buildSandboxPayload,
   defaultSandboxNamespace,
   dockerConfigFromEnv,
+  effectiveTimeLimitMs,
+  imageFor,
   namespaceFilterArgs,
   sandboxCommand,
+  sandboxImages,
 } from "../../worker/docker-executor";
 import { safeErrorMessage } from "../../worker/loop";
 import { sanitizeValue, TOO_DEEP } from "../../worker/judge";
@@ -159,6 +162,26 @@ describe("sandbox namespace", () => {
     expect(() =>
       parseEnv({ DATABASE_URL: "postgres://u:p@localhost:5433/db", AUTH_SECRET: "x".repeat(32), SANDBOX_NAMESPACE: "a b" }),
     ).toThrow(/SANDBOX_NAMESPACE/);
+  });
+
+  it("Java: image, time multiplier and image list come from the env", () => {
+    const env = parseEnv({
+      DATABASE_URL: "postgres://u:p@localhost:5433/db",
+      AUTH_SECRET: "x".repeat(32),
+      SANDBOX_IMAGE_JAVA: "my-java:1",
+      LANG_TIME_MULT_JAVA: "3",
+    });
+    const config = dockerConfigFromEnv(env);
+    expect(imageFor("java", config)).toBe("my-java:1");
+    expect(imageFor("python", config)).toBe(config.imagePython);
+    expect(sandboxImages(config)).toEqual([config.imagePython, config.imageNode, "my-java:1"]);
+    expect(effectiveTimeLimitMs("java", 1000, config)).toBe(3000);
+    const defaults = dockerConfigFromEnv(
+      parseEnv({ DATABASE_URL: "postgres://u:p@localhost:5433/db", AUTH_SECRET: "x".repeat(32) }),
+    );
+    expect(defaults.imageJava).toBe("lemmayard-sandbox-java:latest");
+    expect(effectiveTimeLimitMs("java", 1000, defaults)).toBe(2000);
+    expect(effectiveTimeLimitMs("javascript", 1000, defaults)).toBe(1000);
   });
 
   it("cleanup filters on both the sandbox and the namespace label", () => {

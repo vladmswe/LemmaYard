@@ -198,6 +198,18 @@ describe("decideVerdict", () => {
     expect(decideVerdict(job(), obs([err(0, "MemoryError", { memory: true })])).status).toBe("memory_limit");
   });
 
+  it("Java: OutOfMemoryError in a test frame or in the runner itself is memory_limit", () => {
+    const java = job({ language: "java" });
+    const inTest = obs([err(0, "java.lang.OutOfMemoryError: Java heap space", { memory: true })]);
+    expect(decideVerdict(java, inTest).status).toBe("memory_limit");
+    const runner = obs([], { exitCode: 3, stderr: "runner: java.lang.OutOfMemoryError\n" });
+    expect(decideVerdict(java, runner)).toMatchObject({ status: "memory_limit", failedTestIndex: 0 });
+    // Exit code 3 alone (e.g. System.exit(3) in user code) is not an OOM.
+    expect(decideVerdict(java, obs([], { exitCode: 3 })).status).toBe("runtime_error");
+    // Node's heap-abort signal never applies to Java.
+    expect(decideVerdict(java, obs([], { exitCode: 134 })).status).toBe("runtime_error");
+  });
+
   it("compile_error before tests, runtime_error for fatal and test errors", () => {
     const c = decideVerdict(job(), obs([{ kind: "compile_error", error: "SyntaxError", stdout: "", memoryKb: 1 }]));
     expect(c).toMatchObject({ status: "compile_error", error: "SyntaxError", passedCount: 0, runtimeMs: null });

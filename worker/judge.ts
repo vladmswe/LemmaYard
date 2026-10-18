@@ -209,11 +209,18 @@ export function internalErrorResult(job: ExecJob, message: string): ExecResult {
 }
 
 /**
+ * Runtime out-of-memory signals other than the cgroup OOM kill.
  * V8 heap exhaustion: Node prints "FATAL ERROR: ... JavaScript heap out of
  * memory" and aborts (exit 134; as PID 1 of the container SIGABRT is ignored
  * and the process ends with SIGSEGV, exit 139, so the message is the signal).
  */
 function isHeapAbort(job: ExecJob, obs: RunObservation): boolean {
+  if (job.language === "java") {
+    // Java: an OutOfMemoryError inside a test is reported in its frame; one in
+    // the runner itself ends the JVM with exit code 3 and this stderr line
+    // (sandbox/Harness.java).
+    return obs.exitCode === 3 && /runner: java\.lang\.OutOfMemoryError/.test(obs.stderr);
+  }
   return (
     job.language === "javascript" &&
     (obs.exitCode === 134 || /heap out of memory|Reached heap limit/i.test(obs.stderr))

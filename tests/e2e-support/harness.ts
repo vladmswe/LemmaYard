@@ -142,6 +142,7 @@ function sandboxImages(): string[] {
   return [
     process.env.SANDBOX_IMAGE_PYTHON || "lemmayard-sandbox-python:latest",
     process.env.SANDBOX_IMAGE_NODE || "lemmayard-sandbox-node:latest",
+    process.env.SANDBOX_IMAGE_JAVA || "lemmayard-sandbox-java:latest",
   ];
 }
 
