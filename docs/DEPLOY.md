@@ -78,6 +78,7 @@ the `AUTH_URL` note):
 | `DATABASE_POOL_MAX` | no | `1` | Connections per function instance. Default 1 on Vercel (detected from Vercel's `VERCEL` system variable), 10 elsewhere. |
 | `JUDGE_EXECUTOR` | no | `vercel-sandbox` | Who runs user code. `docker` (default) = a `pnpm worker` process with Docker; `vercel-sandbox` = the app judges in Vercel Sandbox microVMs (section 7). |
 | `JUDGE_ENABLED` | no | `0` | Code execution (Run, Submit, room session start). Unset: on, **except on Vercel with `JUDGE_EXECUTOR` unset/`docker`** (no worker there). `0` switches it off anywhere, `1` forces it on (only with a judge that serves this database). Only `0` and `1` are accepted. |
+| `PLANS_ENABLED` | no | `1` | Study plans: `/plans`, the "Plans" nav item, "Add to plan" on problems and in the problem list, "Save as study plan" on room results. `0` or unset (default): all of it is hidden and every `/api/plans` route answers 404. Independent of the other community features. Turning it off hides plans without deleting them. |
 | `VERCEL_SANDBOX_IMAGE_PYTHON`, `VERCEL_SANDBOX_IMAGE_NODE` | no | `vercel/sandbox/python:3.14`, `vercel/sandbox/node:22` | Sandbox images for `JUDGE_EXECUTOR=vercel-sandbox`. Leave unset (the defaults). |
 
 Do **not** set `DATABASE_URL_DIRECT` on Vercel; the web app never uses it.
@@ -171,8 +172,8 @@ Then open `https://<production domain>/api/health` (section 6): it must answer
 
 `schema.sql` (generated from `drizzle/*.sql` by `pnpm db:export-sql`) is for an
 EMPTY project only: it refuses to run if the tables already exist. It creates
-all 13 tables, indexes and CHECKs, enables RLS on each table (no policies) and
-records the 5 migrations in `drizzle.__drizzle_migrations`, so a later
+all 18 tables, indexes and CHECKs, enables RLS on each table (no policies) and
+records the 6 migrations in `drizzle.__drizzle_migrations`, so a later
 `pnpm db:migrate` applies only migrations added after the file was generated.
 
 `problems.sql` (generated from `problems/` by `pnpm problems:export-sql`, with
@@ -193,13 +194,15 @@ with `pnpm db:export-sql` after adding a migration and with
 
 ### Row level security
 
-Row level security is on for all 13 application tables, **without any
+Row level security is on for all 18 application tables, **without any
 policies**: migration `0002_enable_rls` covers `users`, `problems`, `tags`,
 `problem_tags`, `test_cases` and `submissions`; migration `0003_rooms` creates
 `rooms`, `room_members`, `room_sessions`, `room_session_problems`,
 `room_session_participants`, `room_session_results` and `room_events` with RLS
 enabled. Migration `0004_rooms_v2` (per-room ratings, problem ratings, room
-presets and schedule) only adds columns to existing tables. Every table added later must enable it too
+presets and schedule) only adds columns to existing tables. Migration `0005_study_plans` creates
+`study_plans`, `study_plan_sections`, `study_plan_items`, `study_plan_ticks` and
+`study_plan_saves` with RLS enabled. Every table added later must enable it too
 (`tests/integration/rls.test.ts` fails otherwise). Supabase exposes the `public` schema through its
 REST API (with the public `anon` key); without RLS, anyone with that key could
 read `users`, including password hashes. With RLS on and no policies, the

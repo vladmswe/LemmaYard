@@ -5,6 +5,8 @@
 // Migration 0003 (Rooms, docs/specs/rooms.md) is the first feature migration.
 // Migration 0004 (Rooms v2, docs/specs/rooms-v2.md §8, owner decision D2:
 // ratings are PER ROOM, stored on room_members) adds columns only.
+// Migration study_plans (community C2, docs/specs/community.md §C.1) adds the
+// study plan tables at the end of this file.
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -31,6 +33,7 @@ import type { CompareSpec, Signature } from "@/lib/problems/schema";
 // Relative (not `@/`) imports for runtime values: drizzle-kit loads this file
 // without the tsconfig path alias.
 import { ROOM_EVENT_TYPES } from "../../lib/rooms/events";
+import { PLAN_SOURCES, PLAN_VISIBILITIES } from "../../lib/plans/schemas";
 import type { RoomSchedule, SessionTemplate } from "../../lib/rooms/room-defaults";
 import {
   RATING_SOURCES,
@@ -581,5 +584,163 @@ export const roomEvents = pgTable(
       "room_events_solve_position",
       sql`${t.type} <> 'problem_solved' OR coalesce(jsonb_typeof(${t.payload} -> 'position'), '') = 'number'`,
     ),
+  ],
+).enableRLS();
+
+// ---------------------------------------------------------------------------
+// Study plans (community phase C2, docs/specs/community.md §B.8, §C.1).
+// Migration study_plans. RLS enabled, no policies (as every table). Behind
+// PLANS_ENABLED. Progress for our problems is computed from submissions, never
+// stored; only the viewer's ticks on external (LeetCode) items are.
+// ---------------------------------------------------------------------------
+
+export const planVisibilityEnum = pgEnum("plan_visibility", PLAN_VISIBILITIES);
+export const planSourceEnum = pgEnum("plan_source", PLAN_SOURCES);
+
+export const studyPlans = pgTable(
+  "study_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    /** Plain text (no markdown in C2), ≤ 2000; newlines allowed. */
+    description: text("description"),
+    visibility: planVisibilityEnum("visibility").notNull().default("private"),
+    /**
+     * Capability for "anyone with the link" (unlisted): 43 base64url chars,
+     * kept when the plan goes private again so the old link comes back with
+     * it; the owner can reset it. Public plans need no token.
+     */
+    shareToken: text("share_token").unique(),
+    source: planSourceEnum("source").notNull().default("manual"),
+    /** E.g. the room session a plan was imported from (no FK: sessions can be deleted). */
+    sourceId: uuid("source_id"),
+    forkedFromId: uuid("forked_from_id").references((): AnyPgColumn => studyPlans.id, { onDelete: "set null" }),
+    itemCount: integer("item_count").notNull().default(0),
+    saveCount: integer("save_count").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("study_plans_title", sql`char_length(${t.title}) BETWEEN 1 AND 80 AND ${t.title} !~ '[[:cntrl:]]'`),
+    check(
+      "study_plans_description",
+      sql`${t.description} IS NULL OR (char_length(${t.description}) BETWEEN 1 AND 2000 AND translate(${t.description}, E'\\n', '') !~ '[[:cntrl:]]')`,
+    ),
+    check("study_plans_share_token", sql`${t.shareToken} IS NULL OR ${t.shareToken} ~ '^[A-Za-z0-9_-]{43}$'`),
+    check("study_plans_unlisted_token", sql`${t.visibility} <> 'unlisted' OR ${t.shareToken} IS NOT NULL`),
+    check("study_plans_item_count", sql`${t.itemCount} BETWEEN 0 AND 300`),
+    check("study_plans_save_count", sql`${t.saveCount} >= 0`),
+    // My plans (list, per-user limit) and the room → plan idempotency lookup.
+    index("study_plans_owner_idx").on(t.ownerId, t.updatedAt.desc()),
+    // Public gallery (Popular / New).
+    index("study_plans_public_idx")
+      .on(t.saveCount.desc(), t.updatedAt.desc())
+      .where(sql`${t.visibility} = 'public'`),
+    index("study_plans_forked_from_idx").on(t.forkedFromId).where(sql`${t.forkedFromId} IS NOT NULL`),
+  ],
+).enableRLS();
+
+export const studyPlanSections = pgTable(
+  "study_plan_sections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => studyPlans.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    title: text("title").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("study_plan_sections_title", sql`char_length(${t.title}) BETWEEN 1 AND 80 AND ${t.title} !~ '[[:cntrl:]]'`),
+    check("study_plan_sections_position", sql`${t.position} >= 0`),
+    index("study_plan_sections_plan_idx").on(t.planId, t.position),
+  ],
+).enableRLS();
+
+export const studyPlanItems = pgTable(
+  "study_plan_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => studyPlans.id, { onDelete: "cascade" }),
+    /** Null = the unsectioned list at the top. Same plan as the item (kept by the app). */
+    sectionId: uuid("section_id").references(() => studyPlanSections.id, { onDelete: "set null" }),
+    position: integer("position").notNull(),
+    // RESTRICT: problems are unpublished, never deleted.
+    problemId: uuid("problem_id").references(() => problems.id, { onDelete: "restrict" }),
+    /** LeetCode problem slug only; the URL is built on render (never fetched). */
+    externalSlug: text("external_slug"),
+    /** Optional title of an external item (default: from the slug). */
+    externalTitle: text("external_title"),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("study_plan_items_target", sql`num_nonnulls(${t.problemId}, ${t.externalSlug}) = 1`),
+    check(
+      "study_plan_items_external_slug",
+      sql`${t.externalSlug} IS NULL OR (char_length(${t.externalSlug}) <= 100 AND ${t.externalSlug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$')`,
+    ),
+    check(
+      "study_plan_items_external_title",
+      sql`${t.externalTitle} IS NULL OR (${t.externalSlug} IS NOT NULL AND char_length(${t.externalTitle}) BETWEEN 1 AND 120 AND ${t.externalTitle} !~ '[[:cntrl:]]')`,
+    ),
+    check(
+      "study_plan_items_note",
+      sql`${t.note} IS NULL OR (char_length(${t.note}) BETWEEN 1 AND 280 AND ${t.note} !~ '[[:cntrl:]]')`,
+    ),
+    check("study_plan_items_position", sql`${t.position} >= 0`),
+    // A problem (ours or external) appears at most once per plan.
+    unique("study_plan_items_problem_unique").on(t.planId, t.problemId),
+    unique("study_plan_items_external_unique").on(t.planId, t.externalSlug),
+    index("study_plan_items_plan_idx").on(t.planId, t.sectionId, t.position),
+    index("study_plan_items_section_idx").on(t.sectionId).where(sql`${t.sectionId} IS NOT NULL`),
+  ],
+).enableRLS();
+
+/** A viewer's "Mark done" on an external item (per viewer, never shown to others). */
+export const studyPlanTicks = pgTable(
+  "study_plan_ticks",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => studyPlanItems.id, { onDelete: "cascade" }),
+    doneAt: timestamp("done_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.itemId] }),
+    // Write-rate window.
+    index("study_plan_ticks_user_done_idx").on(t.userId, t.doneAt),
+    // Cascade from item deletion.
+    index("study_plan_ticks_item_idx").on(t.itemId),
+  ],
+).enableRLS();
+
+/** "Save" (follow) a public or unlisted plan; `share_token` = the link it was saved with. */
+export const studyPlanSaves = pgTable(
+  "study_plan_saves",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => studyPlans.id, { onDelete: "cascade" }),
+    shareToken: text("share_token"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.planId] }),
+    check("study_plan_saves_share_token", sql`${t.shareToken} IS NULL OR ${t.shareToken} ~ '^[A-Za-z0-9_-]{43}$'`),
+    index("study_plan_saves_plan_idx").on(t.planId),
+    index("study_plan_saves_user_idx").on(t.userId, t.createdAt.desc()),
   ],
 ).enableRLS();

@@ -22,6 +22,11 @@ import {
   roomSessionProblems,
   roomSessionResults,
   roomSessions,
+  studyPlanItems,
+  studyPlans,
+  studyPlanSaves,
+  studyPlanSections,
+  studyPlanTicks,
   submissions,
   tags,
   testCases,
@@ -105,7 +110,7 @@ export async function resetTestDb(): Promise<void> {
     throw new Error(`refusing to truncate non-test database "${rows[0].current}"`);
   }
   await db.execute(
-    sql`TRUNCATE ${roomEvents}, ${roomSessionResults}, ${roomSessionParticipants}, ${roomSessionProblems}, ${roomSessions}, ${roomMembers}, ${rooms}, ${submissions}, ${testCases}, ${problemTags}, ${tags}, ${problems}, ${users} RESTART IDENTITY CASCADE`,
+    sql`TRUNCATE ${studyPlanTicks}, ${studyPlanSaves}, ${studyPlanItems}, ${studyPlanSections}, ${studyPlans}, ${roomEvents}, ${roomSessionResults}, ${roomSessionParticipants}, ${roomSessionProblems}, ${roomSessions}, ${roomMembers}, ${rooms}, ${submissions}, ${testCases}, ${problemTags}, ${tags}, ${problems}, ${users} RESTART IDENTITY CASCADE`,
   );
 }
 

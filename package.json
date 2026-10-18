@@ -24,6 +24,7 @@
     "problems:verify": "tsx scripts/verify-problems.ts",
     "problems:export-sql": "tsx scripts/export-problems-sql.ts",
     "sandbox:build": "tsx scripts/sandbox-build.ts",
+    "plans:unpublish": "tsx scripts/plans-unpublish.ts",
     "setup": "pnpm install && docker compose up -d --wait && pnpm sandbox:build && pnpm db:seed",
     "test:e2e:guide": "E2E_JUDGE=0 playwright test tests/e2e/guide"
   },

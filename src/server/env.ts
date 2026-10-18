@@ -66,6 +66,10 @@ export const envSchema = z.object({
   // local Playwright runs, which register many users from one address;
   // rejected on Vercel.
   AUTH_RATE_LIMITS: z.enum(["0", "1"]).default("1"),
+  // Study plans (community C2, docs/specs/community.md §B.8): "1" shows /plans,
+  // the nav item and the add-to-plan buttons; "0" (default) hides them and
+  // every /api/plans route answers 404. Independent of COMMUNITY_ENABLED.
+  PLANS_ENABLED: z.enum(["0", "1"]).default("0"),
 }).superRefine((env, ctx) => {
   if (env.VERCEL && env.AUTH_RATE_LIMITS === "0") {
     ctx.addIssue({ code: "custom", path: ["AUTH_RATE_LIMITS"], message: "must not be 0 on Vercel" });
