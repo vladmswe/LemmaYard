@@ -103,7 +103,10 @@ export default async function SubmissionPage({ params }: PageProps<"/submissions
               </h2>
               <p className="flex flex-wrap items-center gap-x-2 text-[0.9375rem]">
                 {problemPublished ? (
-                  <Link href={problemHref} className="font-semibold text-link underline-offset-4 hover:underline">
+                  <Link
+                    href={problemHref}
+                    className="relative font-semibold text-link underline-offset-4 after:absolute after:-inset-x-1 after:-inset-y-2.5 hover:underline"
+                  >
                     {submission.problem.title}
                   </Link>
                 ) : (

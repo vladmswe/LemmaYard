@@ -31,7 +31,11 @@ const detailHref = (row: HistoryRow) => `/submissions/${row.id}`;
 
 /** Accessible name of the verdict link: "Accepted, Two Sum, submitted 3 min ago. View submission". */
 function viewLabel(row: HistoryRow, now: Date) {
-  return `${VERDICTS[row.status].label}, ${row.problem.title}, submitted ${formatRelativeTime(row.createdAt, now)}. View submission`;
+  // The compact badge shows "TLE" / "MLE" below 640px: the name starts with
+  // the visible word so speech input ("click TLE") matches (WCAG 2.5.3).
+  const { label, shortLabel } = VERDICTS[row.status];
+  const verdict = shortLabel === label ? label : `${shortLabel} (${label})`;
+  return `${verdict}, ${row.problem.title}, submitted ${formatRelativeTime(row.createdAt, now)}. View submission`;
 }
 
 function ProblemTitle({ row, className }: { row: HistoryRow; className?: string }) {
