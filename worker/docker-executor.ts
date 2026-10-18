@@ -51,7 +51,7 @@ export function dockerConfigFromEnv(env: Env): DockerExecutorConfig {
 
 /**
  * Default namespace of a checkout: its directory name plus a short hash of
- * the absolute path (`leet-copy-1a2b3c4d`), so two worktrees never share one.
+ * the absolute path (`my-app-1a2b3c4d`), so two worktrees never share one.
  */
 export function defaultSandboxNamespace(projectDir: string = process.cwd()): string {
   const dir = path.resolve(projectDir);

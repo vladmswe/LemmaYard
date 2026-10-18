@@ -144,11 +144,11 @@ describe("worker container labels", () => {
 
 describe("sandbox namespace", () => {
   it("defaults to the checkout directory name plus a hash of its path", () => {
-    const a = defaultSandboxNamespace("/work/Leet Copy");
-    expect(a).toMatch(/^leet-copy-[0-9a-f]{8}$/);
-    expect(defaultSandboxNamespace("/work/Leet Copy")).toBe(a);
+    const a = defaultSandboxNamespace("/work/My Checkout");
+    expect(a).toMatch(/^my-checkout-[0-9a-f]{8}$/);
+    expect(defaultSandboxNamespace("/work/My Checkout")).toBe(a);
     // Same directory name in another place (another worktree root) → another namespace.
-    expect(defaultSandboxNamespace("/other/Leet Copy")).not.toBe(a);
+    expect(defaultSandboxNamespace("/other/My Checkout")).not.toBe(a);
   });
 
   it("SANDBOX_NAMESPACE wins over the default and is validated", () => {

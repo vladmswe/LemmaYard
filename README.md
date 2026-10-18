@@ -14,8 +14,7 @@ milestones.
 
 > Status: **M2 (authentication)** and **M4 (judge: sandbox, executor, queue,
 > worker)** on top of M1 (database, types, problem pipeline). The catalog and
-> editor still show placeholder pages, and `test:e2e` prints
-> `not implemented yet (M7)`, until their milestone lands.
+> editor still show placeholder pages until their milestone lands.
 
 ## Requirements
 
@@ -63,7 +62,7 @@ Variables already set in the shell win over `.env`.
 | `worker` (judge worker on the host), `dev:all` (web + worker via `concurrently`) | working |
 | `problems:verify [--dir <path>] [--only <slug>]... [--concurrency <n>]` | working |
 | `setup` (run it as `pnpm run setup`, see above) | working |
-| `test:e2e` | M7 |
+| `test:e2e`, `test:e2e:judge-off`, `test:e2e:guide`, `test:e2e:headed` (Playwright, see End-to-end tests) | working |
 
 ### Problems
 
@@ -86,6 +85,46 @@ database (integration tests import them there).
 `TEST_DB_SUFFIX` or, by default, the git worktree directory name, so parallel
 worktrees never share a test database. Tables are truncated between tests.
 Helpers and factories: `tests/helpers/db.ts`.
+
+### End-to-end tests
+
+Playwright runs against a production build, an isolated database and the real
+judge worker; the dev database from `.env` is never touched. Needs Postgres,
+Docker and the sandbox images (`pnpm sandbox:build`).
+
+| Command | What | Time (this machine) |
+|---|---|---|
+| `pnpm test:e2e` | every spec in `tests/e2e` incl. the judged ones (`@judge`) | ~3–3.5 min |
+| `pnpm test:e2e:judge-off` | `tests/e2e-judge-off` with `JUDGE_ENABLED=0`, no worker | ~20 s |
+| `pnpm test:e2e:guide` | `tests/e2e/guide` only, without the worker (`E2E_JUDGE=0`) | ~2.5 min |
+| `pnpm test:e2e:headed` | `test:e2e` with visible browsers | |
+
+Each run (global setup in `tests/e2e-support/harness.ts`): drops and recreates
+`leetcopy_e2e_<suffix>` (`_off` for judge-off; suffix as for integration
+tests) on the `TEST_DATABASE_URL` server, migrates it and imports `problems/`;
+runs `pnpm build`; starts `next start` on `E2E_PORT` and, for the main suite,
+`tsx worker/index.ts` (poll 100 ms, sandbox namespace `<default>-e2e`); waits
+for `/api/health` and the worker's "worker started" line. Afterwards it stops
+both by PID, removes leftover containers of its namespace and drops the
+database. Server and worker logs: `node_modules/.cache/e2e/`. A busy port, a
+missing Docker or a missing sandbox image fails the run at once.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `E2E_PORT` | `PORT` + 1177 (3000 → 4177) | main suite port; judge-off uses `E2E_PORT` + 1 |
+| `E2E_SKIP_BUILD=1` | build | serve the existing `.next` build (e.g. judge-off right after `test:e2e`) |
+| `E2E_JUDGE=0` | judge on | no worker; `@judge` specs are skipped |
+| `E2E_REUSE_SERVER=1` | off | use a server already on `E2E_PORT` (no DB reset, build or worker; it must use the e2e database) |
+| `E2E_KEEP_DB=1` | drop | keep the e2e database after the run for inspection |
+| `E2E_WORKERS` | 2 | Playwright workers (the `judge` project is capped at 2) |
+| `E2E_WORKER_CONCURRENCY`, `E2E_WORKER_POLL_MS` | 2, 100 | judge worker slots and poll interval |
+
+Specs that read or write rows directly use `e2eDatabaseUrl()`
+(`tests/e2e-support/db.ts`), which refuses any database but `leetcopy_e2e_*`.
+The judged flows (sign up → Two Sum in Python and JavaScript → Run → Submit →
+Accepted → profile; Wrong Answer; compile and runtime errors; history) are in
+`tests/e2e/flows/`; code goes into Monaco as a synthetic paste
+(`tests/e2e-support/workspace.ts`), since `keyboard.insertText` is auto-indented.
 
 ### Authentication
 
@@ -260,9 +299,8 @@ opted in by a click) live in `localStorage` under
 `lemmayard:room-notifications:v1`. Notifications work only while the tab is
 open; on iPhone/iPad system notifications need the site added to the Home
 Screen. Data reads: `src/server/rooms/session-page.ts`. The e2e
-`tests/e2e/rooms/live-session.spec.ts` judges submissions with the test-only
-stub `tests/helpers/stub-judge.ts` (the worker's `finalize()`), so it needs no
-Docker but must not run while a real worker uses the same database.
+`tests/e2e/rooms/live-session.spec.ts` submits the problem's reference
+solution and is judged by the real worker of the e2e harness (`@judge`).
 
 Known, accepted property: user code can read the **inputs** of hidden tests inside
 the container (never the expected outputs). The per-run frame nonce only stops

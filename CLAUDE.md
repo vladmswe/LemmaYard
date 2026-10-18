@@ -18,6 +18,8 @@ pnpm worker                   # judge worker on the host; `pnpm dev:all` = web +
 pnpm problems:verify          # all solutions × both languages must be accepted
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
 pnpm test:integration         # needs Postgres; own DB leetcopy_test_<worktree>
+pnpm test:e2e                 # build + own DB leetcopy_e2e_<worktree> + web + worker (Docker)
+pnpm test:e2e:judge-off       # JUDGE_ENABLED=0 suite; E2E_SKIP_BUILD=1 reuses .next
 pnpm problems:import [--prune]  # problems/ only; see note below
 pnpm sandbox:build            # after any change in sandbox/ (Docker tests use the images)
 ```
