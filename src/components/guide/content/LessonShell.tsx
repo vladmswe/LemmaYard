@@ -14,12 +14,15 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { getLesson } from "@/content/learn";
+import { buildRoadmap } from "@/lib/guide/content/roadmap";
 import { TRACK_LABELS, type LessonData, type LessonMeta } from "@/lib/guide/content/types";
 
 import { lessonComponents } from "./lesson-components";
 import { LessonNav } from "./LessonNav";
 import { LessonProgress } from "./LessonProgress";
 import { LessonToc } from "./LessonToc";
+import { LessonTrackNav } from "./LessonTrackNav";
+import { LessonStatusBadge } from "./RoadmapProgress";
 
 const ARTICLE_ID = "lesson-content";
 
@@ -34,7 +37,22 @@ export function lessonMetadata(meta: LessonMeta): Metadata {
   };
 }
 
-/** Lesson page: header, TOC, MDX article, completion toggle, prev/next (PLAN-GUIDE 2.8). */
+/** "Stacks: last in, first out" → "Stacks: <em>last in, first out</em>" (the italic phrase of the d2 H1). */
+function LessonTitle({ title }: { title: string }) {
+  const at = title.indexOf(": ");
+  if (at < 0) return <>{title}</>;
+  return (
+    <>
+      {title.slice(0, at + 2)}
+      <em>{title.slice(at + 2)}</em>
+    </>
+  );
+}
+
+/**
+ * Lesson page (DESIGN.md §13.9): lessons by track | header, MDX article,
+ * completion toggle, prev/next | "On this page" rail (PLAN-GUIDE 2.8).
+ */
 export function LessonShell({
   lesson,
   Content,
@@ -46,8 +64,17 @@ export function LessonShell({
 }) {
   const { meta } = lesson;
   const prereqs = meta.prerequisites.map((s) => getLesson(s)).filter((l): l is LessonMeta => Boolean(l));
+  const groups = buildRoadmap(published).map((s) => ({
+    label: s.label,
+    lessons: s.lessons.map((l) => ({ slug: l.slug, title: l.title, order: l.order })),
+  }));
+  // Lesson k of the published guide, as in the roadmap and the lesson bar (0 = draft).
+  const position = groups.flatMap((g) => g.lessons).findIndex((l) => l.slug === meta.slug) + 1;
+  const questionIds = lesson.quizzes.flatMap((q) => q.questions.map((x) => x.id));
   return (
     <div className="container-page guide-lesson py-8 sm:py-10" data-lesson={meta.slug}>
+      <div className="guide-lesson-layout">
+      <LessonTrackNav groups={groups} current={meta.slug} />
       <article className="guide-lesson-grid" aria-labelledby="lesson-title">
         <header className="guide-lesson-head">
           <Breadcrumb className="mb-3">
@@ -74,8 +101,11 @@ export function LessonShell({
               </AlertDescription>
             </Alert>
           )}
-          <h1 id="lesson-title" className="guide-lesson-title">
-            {meta.title}
+          <p className="eyebrow-accent mb-4" aria-hidden>
+            {position > 0 ? `Lesson ${position}` : "Draft"} · {TRACK_LABELS[meta.track]}
+          </p>
+          <h1 id="lesson-title" className="guide-lesson-title display-2">
+            <LessonTitle title={meta.title} />
           </h1>
           <p className="guide-lesson-summary">{meta.summary}</p>
           <p className="guide-lesson-meta">
@@ -83,6 +113,7 @@ export function LessonShell({
               <ClockIcon aria-hidden className="size-4" />
               {meta.minutes} min
             </span>
+            <LessonStatusBadge slug={meta.slug} questionIds={questionIds} />
             {prereqs.length > 0 && (
               <span data-prerequisites="">
                 Before this:{" "}
@@ -112,6 +143,7 @@ export function LessonShell({
           <LessonNav order={meta.order} published={published} />
         </footer>
       </article>
+      </div>
     </div>
   );
 }
