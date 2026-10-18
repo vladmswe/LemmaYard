@@ -20,8 +20,8 @@ export async function getCommunityViewer(db: Queryable, userId: string, now: Dat
       suspendedUntil: users.communitySuspendedUntil,
       createdAt: users.createdAt,
       hasAccepted: sql<boolean>`exists (
-        select 1 from ${submissions}
-        where ${submissions.userId} = ${users.id} and ${submissions.kind} = 'submit' and ${submissions.status} = 'accepted'
+        select 1 from ${submissions} s
+        where s.user_id = "users"."id" and s.kind = 'submit' and s.status = 'accepted'
       )`,
     })
     .from(users)

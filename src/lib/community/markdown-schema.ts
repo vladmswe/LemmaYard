@@ -129,17 +129,29 @@ export function rehypeUserHeadings() {
 /** `![alt](src)` → a link with the alt text (no images in user content, AC-C-MD-2). */
 export function rehypeImagesToLinks() {
   return (tree: HastParent) => {
-    walkElements(tree, (el, parent, index) => {
-      if (el.tagName !== "img") return;
-      const src = typeof el.properties.src === "string" ? el.properties.src : "";
-      const alt = typeof el.properties.alt === "string" && el.properties.alt.trim() ? el.properties.alt : src || "image";
-      parent.children[index] = {
-        type: "element",
-        tagName: "a",
-        properties: src ? { href: src } : {},
-        children: [{ type: "text", value: alt }],
-      } satisfies HastElement;
-    });
+    const visit = (parent: HastParent, insideLink: boolean) => {
+      for (let i = 0; i < parent.children.length; i += 1) {
+        const el = parent.children[i];
+        if (!isElement(el)) continue;
+        if (el.tagName !== "img") {
+          visit(el, insideLink || el.tagName === "a");
+          continue;
+        }
+        const src = typeof el.properties.src === "string" ? el.properties.src : "";
+        const alt = typeof el.properties.alt === "string" && el.properties.alt.trim() ? el.properties.alt : src || "image";
+        // Inside a link the image becomes its alt text: <a> may not nest (the
+        // browser would reshape the DOM and break hydration).
+        parent.children[i] = insideLink
+          ? { type: "text", value: alt }
+          : ({
+              type: "element",
+              tagName: "a",
+              properties: src ? { href: src } : {},
+              children: [{ type: "text", value: alt }],
+            } satisfies HastElement);
+      }
+    };
+    visit(tree, false);
   };
 }
 

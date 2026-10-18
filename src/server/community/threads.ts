@@ -65,18 +65,18 @@ export async function getProblemSummary(
       threadId: discussionThreads.id,
       commentCount: discussionThreads.commentCount,
       lockedAt: discussionThreads.lockedAt,
-      myVote: sql<number | null>`(select ${problemVotes.value} from ${problemVotes}
-        where ${problemVotes.problemId} = ${problems.id} and ${problemVotes.userId} = ${viewer})`,
-      myFeedback: sql<number | null>`(select ${problemDifficultyFeedback.value} from ${problemDifficultyFeedback}
-        where ${problemDifficultyFeedback.problemId} = ${problems.id} and ${problemDifficultyFeedback.userId} = ${viewer})`,
+      myVote: sql<number | null>`(select pv.value from ${problemVotes} pv
+        where pv.problem_id = "problems"."id" and pv.user_id = ${viewer})`,
+      myFeedback: sql<number | null>`(select pf.value from ${problemDifficultyFeedback} pf
+        where pf.problem_id = "problems"."id" and pf.user_id = ${viewer})`,
       feedback: sql<{ easier: number; right: number; harder: number }>`(select json_build_object(
           'easier', count(*) filter (where f.value = -1),
           'right', count(*) filter (where f.value = 0),
           'harder', count(*) filter (where f.value = 1))
-        from ${problemDifficultyFeedback} f where f.problem_id = ${problems.id})`,
-      solved: sql<boolean>`exists (select 1 from ${submissions}
-        where ${submissions.userId} = ${viewer} and ${submissions.problemId} = ${problems.id}
-          and ${submissions.kind} = 'submit' and ${submissions.status} = 'accepted')`,
+        from ${problemDifficultyFeedback} f where f.problem_id = "problems"."id")`,
+      solved: sql<boolean>`exists (select 1 from ${submissions} s
+        where s.user_id = ${viewer} and s.problem_id = "problems"."id"
+          and s.kind = 'submit' and s.status = 'accepted')`,
     })
     .from(problems)
     .leftJoin(discussionThreads, eq(discussionThreads.problemId, problems.id))

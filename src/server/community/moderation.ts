@@ -194,7 +194,7 @@ async function loadTargets(db: Queryable, ids: string[]) {
       username: users.username,
       authorCreatedAt: users.createdAt,
       suspendedUntil: users.communitySuspendedUntil,
-      removals: sql<number>`(select count(*)::int from ${comments} c2 where c2.author_id = ${comments.authorId} and c2.status = 'removed')`,
+      removals: sql<number>`(select count(*)::int from ${comments} c2 where c2.author_id = "comments"."author_id" and c2.status = 'removed')`,
     })
     .from(comments)
     .innerJoin(discussionThreads, eq(discussionThreads.id, comments.threadId))
@@ -236,7 +236,7 @@ export async function listOpenReports(db: Queryable, limit = 50): Promise<QueueI
       reasons: sql<{ reason: ReportReason; count: number }[]>`(
         select json_agg(json_build_object('reason', x.reason, 'count', x.n) order by x.n desc, x.reason)
         from (select r2.reason, count(*)::int as n from ${reports} r2
-              where r2.target_type = 'comment' and r2.target_id = ${reports.targetId} and r2.status = 'open'
+              where r2.target_type = 'comment' and r2.target_id = "reports"."target_id" and r2.status = 'open'
               group by r2.reason) x)`,
       details: sql<string[] | null>`array_remove(array_agg(${reports.details} order by ${reports.createdAt}), null)`,
     })

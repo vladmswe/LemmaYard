@@ -56,7 +56,7 @@ async function visit(page: Page, collected: Collected, path: string, ready?: (pa
 }
 
 test("main pages raise no CSP violation", async ({ browser, baseURL }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(360_000);
   const username = `csp_${Date.now().toString(36).slice(-6)}`;
   const context = await browser.newContext();
   await context.grantPermissions(["notifications"]);

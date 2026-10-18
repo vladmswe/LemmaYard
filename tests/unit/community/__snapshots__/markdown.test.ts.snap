@@ -161,7 +161,7 @@ exports[`XSS corpus (AC-C-MD-1) > snapshot of the server output for the whole co
 <div dir="auto" class="user-md"><p><a href="https://example.com/x.png" rel="ugc nofollow noopener noreferrer">&quot; onerror=&quot;alert(1)</a></p></div>
 
 ## link in image alt
-<div dir="auto" class="user-md"><p><a><a href="x.png">img</a></a></p></div>
+<div dir="auto" class="user-md"><p><a>img</a></p></div>
 
 ## protocol relative
 <div dir="auto" class="user-md"><p><a>a</a></p></div>

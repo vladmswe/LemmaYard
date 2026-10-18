@@ -12,9 +12,8 @@ import type { Db } from "@/server/db";
 import { users } from "@/server/db/schema";
 
 export const roleArgsSchema = z.object({
-  email: z
-    .email("Give the account's email address")
-    .transform((v) => v.trim().toLowerCase()),
+  // Trim and lowercase first: emails are stored lowercase (users_email_lowercase).
+  email: z.string().trim().toLowerCase().pipe(z.email("Give the account's email address")),
   role: z.enum(USER_ROLES, { message: `Role must be one of: ${USER_ROLES.join(", ")}` }),
 });
 

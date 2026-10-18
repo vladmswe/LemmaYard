@@ -84,11 +84,11 @@ async function openDiscussionTab(page: Page, slug = "two-sum") {
   await expect(page.getByTestId("discussion-tab")).toBeVisible();
 }
 
-async function post(page: Page, scope: ReturnType<Page["locator"]>, text: string, spoiler = false) {
+async function post(page: Page, scope: ReturnType<Page["locator"]>, text: string, spoiler = false, match = text.slice(0, 40)) {
   await scope.getByTestId("comment-body").fill(text);
   if (spoiler) await scope.getByTestId("spoiler-checkbox").click();
   await scope.getByTestId("comment-submit").click();
-  await expect(page.locator("article[data-testid=comment]", { hasText: text.slice(0, 40) }).first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("article[data-testid=comment]", { hasText: match }).first()).toBeVisible({ timeout: 15_000 });
 }
 
 test.describe.configure({ mode: "serial" });
@@ -119,7 +119,9 @@ test("comment, reply, vote; replies attach under the comment; focus moves to the
   await expect(comment.getByRole("list", { name: `Replies to ${alice.username}` })).toContainText(reply);
 
   const up = comment.getByRole("button", { name: `Upvote comment by ${alice.username}` });
+  const voted = bob.page.waitForResponse((r) => r.url().includes("/vote") && r.request().method() === "PUT");
   await up.click();
+  expect((await voted).status()).toBe(200);
   await expect(up).toHaveAttribute("aria-pressed", "true");
   await expect(comment.getByTestId("vote-score").first()).toHaveText("1");
   await bob.page.reload();
@@ -135,7 +137,7 @@ test("spoiler: hidden (not in the HTML) until revealed or solved", async ({ brow
   const reader = await signUp(browser, { trusted: true });
   const secret = `seen = {} secret-${randomUUID().slice(0, 6)}`;
   await openDiscussionTab(author.page);
-  await post(author.page, author.page.getByTestId("discussion-tab"), `My full solution:\n\n\`\`\`python\n${secret}\n\`\`\``, true);
+  await post(author.page, author.page.getByTestId("discussion-tab"), `My full solution:\n\n\`\`\`python\n${secret}\n\`\`\``, true, "My full solution");
 
   const res = await reader.page.goto("/problems/two-sum/discuss?sort=new");
   expect(await res!.text()).not.toContain(secret);

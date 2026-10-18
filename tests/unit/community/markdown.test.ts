@@ -125,6 +125,21 @@ describe("markdown subset (AC-C-MD-2, AC-C-MD-3)", () => {
     expect(preview("![a cat](https://example.com/cat.png)")).toContain(">a cat</a>");
   });
 
+  it("never nests links: an image inside a link becomes its alt text (browsers reshape nested <a>)", async () => {
+    for (const html of [await server("[![img](x.png)](https://example.com)"), preview("[![img](x.png)](https://example.com)")]) {
+      expect(html).toContain(`>img</a>`);
+      expect(html.match(/<a[\s>]/g)).toHaveLength(1);
+    }
+    for (const p of XSS_CORPUS) {
+      const html = await server(p.md);
+      let depth = 0;
+      for (const m of html.matchAll(/<(\/?)a[\s>]/g)) {
+        depth += m[1] ? -1 : 1;
+        expect(depth, p.name).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
   it("drops the href of an image with a dangerous src", async () => {
     const html = await server("![alt](javascript:alert(1))");
     expect(html).not.toMatch(/javascript/i);

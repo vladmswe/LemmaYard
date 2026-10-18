@@ -26,7 +26,7 @@ async function trustedOpenReports(tx: Tx, targetId: string, now: Date): Promise<
         eq(reports.targetId, targetId),
         eq(reports.status, "open"),
         sql`(${users.role} IN ('moderator', 'admin') OR (${users.createdAt} <= ${established}::timestamptz AND exists (
-          select 1 from ${submissions} s where s.user_id = ${users.id} and s.kind = 'submit' and s.status = 'accepted')))`,
+          select 1 from ${submissions} s where s.user_id = "users"."id" and s.kind = 'submit' and s.status = 'accepted')))`,
       ),
     );
   return Number(row?.n ?? 0);
