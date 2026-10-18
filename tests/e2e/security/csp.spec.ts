@@ -104,6 +104,10 @@ test("main pages raise no CSP violation", async ({ browser, baseURL }) => {
   const { id: roomId } = (await room.json()) as { id: string };
   await visit(page, collected, `/rooms/${roomId}`);
   await visit(page, collected, `/rooms/${roomId}?tab=members`);
+  // Rooms v2: Next-session card (weekly schedule) and the Settings tab.
+  const schedule = { weekday: 6, time: "18:00", timeZone: "Europe/Kyiv", presetId: null };
+  expect((await api.post(`/api/rooms/${roomId}/schedule`, { data: { schedule }, headers })).status()).toBe(200);
+  await visit(page, collected, `/rooms/${roomId}`);
   await visit(page, collected, `/rooms/${roomId}?tab=settings`);
   const session = await api.post(`/api/rooms/${roomId}/sessions`, { data: { problemCount: 2, durationMin: 30 }, headers });
   expect(session.status()).toBe(201);

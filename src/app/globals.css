@@ -67,6 +67,15 @@
   --color-on-cobalt: var(--on-cobalt);
   --color-on-cobalt-2: var(--on-cobalt-2);
   --color-cobalt-line: var(--cobalt-line);
+  --color-room-0: var(--room-0);
+  --color-room-1: var(--room-1);
+  --color-room-2: var(--room-2);
+  --color-room-3: var(--room-3);
+  --color-room-4: var(--room-4);
+  --color-room-5: var(--room-5);
+  --color-room-6: var(--room-6);
+  --color-room-7: var(--room-7);
+  --color-on-room: var(--on-room);
   --color-night: var(--night);
   --color-on-night: var(--on-night);
   --color-on-night-2: var(--on-night-2);
@@ -225,6 +234,18 @@
   --on-cobalt: #ffffff;
   --on-cobalt-2: #d3dcff;
   --cobalt-line: #8fa6ff;
+
+  /* Room colors (Rooms v2 §8 rooms.color 0..7): tile fills under white text
+     in both themes (tests/unit/contrast.test.ts). */
+  --room-0: #1b33bc;
+  --room-1: #0e6b57;
+  --room-2: #8a2a62;
+  --room-3: #8a5200;
+  --room-4: #0b6577;
+  --room-5: #b02436;
+  --room-6: #5b3fa8;
+  --room-7: #4c586e;
+  --on-room: #ffffff;
   --night: #081130;
   --on-night: #f1f4ff;
   --on-night-2: #b9c5e6;

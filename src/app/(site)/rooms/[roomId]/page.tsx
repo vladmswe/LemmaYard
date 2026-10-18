@@ -11,6 +11,10 @@ import { RoomMembersPanel } from "@/components/rooms/room-members-panel";
 import { legacyRoomTabRedirect, parseRoomTab, RoomOpenSessionRegion } from "@/components/rooms/room-page-slots";
 import { RoomSettingsTab } from "@/components/rooms/room-settings-tab";
 import { RoomTabs } from "@/components/rooms/room-tabs";
+import { RoomTile } from "@/components/rooms/room-color";
+import { AttendanceCard } from "@/components/rooms/schedule/attendance-card";
+import { NextSessionCard } from "@/components/rooms/schedule/next-session-card";
+import { RoomDefaultsCards } from "@/components/rooms/settings/room-settings-tab";
 import { Skeleton } from "@/components/ui/skeleton";
 import { membersHref, parseLeaderboardRange, parsePageParam, type LeaderboardRange } from "@/lib/rooms/history";
 import { getCurrentUser, requireUser } from "@/server/auth/session";
@@ -18,7 +22,8 @@ import { getDb } from "@/server/db";
 import { requireRoomMember } from "@/server/rooms/access";
 import { getRoomHistory, getRoomMemberStats } from "@/server/rooms/history";
 import { getRoomDetail, type RoomDetail } from "@/server/rooms/queries";
-import { getOpenSessionSummary } from "@/server/rooms/session-page";
+import { getRoomScheduleData } from "@/server/rooms/schedule";
+import { getOpenSessionSummary, listSessionTags } from "@/server/rooms/session-page";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +50,14 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
   const historyPage = parsePageParam(page);
   const membersRange = parseLeaderboardRange(range);
   if (legacyRoomTabRedirect(tab)) redirect(membersHref(roomId, membersRange));
-  const openSession = await getOpenSessionSummary(getDb(), roomId, user.id);
+  const now = new Date();
+  const [openSession, schedule, tags] = await Promise.all([
+    getOpenSessionSummary(getDb(), roomId, user.id),
+    getRoomScheduleData(getDb(), detail.room, now),
+    listSessionTags(getDb()),
+  ]);
   const isOwner = detail.viewer.role === "owner";
+  const sub = [detail.room.description, memberCountLabel(detail.members.length), "team room"].filter(Boolean).join(" · ");
 
   return (
     <>
@@ -55,13 +66,35 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
           { label: "Rooms", href: "/rooms" },
           { label: detail.room.name },
         ]}
-        title={<span className="break-words">{detail.room.name}</span>}
-        subtitle={`${memberCountLabel(detail.members.length)}${isOwner ? " · You are the owner" : ""}`}
+        title={
+          <>
+            {/* Phones: the tile sits above the name (DOM inside the h1 is aria-hidden). */}
+            <RoomTile name={detail.room.name} color={detail.room.color} size="lg" className="mb-4 grid sm:hidden" />
+            <span className="break-words">{detail.room.name}</span>
+          </>
+        }
+        leading={<RoomTile name={detail.room.name} color={detail.room.color} size="lg" className="max-sm:hidden" />}
+        subtitle={sub}
       />
       <div className="container-page flex flex-col gap-8 py-8">
-        <RoomOpenSessionRegion>
-          <OpenSessionCard roomId={roomId} session={openSession} />
-        </RoomOpenSessionRegion>
+        {/* Rooms v2 (V2-2): open session or Next session, beside the attendance strip. */}
+        <div className="grid items-stretch gap-6 lg:grid-cols-[1.15fr_1fr]">
+          <RoomOpenSessionRegion>
+            {openSession ? (
+              <OpenSessionCard roomId={roomId} session={openSession} />
+            ) : (
+              <NextSessionCard
+                roomId={roomId}
+                plan={schedule.next}
+                presets={detail.room.presets}
+                defaultPresetId={detail.room.defaultPresetId}
+                isOwner={isOwner}
+                now={now}
+              />
+            )}
+          </RoomOpenSessionRegion>
+          <AttendanceCard members={detail.members} sessions={schedule.recent} viewerId={user.id} />
+        </div>
         <RoomTabs
           initialTab={parseRoomTab(tab)}
           sessions={
@@ -74,7 +107,7 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/roo
               <MembersTab roomId={roomId} userId={user.id} range={membersRange} detail={detail} />
             </Suspense>
           }
-          settings={<RoomSettingsTab detail={detail} />}
+          settings={<RoomSettingsTab detail={detail} defaults={<RoomDefaultsCards detail={detail} tags={tags} />} />}
         />
       </div>
     </>

@@ -4,7 +4,7 @@ import { PRIOR_RATES, PRIOR_WEIGHT } from "./selection";
 import type { CalibrationView, LobbySlotView, LobbyView } from "./session-view";
 import { mixLabel } from "./session-view";
 import type { SessionSettingsBody } from "./session-schemas";
-import { DIFFICULTIES, mixTotal, type Challenge, type Difficulty, type Mix } from "./types";
+import { DIFFICULTIES, mixTotal, selectionModeOf, type Challenge, type Difficulty, type Mix, type SelectionMode } from "./types";
 
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
 
@@ -130,6 +130,10 @@ export type LobbyForm = {
   avoidSolved: boolean;
   /** `datetime-local` value or "" (none). */
   plannedFor: string;
+  /** v2: how problems are picked. */
+  mode: SelectionMode;
+  /** v2: the results change ratings. */
+  rated: boolean;
 };
 
 /** `datetime-local` value in the viewer's zone for an ISO time ("" for none). */
@@ -150,6 +154,8 @@ export function formFromLobby(lobby: LobbyView): LobbyForm {
     challenge: lobby.settings.challenge,
     avoidSolved: lobby.settings.avoidSolved,
     plannedFor: toLocalInput(lobby.plannedFor),
+    mode: lobby.mode ?? selectionModeOf(lobby.settings),
+    rated: lobby.rated ?? true,
   };
 }
 
@@ -169,11 +175,21 @@ export function settingsDiff(lobby: LobbyView, form: LobbyForm): SessionSettings
   if (!sameTags(form.tags, before.tags)) body.tags = [...form.tags].sort();
   if (form.challenge !== before.challenge) body.challenge = form.challenge;
   if (form.avoidSolved !== before.avoidSolved) body.avoidSolved = form.avoidSolved;
-  if (form.mixMode !== before.mixMode) body.mixMode = form.mixMode;
-  if (form.mixMode === "manual" && (form.mixMode !== before.mixMode || !sameMix(form.mix, before.mix) || body.problemCount !== undefined)) {
-    body.mixMode = "manual";
-    body.mix = { ...form.mix };
+  if (form.mode === "difficulty") {
+    if (form.mixMode !== before.mixMode) body.mixMode = form.mixMode;
+    if (form.mixMode === "manual" && (form.mixMode !== before.mixMode || !sameMix(form.mix, before.mix) || body.problemCount !== undefined)) {
+      body.mixMode = "manual";
+      body.mix = { ...form.mix };
+    }
+    if (form.mode !== before.mode) body.mode = "difficulty";
+  } else {
+    // Rating / manual mode ignore the mix, but a stored custom mix would still
+    // have to add up to a new count: drop it back to "suggested".
+    if (before.mixMode === "manual" && (form.mode !== before.mode || body.problemCount !== undefined)) body.mixMode = "suggested";
+    // A mix field without a mode reads as the difficulty mode on the server.
+    if (form.mode !== before.mode || body.mixMode !== undefined) body.mode = form.mode;
   }
+  if (form.rated !== before.rated) body.rated = form.rated;
   if (form.plannedFor !== before.plannedFor) {
     body.plannedFor = form.plannedFor ? new Date(form.plannedFor).toISOString() : null;
   }

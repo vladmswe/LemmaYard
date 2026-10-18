@@ -13,7 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatShortDate, slotNote } from "@/lib/rooms/lobby-copy";
+import { slotRatingLines } from "@/lib/rooms/lobby-rating";
 import type { LobbySlotView } from "@/lib/rooms/session-view";
+import type { SelectionMode } from "@/lib/rooms/types";
 
 function IconAction({
   label,
@@ -62,7 +64,10 @@ export function SlotList({
   onReroll,
   onPin,
   onUnpin,
+  mode = "difficulty",
 }: {
+  /** v2: rating mode shows the rating lines; manual mode has no re-roll and empty slots say "Pick a problem". */
+  mode?: SelectionMode;
   slots: LobbySlotView[];
   problemCount: number;
   canManage: boolean;
@@ -91,6 +96,7 @@ export function SlotList({
         {positions.map((pos) => {
           const slot = byPos.get(pos);
           const note = slot ? slotNote(slot.note, (iso) => formatShortDate(iso)) : null;
+          const r = slotRatingLines(slot?.rating);
           return (
             <li
               key={pos}
@@ -100,7 +106,7 @@ export function SlotList({
                 else refs.current.delete(pos);
               }}
               data-testid={`slot-${pos}`}
-              className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-card px-5 py-4 shadow-sm outline-offset-2"
+              className="flex flex-wrap items-start gap-x-4 gap-y-2 rounded-xl sm:items-center border bg-card px-5 py-4 shadow-sm outline-offset-2"
             >
               <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-md border bg-surface-sunken font-mono text-sm font-medium tabular-nums">
                 {pos}
@@ -114,6 +120,11 @@ export function SlotList({
                         <span className="font-medium text-foreground">{slot.problem.title}</span>
                       ) : null}
                       <DifficultyBadge difficulty={slot.difficulty} />
+                      {r?.rating && (
+                        <span className="inline-flex h-6 items-center rounded-sm border border-border-strong px-1.5 font-mono text-xs tabular-nums text-foreground-secondary" data-testid={`slot-rating-${pos}`}>
+                          {r.rating}
+                        </span>
+                      )}
                       {slot.pinned && (
                         <Badge variant="outline">
                           <PinIcon aria-hidden />
@@ -125,17 +136,27 @@ export function SlotList({
                       )}
                     </>
                   ) : (
-                    <span className="text-sm text-muted-foreground">Empty slot</span>
+                    <span className="text-sm text-muted-foreground">{mode === "manual" ? "Pick a problem" : "Empty slot"}</span>
                   )}
                 </div>
-                {slot && slot.tags.length > 0 && (
-                  <p className="text-sm text-muted-foreground">{slot.tags.map(tagName).join(", ")}</p>
+                {slot && (slot.tags.length > 0 || r?.target) && (
+                  <p className="text-sm text-muted-foreground">
+                    {[slot.tags.map(tagName).join(", "), r?.target].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+                {r && (
+                  <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-foreground-secondary" data-testid={`slot-chance-${pos}`}>
+                    <span>{r.chance}</span>
+                    <span aria-hidden className="relative h-1.5 w-28 overflow-hidden rounded-full bg-surface-sunken ring-1 ring-border">
+                      <span className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${r.chancePercent}%` }} />
+                    </span>
+                  </p>
                 )}
                 {canManage && note && <p className="text-sm text-muted-foreground">{note}</p>}
               </div>
               {canManage && (
-                <div className="flex shrink-0 items-center gap-1">
-                  {slot && !slot.pinned && (
+                <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:pl-9">
+                  {slot && !slot.pinned && mode !== "manual" && (
                     <IconAction
                       label={`Re-roll Problem ${pos}`}
                       onClick={() => onReroll(pos)}

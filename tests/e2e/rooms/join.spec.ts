@@ -42,7 +42,7 @@ test("owner invites; a member and a guest join through the link", async ({ brows
   await po.goto("/rooms");
   await expect(po.getByRole("heading", { name: "No rooms yet" })).toBeVisible();
   await expectNoSeriousAxe(po);
-  await po.getByRole("button", { name: "New room" }).first().click();
+  await po.getByRole("button", { name: "Create a team room" }).first().click();
   await po.getByLabel("Room name").fill("E2E Club");
   await po.getByRole("button", { name: "Create room" }).click();
   await expect(po).toHaveURL(/\/rooms\/[0-9a-f-]{36}\?tab=settings$/);
