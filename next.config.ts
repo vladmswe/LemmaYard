@@ -4,6 +4,8 @@ import type { NextConfig } from "next";
 import { headerRules } from "./src/server/http/security-headers";
 
 const nextConfig: NextConfig = {
+  // No `X-Powered-By: Next.js` on responses (nothing to gain from announcing it).
+  poweredByHeader: false,
   // Native addon: load from node_modules at runtime instead of bundling.
   serverExternalPackages: ["@node-rs/argon2"],
   // Guide lesson pages read code samples and problem metadata with fs at
